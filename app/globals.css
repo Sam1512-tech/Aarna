@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --aarna-ivory: #FAF7F2;
+  --aarna-sand: #E0D0C6;
+  --aarna-light-taupe: #C8BFB3;
+  --aarna-warm-grey: #9D948E;
+  --aarna-maroon: #4B1323;
+  --aarna-black: #111111;
+
+  --background: var(--aarna-ivory);
+  --foreground: var(--aarna-black);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-ivory: var(--aarna-ivory);
+  --color-sand: var(--aarna-sand);
+  --color-taupe: var(--aarna-light-taupe);
+  --color-warm-grey: var(--aarna-warm-grey);
+  --color-maroon: var(--aarna-maroon);
+  --color-ink: var(--aarna-black);
+
+  --font-display: var(--font-cormorant);
+  --font-sans: var(--font-poppins);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}

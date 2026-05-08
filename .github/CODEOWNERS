@@ -1,0 +1,38 @@
+# Default owner — every PR needs Sam's review unless overridden below.
+*                               @Sam1512-tech
+
+# ─── Frontend dev's territory ────────────────────────────────────────────────
+# vismayahm21-lab can self-review these (still gets reviewed by Sam, but is the primary author).
+/app/(storefront)/**            @Sam1512-tech @vismayahm21-lab
+/app/(auth)/**                  @Sam1512-tech @vismayahm21-lab
+/app/admin/**                   @Sam1512-tech @vismayahm21-lab
+/components/**                  @Sam1512-tech @vismayahm21-lab
+/hooks/**                       @Sam1512-tech @vismayahm21-lab
+/store/**                       @Sam1512-tech @vismayahm21-lab
+/public/**                      @Sam1512-tech @vismayahm21-lab
+/app/globals.css                @Sam1512-tech @vismayahm21-lab
+/app/layout.tsx                 @Sam1512-tech @vismayahm21-lab
+
+# ─── Backend territory — Sam-only ────────────────────────────────────────────
+/lib/db/**                      @Sam1512-tech
+/lib/actions/**                 @Sam1512-tech
+/lib/supabase/**                @Sam1512-tech
+/lib/razorpay/**                @Sam1512-tech
+/lib/shiprocket/**              @Sam1512-tech
+/lib/whatsapp/**                @Sam1512-tech
+/lib/resend/**                  @Sam1512-tech
+/lib/cloudinary/**              @Sam1512-tech
+/app/api/**                     @Sam1512-tech
+/middleware.ts                  @Sam1512-tech
+/drizzle/**                     @Sam1512-tech
+/drizzle.config.ts              @Sam1512-tech
+/scripts/**                     @Sam1512-tech
+
+# ─── Shared (anything in here = sync first) ──────────────────────────────────
+/lib/types.ts                   @Sam1512-tech
+/lib/utils.ts                   @Sam1512-tech @vismayahm21-lab
+/package.json                   @Sam1512-tech
+/package-lock.json              @Sam1512-tech
+/.env.example                   @Sam1512-tech
+/.github/**                     @Sam1512-tech
+/CODEOWNERS                     @Sam1512-tech
