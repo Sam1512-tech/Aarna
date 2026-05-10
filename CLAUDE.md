@@ -14,10 +14,9 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 **Launch scope (confirmed by client):**
 - 16 products at launch
 - 2 categories at launch: **Dresses** and **Tops**
-- Long-term vision: client will add more categories, products, and collections over time via the admin panel — no developer involvement needed after handover
-- **Long-term vision:** client manages everything via admin — adds categories, products, collections, banners, coupons without any developer involvement after handover.
+- Long-term vision: client self-manages everything via admin (categories, products, collections, banners, coupons) — zero developer involvement needed after handover
 
-**Critical architecture rule:** categories, nav links, and homepage category grid must ALL be dynamic (pulled from DB via `getCategories()`) — never hardcoded anywhere in the codebase. When client adds a new category in admin, it must appear everywhere automatically.
+**Critical architecture rule:** categories, nav links, and homepage category grid must ALL be dynamic (pulled from DB via `getCategories()`) — never hardcoded anywhere in the codebase. When client adds a new category in admin, it must appear everywhere on the site automatically.
 
 ---
 
@@ -73,7 +72,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - [ ] Server actions — all stubbed, need real implementations (Sam's job)
 - [ ] Supabase Auth email templates via Resend — not wired
 - [ ] RLS policies on Supabase — not set up
-- [ ] DB seed — 2 categories (Dresses, Tops) not yet seeded
+- [x] DB seed — Dresses and Tops seeded via scripts/seed.ts
 - [ ] All 3rd-party integrations — Cloudinary, Razorpay, Shiprocket, WhatsApp, Resend
 
 ---
@@ -110,6 +109,8 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - **No COD** — Razorpay online only
 - **Non-GST** — issue "Bill of Supply" not "Tax Invoice"
 - **shadcn/ui for admin only** — storefront is fully custom for premium feel
+- **Dynamic navbar** — `Shop ▾` dropdown pulls categories from DB via `getCategories()`. No category names hardcoded anywhere — when client adds a category in admin it appears in nav, homepage grid, PLP filters, and footer automatically
+- **Admin is self-service** — after handover, client manages categories, products, collections, banners, coupons entirely via admin. No dev needed for content changes
 
 ---
 
@@ -117,6 +118,16 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 
 Colors: `bg-ivory` (#FAF7F2), `bg-sand` (#E0D0C6), `bg-taupe` (#C8BFB3), `bg-warm-grey` (#9D948E), `bg-maroon` (#4B1323), `bg-ink` (#111111)
 Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
+
+---
+
+## Domain & Hosting
+
+- Client has bought a **domain + hosting on Hostinger for 3 years**
+- **Domain** → keep on Hostinger, change nameservers to point to Cloudflare → works perfectly
+- **Hostinger hosting** → cannot be used. Hostinger is shared PHP hosting — it cannot run Next.js App Router (server actions, SSR, webhooks, auth all break). It will sit unused.
+- **Actual hosting** → Vercel (as planned). Free tier covers launch. Upgrade to Vercel Pro (~$20/month) if traffic demands it.
+- **Do not tell the client** the hosting is wasted — just say "the domain works, we host on Vercel which is purpose-built for this stack, no extra cost at launch."
 
 ---
 
@@ -154,7 +165,7 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 2. Submit Razorpay KYC today
 3. Confirm Shiprocket with client → start their KYC
 4. Wait for client on WhatsApp BSP (Facebook BM + spare number)
-5. Seed the DB with 5 categories
+5. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
 6. Wire getCategories, getCollections, getNewArrivals, getProducts, getProductBySlug server actions
 7. Set up RLS policies on Supabase
 8. Set up Supabase Auth + Resend email templates
@@ -173,7 +184,41 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 8. `lib/razorpay/` — create order, verify payment, refund + webhook handler
 9. `lib/shiprocket/` — create shipment, AWB, tracking + webhook handler
 10. `lib/whatsapp/` — send template, delivery receipt logging + webhook handler
-11. Admin server actions — categories CRUD, products CRUD, orders, inventory, coupons, banners, collections, reviews
+11. Admin server actions — split by resource:
+    - **Categories:** `getAdminCategories()`, `createCategory(name, slug)`, `updateCategory(id, data)`, `deleteCategory(id)`
+    - **Products:** `createProduct()`, `updateProduct()`, `deleteProduct()`, `updateVariantStock()`
+    - **Orders:** `getAdminOrders()`, `updateOrderStatus()`, `getOrderDetail()`
+    - **Inventory:** `getInventory()`, `adjustStock(variantId, delta, reason)`
+    - **Coupons:** `createCoupon()`, `updateCoupon()`, `deleteCoupon()`
+    - **Banners:** `getBanners()`, `createBanner()`, `updateBanner()`, `deleteBanner()`
+    - **Collections:** `createCollection()`, `updateCollection()`, `addProductToCollection()`
+    - **Reviews:** `getAdminReviews()`, `updateReviewStatus(id, status)`
+
+---
+
+## What Sam Must Build for Dynamic Categories to Work
+
+This is the minimum backend needed before Vismaya can build the navbar and homepage correctly.
+
+### Priority 1 — Wire `getCategories()` (do this before Vismaya starts navbar)
+File: `lib/actions/products.ts` — replace the stub with a real DB query:
+- `getCategories()` → fetch all categories ordered by `sortOrder`
+- Call `revalidatePath("/")` whenever a category is created/updated/deleted so the homepage refreshes automatically
+
+### Priority 2 — Admin Categories CRUD (so client can self-manage)
+File: `lib/actions/admin/categories.ts`:
+- `getAdminCategories()` — list all categories
+- `createCategory(name, slug, sortOrder?)` — insert + revalidate
+- `updateCategory(id, data)` — update + revalidate
+- `deleteCategory(id)` — delete + revalidate
+
+All admin actions must be guarded with `requireAdmin()` so only logged-in admins can call them.
+
+### Where categories must be dynamic (Vismaya's responsibility — Sam to enforce in review)
+- Navbar `Shop ▾` dropdown — calls `getCategories()`, never hardcoded
+- Homepage "Shop by Category" grid — calls `getCategories()`, never hardcoded
+- PLP category filter sidebar — calls `getCategories()`, never hardcoded
+- Footer shop links — calls `getCategories()`, never hardcoded
 
 ---
 
