@@ -121,6 +121,16 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 
 ---
 
+## Domain & Hosting
+
+- Client has bought a **domain + hosting on Hostinger for 3 years**
+- **Domain** → keep on Hostinger, change nameservers to point to Cloudflare → works perfectly
+- **Hostinger hosting** → cannot be used. Hostinger is shared PHP hosting — it cannot run Next.js App Router (server actions, SSR, webhooks, auth all break). It will sit unused.
+- **Actual hosting** → Vercel (as planned). Free tier covers launch. Upgrade to Vercel Pro (~$20/month) if traffic demands it.
+- **Do not tell the client** the hosting is wasted — just say "the domain works, we host on Vercel which is purpose-built for this stack, no extra cost at launch."
+
+---
+
 ## Supabase Project
 
 - Project: `aarna-dev` (development)
