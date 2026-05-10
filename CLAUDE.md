@@ -174,7 +174,41 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 8. `lib/razorpay/` — create order, verify payment, refund + webhook handler
 9. `lib/shiprocket/` — create shipment, AWB, tracking + webhook handler
 10. `lib/whatsapp/` — send template, delivery receipt logging + webhook handler
-11. Admin server actions — categories CRUD, products CRUD, orders, inventory, coupons, banners, collections, reviews
+11. Admin server actions — split by resource:
+    - **Categories:** `getAdminCategories()`, `createCategory(name, slug)`, `updateCategory(id, data)`, `deleteCategory(id)`
+    - **Products:** `createProduct()`, `updateProduct()`, `deleteProduct()`, `updateVariantStock()`
+    - **Orders:** `getAdminOrders()`, `updateOrderStatus()`, `getOrderDetail()`
+    - **Inventory:** `getInventory()`, `adjustStock(variantId, delta, reason)`
+    - **Coupons:** `createCoupon()`, `updateCoupon()`, `deleteCoupon()`
+    - **Banners:** `getBanners()`, `createBanner()`, `updateBanner()`, `deleteBanner()`
+    - **Collections:** `createCollection()`, `updateCollection()`, `addProductToCollection()`
+    - **Reviews:** `getAdminReviews()`, `updateReviewStatus(id, status)`
+
+---
+
+## What Sam Must Build for Dynamic Categories to Work
+
+This is the minimum backend needed before Vismaya can build the navbar and homepage correctly.
+
+### Priority 1 — Wire `getCategories()` (do this before Vismaya starts navbar)
+File: `lib/actions/products.ts` — replace the stub with a real DB query:
+- `getCategories()` → fetch all categories ordered by `sortOrder`
+- Call `revalidatePath("/")` whenever a category is created/updated/deleted so the homepage refreshes automatically
+
+### Priority 2 — Admin Categories CRUD (so client can self-manage)
+File: `lib/actions/admin/categories.ts`:
+- `getAdminCategories()` — list all categories
+- `createCategory(name, slug, sortOrder?)` — insert + revalidate
+- `updateCategory(id, data)` — update + revalidate
+- `deleteCategory(id)` — delete + revalidate
+
+All admin actions must be guarded with `requireAdmin()` so only logged-in admins can call them.
+
+### Where categories must be dynamic (Vismaya's responsibility — Sam to enforce in review)
+- Navbar `Shop ▾` dropdown — calls `getCategories()`, never hardcoded
+- Homepage "Shop by Category" grid — calls `getCategories()`, never hardcoded
+- PLP category filter sidebar — calls `getCategories()`, never hardcoded
+- Footer shop links — calls `getCategories()`, never hardcoded
 
 ---
 
