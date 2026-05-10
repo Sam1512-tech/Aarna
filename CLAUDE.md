@@ -107,7 +107,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - **Server actions as the FE/BE contract** — Vismaya calls typed functions from lib/actions/, never writes SQL or API calls directly
 - **No Figma** — building directly from the mood board. Client approval via WhatsApp message replaces the Figma approval milestone.
 - **No COD** — Razorpay online only
-- **Non-GST** — issue "Bill of Supply" not "Tax Invoice"
+- **GST registered** — issue proper "Tax Invoice" with GST number. Include GSTIN on all order invoices generated via Razorpay/Resend. Not "Bill of Supply".
 - **shadcn/ui for admin only** — storefront is fully custom for premium feel
 - **Dynamic navbar** — `Shop ▾` dropdown pulls categories from DB via `getCategories()`. No category names hardcoded anywhere — when client adds a category in admin it appears in nav, homepage grid, PLP filters, and footer automatically
 - **Admin is self-service** — after handover, client manages categories, products, collections, banners, coupons entirely via admin. No dev needed for content changes
