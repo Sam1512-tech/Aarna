@@ -13,8 +13,11 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 
 **Launch scope (confirmed by client):**
 - 16 products at launch
-- 2 categories only: **Dresses** and **Tops**
-- No Co-ord Sets, Kurta Sets, Jackets, or Accessories at launch (can be added later)
+- 2 categories at launch: **Dresses** and **Tops**
+- Long-term vision: client will add more categories, products, and collections over time via the admin panel — no developer involvement needed after handover
+- **Long-term vision:** client manages everything via admin — adds categories, products, collections, banners, coupons without any developer involvement after handover.
+
+**Critical architecture rule:** categories, nav links, and homepage category grid must ALL be dynamic (pulled from DB via `getCategories()`) — never hardcoded anywhere in the codebase. When client adds a new category in admin, it must appear everywhere automatically.
 
 ---
 
@@ -170,7 +173,7 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 8. `lib/razorpay/` — create order, verify payment, refund + webhook handler
 9. `lib/shiprocket/` — create shipment, AWB, tracking + webhook handler
 10. `lib/whatsapp/` — send template, delivery receipt logging + webhook handler
-11. Admin server actions — products CRUD, orders, inventory, coupons, banners, reviews
+11. Admin server actions — categories CRUD, products CRUD, orders, inventory, coupons, banners, collections, reviews
 
 ---
 
