@@ -135,15 +135,20 @@ Everything from the brand mood board is already coded into the project. Never ha
 
 Top navbar:
 ```
-AARNA    New Arrivals   Dresses   Tops   Collections   Sale    🔍 👤 🤍 🛍
+AARNA    New Arrivals    Shop ▾    Collections    Sale    🔍 👤 🤍 🛍
 ```
 
-**Launch categories (only 2):**
-- Dresses
-- Tops
+**"Shop ▾" is a dropdown — fully dynamic, never hardcoded.**
+It fetches categories from the DB using `getCategories()` and renders each as a link.
+Right now it shows: Dresses, Tops.
+When the client adds a new category via admin later, it appears automatically — no code change needed.
 
-Note: Co-ord Sets, Kurta Sets, Jackets, Accessories are NOT in the nav at launch.
-The schema supports them — they will be added by the client in a future update.
+**Important rule: never hardcode category names anywhere in the frontend.**
+Always fetch from `getCategories()`. This applies to:
+- The Shop dropdown in the navbar
+- The "Shop by Category" grid on the homepage
+- Any filter or category list on the PLP
+- Footer shop links
 
 Trust badges (bottom of homepage):
 - 🚚 Complimentary Shipping — On orders above ₹2999
@@ -256,7 +261,7 @@ Work in this order. Don't jump ahead — later pages depend on earlier component
 
 Build `app/(storefront)/page.tsx`. It should have these sections top to bottom:
 
-1. **Navbar** — logo left, nav links center, icons (search, account, wishlist, bag) right
+1. **Navbar** — logo left, nav links center (`New Arrivals`, `Shop ▾` dropdown with dynamic categories from `getCategories()`, `Collections`, `Sale`), icons right (search, account, wishlist, bag)
 2. **Hero carousel** — full-width image slider, 3 slides, headline + subtext + CTA button
    - Slide 1: "New Collection — Effortless Silhouettes"
    - Use `bg-sand` as placeholder until real photos arrive
