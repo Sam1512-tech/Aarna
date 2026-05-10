@@ -14,10 +14,9 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 **Launch scope (confirmed by client):**
 - 16 products at launch
 - 2 categories at launch: **Dresses** and **Tops**
-- Long-term vision: client will add more categories, products, and collections over time via the admin panel — no developer involvement needed after handover
-- **Long-term vision:** client manages everything via admin — adds categories, products, collections, banners, coupons without any developer involvement after handover.
+- Long-term vision: client self-manages everything via admin (categories, products, collections, banners, coupons) — zero developer involvement needed after handover
 
-**Critical architecture rule:** categories, nav links, and homepage category grid must ALL be dynamic (pulled from DB via `getCategories()`) — never hardcoded anywhere in the codebase. When client adds a new category in admin, it must appear everywhere automatically.
+**Critical architecture rule:** categories, nav links, and homepage category grid must ALL be dynamic (pulled from DB via `getCategories()`) — never hardcoded anywhere in the codebase. When client adds a new category in admin, it must appear everywhere on the site automatically.
 
 ---
 
@@ -73,7 +72,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - [ ] Server actions — all stubbed, need real implementations (Sam's job)
 - [ ] Supabase Auth email templates via Resend — not wired
 - [ ] RLS policies on Supabase — not set up
-- [ ] DB seed — 2 categories (Dresses, Tops) not yet seeded
+- [x] DB seed — Dresses and Tops seeded via scripts/seed.ts
 - [ ] All 3rd-party integrations — Cloudinary, Razorpay, Shiprocket, WhatsApp, Resend
 
 ---
@@ -110,6 +109,8 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - **No COD** — Razorpay online only
 - **Non-GST** — issue "Bill of Supply" not "Tax Invoice"
 - **shadcn/ui for admin only** — storefront is fully custom for premium feel
+- **Dynamic navbar** — `Shop ▾` dropdown pulls categories from DB via `getCategories()`. No category names hardcoded anywhere — when client adds a category in admin it appears in nav, homepage grid, PLP filters, and footer automatically
+- **Admin is self-service** — after handover, client manages categories, products, collections, banners, coupons entirely via admin. No dev needed for content changes
 
 ---
 
@@ -154,7 +155,7 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 2. Submit Razorpay KYC today
 3. Confirm Shiprocket with client → start their KYC
 4. Wait for client on WhatsApp BSP (Facebook BM + spare number)
-5. Seed the DB with 5 categories
+5. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
 6. Wire getCategories, getCollections, getNewArrivals, getProducts, getProductBySlug server actions
 7. Set up RLS policies on Supabase
 8. Set up Supabase Auth + Resend email templates
