@@ -133,17 +133,17 @@ Everything from the brand mood board is already coded into the project. Never ha
 
 ## 6. Navigation Structure
 
-Top navbar (from mood board):
+Top navbar:
 ```
-AARNA    New Arrivals   Collections   Dresses   Co-ord Sets   Accessories   Sale    🔍 👤 🤍 🛍
+AARNA    New Arrivals   Dresses   Tops   Collections   Sale    🔍 👤 🤍 🛍
 ```
 
-Categories in "Shop by Category" grid:
+**Launch categories (only 2):**
 - Dresses
-- Co-ord Sets
-- Kurta Sets
-- Jackets
-- Tops & Tunics
+- Tops
+
+Note: Co-ord Sets, Kurta Sets, Jackets, Accessories are NOT in the nav at launch.
+The schema supports them — they will be added by the client in a future update.
 
 Trust badges (bottom of homepage):
 - 🚚 Complimentary Shipping — On orders above ₹2999
@@ -260,7 +260,7 @@ Build `app/(storefront)/page.tsx`. It should have these sections top to bottom:
 2. **Hero carousel** — full-width image slider, 3 slides, headline + subtext + CTA button
    - Slide 1: "New Collection — Effortless Silhouettes"
    - Use `bg-sand` as placeholder until real photos arrive
-3. **Shop by Category** — 5 tiles in a row (Dresses, Co-ord Sets, Kurta Sets, Jackets, Tops & Tunics)
+3. **Shop by Category** — 2 large tiles side by side (Dresses, Tops). Make them large since only 2 — each roughly half the screen width on desktop, full width stacked on mobile
    - Each tile: image + category name below
 4. **Trust badges** — 4 badges in a row (Shipping, Returns, Fabrics, Checkout)
 5. **Footer** — brand name, links, copyright

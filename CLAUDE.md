@@ -11,6 +11,11 @@ Aarna by Arpitha Abhishek — a women's indo-western fashion e-commerce platform
 Built by Solaris Studios. India-only, English, INR, online payments only (no COD).
 Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 
+**Launch scope (confirmed by client):**
+- 16 products at launch
+- 2 categories only: **Dresses** and **Tops**
+- No Co-ord Sets, Kurta Sets, Jackets, or Accessories at launch (can be added later)
+
 ---
 
 ## The Team
@@ -65,7 +70,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - [ ] Server actions — all stubbed, need real implementations (Sam's job)
 - [ ] Supabase Auth email templates via Resend — not wired
 - [ ] RLS policies on Supabase — not set up
-- [ ] DB seed — 5 categories not yet seeded
+- [ ] DB seed — 2 categories (Dresses, Tops) not yet seeded
 - [ ] All 3rd-party integrations — Cloudinary, Razorpay, Shiprocket, WhatsApp, Resend
 
 ---
