@@ -222,6 +222,35 @@ All admin actions must be guarded with `requireAdmin()` so only logged-in admins
 
 ---
 
+## Product Tag / Label Printing (Admin Feature)
+
+The client uses pre-printed branded hang tags (design already done). For each product/variant added in admin, a small dynamic label needs to be generated and printed to stick onto the hang tag.
+
+**Why it can't be bulk-printed:** every variant has unique details (size, price, SKU, fabric) — labels must be generated from the DB per product.
+
+**The flow:**
+1. Client adds product + variants in admin
+2. Admin has a **"Print Tags"** button per product (and bulk print for all variants)
+3. System generates a PDF label with all product details
+4. Client prints on Xprinter XP-365B using a smaller label roll (50×30mm or 2×3 inch)
+
+**What Sam must build:**
+- PDF label generator in admin panel (per variant + bulk)
+- "Print Tags" button on the admin product detail page
+- Label content: Product name, Size, MRP (₹), SKU/barcode, Fabric composition, Care instructions, HSN code (6211)
+
+**Required fields to add to the admin product form:**
+- Fabric composition (e.g. "100% Linen")
+- Care instructions (e.g. "Dry clean only")
+- MRP — separate from selling price (important if product is on sale/discount)
+
+**Legal requirement — Legal Metrology Act (India):**
+Garment labels must show MRP, manufacturer details, fabric composition, size, and care instructions. This is a compliance requirement, not optional. All these fields must be captured in the product form and printed on the label.
+
+**Printer:** Xprinter XP-365B — same printer as shipping labels, just swap to a smaller label roll for hang tags.
+
+---
+
 ## Risks to Watch
 
 - WhatsApp BSP onboarding + Meta template approval — start day 1, not week 4
