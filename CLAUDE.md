@@ -39,7 +39,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - React Hook Form + Zod
 - Cloudinary (images)
 - Razorpay (payments)
-- Shiprocket (shipping)
+- Delhivery (shipping)
 - Interakt/AiSensy WhatsApp BSP
 - Resend (email)
 - Cloudflare (CDN + WAF)
@@ -66,7 +66,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 ## What Is In Progress / Not Done Yet
 
 - [ ] Razorpay KYC — Sam to submit (docs: PAN, bank, address proof, Aadhaar)
-- [ ] Shiprocket KYC — waiting for client to confirm Shiprocket vs Delhivery
+- [ ] Delhivery KYC — client confirmed Delhivery, start onboarding
 - [ ] WhatsApp BSP (Interakt) — waiting for client's Facebook Business Manager + spare phone number
 - [ ] Mood board approval from client in writing — needed to trigger ₹52K milestone payment
 - [ ] Server actions — all stubbed, need real implementations (Sam's job)
@@ -83,7 +83,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - `lib/db/` — Drizzle schema + queries
 - `lib/actions/` — all server actions (the typed API Vismaya calls)
 - `lib/supabase/` — Supabase client helpers
-- `lib/razorpay/`, `lib/shiprocket/`, `lib/whatsapp/`, `lib/resend/`, `lib/cloudinary/`
+- `lib/razorpay/`, `lib/delhivery/`, `lib/whatsapp/`, `lib/resend/`, `lib/cloudinary/`
 - `app/api/` — all webhook handlers
 - `middleware.ts` — RBAC, session refresh
 - `drizzle/` — migrations
@@ -163,7 +163,7 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 
 1. Get mood board approval from client in writing → triggers ₹52K payment
 2. Submit Razorpay KYC today
-3. Confirm Shiprocket with client → start their KYC
+3. Start Delhivery KYC — client has confirmed Delhivery as shipping partner
 4. Wait for client on WhatsApp BSP (Facebook BM + spare number)
 5. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
 6. Wire getCategories, getCollections, getNewArrivals, getProducts, getProductBySlug server actions
@@ -182,7 +182,7 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 6. `lib/cloudinary/` — upload helper
 7. `lib/resend/` — email templates (order confirm, verify, reset)
 8. `lib/razorpay/` — create order, verify payment, refund + webhook handler
-9. `lib/shiprocket/` — create shipment, AWB, tracking + webhook handler
+9. `lib/delhivery/` — create shipment, AWB, tracking + webhook handler
 10. `lib/whatsapp/` — send template, delivery receipt logging + webhook handler
 11. Admin server actions — split by resource:
     - **Categories:** `getAdminCategories()`, `createCategory(name, slug)`, `updateCategory(id, data)`, `deleteCategory(id)`
@@ -219,6 +219,35 @@ All admin actions must be guarded with `requireAdmin()` so only logged-in admins
 - Homepage "Shop by Category" grid — calls `getCategories()`, never hardcoded
 - PLP category filter sidebar — calls `getCategories()`, never hardcoded
 - Footer shop links — calls `getCategories()`, never hardcoded
+
+---
+
+## Product Tag / Label Printing (Admin Feature)
+
+The client uses pre-printed branded hang tags (design already done). For each product/variant added in admin, a small dynamic label needs to be generated and printed to stick onto the hang tag.
+
+**Why it can't be bulk-printed:** every variant has unique details (size, price, SKU, fabric) — labels must be generated from the DB per product.
+
+**The flow:**
+1. Client adds product + variants in admin
+2. Admin has a **"Print Tags"** button per product (and bulk print for all variants)
+3. System generates a PDF label with all product details
+4. Client prints on Xprinter XP-365B using a smaller label roll (50×30mm or 2×3 inch)
+
+**What Sam must build:**
+- PDF label generator in admin panel (per variant + bulk)
+- "Print Tags" button on the admin product detail page
+- Label content: Product name, Size, MRP (₹), SKU/barcode, Fabric composition, Care instructions, HSN code (6211)
+
+**Required fields to add to the admin product form:**
+- Fabric composition (e.g. "100% Linen")
+- Care instructions (e.g. "Dry clean only")
+- MRP — separate from selling price (important if product is on sale/discount)
+
+**Legal requirement — Legal Metrology Act (India):**
+Garment labels must show MRP, manufacturer details, fabric composition, size, and care instructions. This is a compliance requirement, not optional. All these fields must be captured in the product form and printed on the label.
+
+**Printer:** Xprinter XP-365B — same printer as shipping labels, just swap to a smaller label roll for hang tags.
 
 ---
 
