@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/razorpay";
+import { nextInvoiceNumber } from "@/lib/invoice/counter";
+import { generateInvoicePdf } from "@/lib/invoice/generate";
+import { buildInvoiceData, getOrderByRazorpayId, markOrderPaid } from "@/lib/db/queries/orders";
+import { sendEmail } from "@/lib/resend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,14 +18,57 @@ export async function POST(req: Request) {
 
   const event = JSON.parse(rawBody);
 
-  // TODO(backend): handle events idempotently keyed on razorpay_order_id.
-  //   - payment.captured  → mark order paid, kick off Shiprocket order, send order_placed email + WhatsApp
-  //   - payment.failed    → record failure, optionally notify
-  //   - refund.processed  → mark return refunded
   switch (event?.event) {
-    case "payment.captured":
-    case "payment.failed":
-    case "refund.processed":
+    case "payment.captured": {
+      const payment = event.payload?.payment?.entity;
+      if (!payment?.order_id) break;
+
+      const order = await getOrderByRazorpayId(payment.order_id);
+      if (!order) {
+        console.error("[razorpay webhook] order not found for", payment.order_id);
+        break;
+      }
+
+      // Idempotency — skip if already processed
+      if (order.paymentStatus === "paid") break;
+
+      const invoiceNumber = await nextInvoiceNumber();
+      await markOrderPaid(order.id, invoiceNumber, payment.id);
+
+      const invoiceData = buildInvoiceData(order, invoiceNumber);
+      const pdfBuffer = await generateInvoicePdf(invoiceData);
+      const pdfFilename = `${invoiceNumber.replace(/\//g, "-")}.pdf`;
+
+      await sendEmail({
+        to: order.email,
+        subject: `Order Confirmed — ${order.orderNumber} | Aarna`,
+        templateKey: "order_receipt",
+        data: { order, invoiceNumber },
+        attachments: [{ filename: pdfFilename, content: pdfBuffer }],
+      }).catch((err) => {
+        // Never let email failure break the webhook response
+        console.error("[razorpay webhook] email send failed:", err);
+      });
+
+      break;
+    }
+
+    case "payment.failed": {
+      const payment = event.payload?.payment?.entity;
+      if (!payment?.order_id) break;
+      // TODO: update order paymentStatus to "failed", notify customer
+      console.log("[razorpay webhook] payment.failed for", payment.order_id);
+      break;
+    }
+
+    case "refund.processed": {
+      const refund = event.payload?.refund?.entity;
+      if (!refund) break;
+      // TODO: mark return as refunded, update order paymentStatus
+      console.log("[razorpay webhook] refund.processed", refund.id);
+      break;
+    }
+
     default:
       break;
   }
