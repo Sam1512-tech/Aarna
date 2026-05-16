@@ -273,10 +273,11 @@ export const orders = pgTable("orders", {
   fulfillmentStatus: orderFulfillmentStatus("fulfillment_status")
     .default("pending")
     .notNull(),
+  invoiceNumber: varchar("invoice_number", { length: 30 }).unique(),
   razorpayOrderId: varchar("razorpay_order_id", { length: 60 }).unique(),
   razorpayPaymentId: varchar("razorpay_payment_id", { length: 60 }),
   awbNumber: varchar("awb_number", { length: 60 }),
-  shiprocketOrderId: varchar("shiprocket_order_id", { length: 60 }),
+  delhiveryOrderId: varchar("delhivery_order_id", { length: 60 }),
   notes: text("notes"),
   placedAt: timestamp("placed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
