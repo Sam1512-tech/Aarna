@@ -280,6 +280,40 @@ Always prefix with `fe/`:
 - `fe/product-card` — product card component
 - `fe/plp-filters` — PLP filter sidebar
 
+### Staying in sync with Sam's changes (important)
+
+Sam is constantly merging backend changes to `main` while you build. If you fork from a stale `main`, you'll be coding against an outdated contract and your PR will conflict at review time.
+
+**The one rule that keeps you out of trouble:**
+> Always pull `main` before starting a new task or opening a new PR.
+
+**Morning ritual — run this before opening your editor:**
+```bash
+cd ~/Documents/Aarna
+git checkout main
+git pull
+```
+
+**Starting a new task — fork from a freshly-pulled main:**
+```bash
+git checkout main
+git pull
+git checkout -b fe/new-task
+```
+
+**Your current branch is getting old and main has moved on?** Pull main into your branch:
+```bash
+git checkout fe/your-branch
+git fetch origin
+git merge origin/main
+# resolve conflicts in VS Code, then:
+git add -A && git commit -m "merge main"
+```
+
+**Get notified when things change:**
+1. Visit [github.com/Sam1512-tech/Aarna](https://github.com/Sam1512-tech/Aarna), click the **Watch** button (top-right), pick **"All Activity"** — you'll get an email on every merge.
+2. Sam will WhatsApp you only when a merge changes the FE/BE contract (i.e., section 6.5 changes, new actions, renamed types). Not every merge — that's noise.
+
 ### PR rules
 - One feature per PR — don't bundle 5 things into one
 - Write a 1-line description: what you built and what it looks like
