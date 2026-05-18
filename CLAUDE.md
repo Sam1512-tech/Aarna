@@ -60,20 +60,38 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - [x] SSH set up for git push — no PAT needed
 - [x] HANDOFF.md written for Vismaya — her complete day-1 brief
 - [x] AI context + task briefs written for Vismaya — covers all 11 tasks
+- [x] DB seed — Dresses and Tops seeded via scripts/seed.ts
+- [x] Razorpay KYC approved; test keys configured in .env.local
+- [x] Razorpay library wired — `createRazorpayOrder`, `verifyWebhookSignature`, `verifyPaymentSignature`, `createRefund`
+- [x] Tax Invoice PDF generator — `lib/invoice/template.tsx` + `lib/invoice/generate.ts` (A4, GST-compliant, CGST+SGST/IGST, HSN 6211, 12%)
+- [x] Sequential invoice numbering via Postgres sequence — format `AL/26-27/00001`
+- [x] Razorpay webhook (`payment.captured`) wired end-to-end — generates invoice number → PDF → emails customer with attachment
+- [x] Resend `sendEmail` implemented with order receipt HTML template; graceful when API key missing
+- [x] Direct Supabase connection URL for schema migrations (`DIRECT_URL` env var)
+- [x] **Priority 1 server actions complete (unblocks Vismaya):**
+    - `lib/actions/products.ts` — getCategories, getProducts, getProductBySlug, getCollections, getNewArrivals, getRelatedProducts
+    - `lib/actions/cart.ts` — getCart, addToCart, updateCartItem, removeFromCart, applyCoupon, mergeGuestCartOnLogin (cookie-based guest cart + Supabase auth)
+    - `lib/actions/checkout.ts` — initCheckout (validates cart, generates order, creates Razorpay order), checkPincodeServiceability (optimistic until Delhivery wired)
 
 ---
 
 ## What Is In Progress / Not Done Yet
 
-- [ ] Razorpay KYC — Sam to submit (docs: PAN, bank, address proof, Aadhaar)
+- [ ] **Razorpay webhook secret** — Razorpay dashboard has a platform outage (2 days+); add `RAZORPAY_WEBHOOK_SECRET` once dashboard is back
 - [ ] Delhivery KYC — client confirmed Delhivery, start onboarding
 - [ ] WhatsApp BSP (Interakt) — waiting for client's Facebook Business Manager + spare phone number
+- [ ] Resend account + DNS verification for `hello@aarna.in` (and `hello@solarisstudios.co.in` for testing)
+- [ ] Cloudinary account + upload helper (`lib/cloudinary/`)
 - [ ] Mood board approval from client in writing — needed to trigger ₹52K milestone payment
-- [ ] Server actions — all stubbed, need real implementations (Sam's job)
-- [ ] Supabase Auth email templates via Resend — not wired
-- [ ] RLS policies on Supabase — not set up
-- [x] DB seed — Dresses and Tops seeded via scripts/seed.ts
-- [ ] All 3rd-party integrations — Cloudinary, Razorpay, Shiprocket, WhatsApp, Resend
+- [ ] Priority 2 — Auth & Account:
+    - `lib/actions/auth.ts` — signup/login/logout/reset password (Supabase Auth)
+    - `lib/actions/account.ts` (new) — orders, wishlist, addresses, returns
+    - `middleware.ts` — RBAC + Supabase session refresh
+    - Supabase Auth email templates wired to Resend
+    - RLS policies on Supabase tables
+- [ ] Priority 3 — Integrations: `lib/delhivery/`, `lib/whatsapp/`, additional Resend templates (verify_email, password_reset, order_shipped, refund_processed)
+- [ ] Priority 4 — Webhooks: rename shiprocket route → delhivery, implement tracking + whatsapp delivery receipts
+- [ ] Priority 5 — Admin server actions (categories, products, orders, inventory, coupons, banners, collections, reviews) + product hang tag PDF generator
 
 ---
 
@@ -107,7 +125,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - **Server actions as the FE/BE contract** — Vismaya calls typed functions from lib/actions/, never writes SQL or API calls directly
 - **No Figma** — building directly from the mood board. Client approval via WhatsApp message replaces the Figma approval milestone.
 - **No COD** — Razorpay online only
-- **GST registered** — issue proper "Tax Invoice" not "Bill of Supply". GSTIN: `29ACNFA3302J1ZD` (Karnataka). Include GSTIN on all order invoices. Use CGST + SGST for intra-state orders (Karnataka), IGST for inter-state. HSN code for garments: 6211.
+- **GST registered** — issue proper "Tax Invoice" not "Bill of Supply". Business legal name: **Aarna Label**. GSTIN: `29ACNFA3302J1ZD` (Karnataka). Registered address: No. 3571, 1st H Cross, Behind Girinagar Police Station, Giri Nagar, Bengaluru – 560085, Karnataka. Business phone: +91 79-75639485. Include GSTIN on all order invoices. Use CGST 6% + SGST 6% for intra-state orders (Karnataka), IGST 12% for inter-state. HSN code for garments: 6211. **Invoice number format:** `AL/26-27/00001` (financial year, resets every April).
 - **shadcn/ui for admin only** — storefront is fully custom for premium feel
 - **Dynamic navbar** — `Shop ▾` dropdown pulls categories from DB via `getCategories()`. No category names hardcoded anywhere — when client adds a category in admin it appears in nav, homepage grid, PLP filters, and footer automatically
 - **Admin is self-service** — after handover, client manages categories, products, collections, banners, coupons entirely via admin. No dev needed for content changes
@@ -162,13 +180,14 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 ## Immediate Next Steps for Sam
 
 1. Get mood board approval from client in writing → triggers ₹52K payment
-2. Submit Razorpay KYC today
-3. Start Delhivery KYC — client has confirmed Delhivery as shipping partner
-4. Wait for client on WhatsApp BSP (Facebook BM + spare number)
-5. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
-6. Wire getCategories, getCollections, getNewArrivals, getProducts, getProductBySlug server actions
-7. Set up RLS policies on Supabase
-8. Set up Supabase Auth + Resend email templates
+2. ~~Submit Razorpay KYC~~ — done, test keys live
+3. Add `RAZORPAY_WEBHOOK_SECRET` to `.env.local` once Razorpay dashboard outage is resolved
+4. Start Delhivery KYC — client has confirmed Delhivery as shipping partner
+5. Wait for client on WhatsApp BSP (Facebook BM + spare number)
+6. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
+7. ~~Wire Priority 1 server actions~~ — done (products, cart, checkout)
+8. Build Priority 2 — auth actions, account actions, middleware (RBAC + session refresh), RLS policies, Supabase Auth email templates via Resend
+9. Resend account + verify `hello@aarna.in` DNS so emails actually send
 
 ---
 
