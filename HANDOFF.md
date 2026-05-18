@@ -113,13 +113,13 @@ Everything from the brand mood board is already coded into the project. Never ha
 | Cart | `/cart` | Line items, quantities, order summary, proceed to checkout |
 | Checkout | `/checkout` | Address form, order review, Razorpay payment |
 | Account | `/account` | Orders, wishlist, addresses, return requests |
-| Auth | `/login`, `/signup`, `/forgot-password` | Auth forms |
+| Auth | `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback` | Auth forms + email-verify callback |
 | Legal | `/privacy`, `/terms`, `/returns`, `/shipping` | Static text pages (client provides copy) |
 
 ### Admin (`app/admin/`)
 | Page | What it manages |
 |---|---|
-| `/admin/products` | Create / edit products, variants, images |
+| `/admin/products` | Create / edit products, variants, images. **Form must include MRP (separate from selling price), fabric composition, care instructions** — legal requirement under India's Legal Metrology Act. Product detail page needs a **"Print Tags"** button that generates the hang-tag label PDF. |
 | `/admin/orders` | View orders, update status, generate invoice |
 | `/admin/inventory` | Stock levels, low-stock alerts |
 | `/admin/coupons` | Create discount codes |
@@ -155,6 +155,54 @@ Trust badges (bottom of homepage):
 - 🔄 Easy Returns — 14 days return policy
 - 🌿 Premium Fabrics — Quality you can feel
 - 🔒 Secure Checkout — Multiple payment options
+
+---
+
+## 6.5 Backend Contract Updates (read this if you started before Week 2)
+
+A few backend changes happened after this doc was first written. If anything in your existing components looks like it doesn't match these, update it.
+
+### Checkout requires `email`
+`initCheckout()` now takes an `email` field on `CheckoutInitInput`, separate from the shipping address. The shipping address has a phone but no email. The checkout form must collect the customer's email — that's where the order confirmation + invoice PDF goes.
+
+```ts
+await initCheckout({
+  email: "customer@example.com",   // ← new, required
+  shippingAddress: { ... },
+  billingSameAsShipping: true,
+  whatsappOptIn: false,
+})
+```
+
+### `applyCoupon()` now returns a `discount` amount
+The return shape changed:
+```ts
+{ ok: boolean; message: string; cart: CartState; discount: number }
+```
+`discount` is the calculated discount in paise. When a coupon is applied, show:
+- `subtotal − discount + shipping = total`
+Don't try to compute the discount yourself — the server does it (flat vs percent, capped at subtotal).
+
+### Razorpay handle from `initCheckout()`
+On success, `initCheckout` returns `{ summary, razorpay }`. Use the `razorpay` object to open the Razorpay modal:
+```ts
+const { summary, razorpay } = await initCheckout({ ... })
+
+const rzp = new Razorpay({
+  key: razorpay.razorpayKeyId,
+  amount: razorpay.amount,           // already in paise
+  currency: razorpay.currency,       // "INR"
+  order_id: razorpay.razorpayOrderId,
+  name: "Aarna",
+  description: razorpay.orderNumber,
+  // ...callbacks
+})
+rzp.open()
+```
+The webhook on the server side handles confirmation + emailing the invoice — your client just needs to redirect to a thank-you page on success.
+
+### Wishlist is variant-level, not product-level
+Wishlist actions take a `variantId` (specific size/color), not a `productId`. So the heart button on PDP should only be enabled after the user picks a size.
 
 ---
 
