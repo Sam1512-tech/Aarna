@@ -268,6 +268,18 @@ Garment labels must show MRP, manufacturer details, fabric composition, size, an
 
 **Printer:** Xprinter XP-365B — same printer as shipping labels, just swap to a smaller label roll for hang tags.
 
+**Barcode standard — Code 128 (decided, not EAN-13):**
+- Use **Code 128** generated from the existing `sku` column. Free, no registration, alphanumeric, encodes the SKU as-is. Scans on any reader.
+- Library: **`bwip-js`** (MIT, ~50KB) — generates Code 128 as PNG/SVG, embed in the hang tag PDF.
+- No schema changes needed — the SKU IS the barcode.
+- Client also needs a **basic USB/Bluetooth barcode scanner** (~₹800–2,000 on Amazon) for inventory counts and returns processing. Any model that reads Code 128 will work.
+
+**EAN-13 deferred — only register with GS1 India if/when client expands to marketplaces:**
+- Required by Myntra, Amazon, Ajio, Nykaa, Flipkart and physical retail chains. NOT required for direct-to-consumer launch.
+- Cost: ~₹38K first year (₹28K one-time allocation for 1,000 codes + ₹4K annual sub for <₹50L turnover + 18% GST), then ~₹5K/year recurring. Recurring renewal is annual; missing it makes codes inactive for marketplace verification.
+- When the trigger hits (client wants to list on a marketplace), it's a one-day job to register + add an `ean13` column to `product_variants` + print both barcodes on the hang tag.
+- Source for current pricing: https://www.gs1india.org/services/registration/ (verify before quoting client).
+
 ---
 
 ## Risks to Watch
