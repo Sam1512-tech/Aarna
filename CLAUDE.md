@@ -39,7 +39,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - React Hook Form + Zod
 - Cloudinary (images)
 - Razorpay (payments)
-- Shiprocket (shipping)
+- Delhivery (shipping)
 - Interakt/AiSensy WhatsApp BSP
 - Resend (email)
 - Cloudflare (CDN + WAF)
@@ -60,20 +60,38 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - [x] SSH set up for git push — no PAT needed
 - [x] HANDOFF.md written for Vismaya — her complete day-1 brief
 - [x] AI context + task briefs written for Vismaya — covers all 11 tasks
+- [x] DB seed — Dresses and Tops seeded via scripts/seed.ts
+- [x] Razorpay KYC approved; test keys configured in .env.local
+- [x] Razorpay library wired — `createRazorpayOrder`, `verifyWebhookSignature`, `verifyPaymentSignature`, `createRefund`
+- [x] Tax Invoice PDF generator — `lib/invoice/template.tsx` + `lib/invoice/generate.ts` (A4, GST-compliant, CGST+SGST/IGST, HSN 6211, 12%)
+- [x] Sequential invoice numbering via Postgres sequence — format `AL/26-27/00001`
+- [x] Razorpay webhook (`payment.captured`) wired end-to-end — generates invoice number → PDF → emails customer with attachment
+- [x] Resend `sendEmail` implemented with order receipt HTML template; graceful when API key missing
+- [x] Direct Supabase connection URL for schema migrations (`DIRECT_URL` env var)
+- [x] **Priority 1 server actions complete (unblocks Vismaya):**
+    - `lib/actions/products.ts` — getCategories, getProducts, getProductBySlug, getCollections, getNewArrivals, getRelatedProducts
+    - `lib/actions/cart.ts` — getCart, addToCart, updateCartItem, removeFromCart, applyCoupon, mergeGuestCartOnLogin (cookie-based guest cart + Supabase auth)
+    - `lib/actions/checkout.ts` — initCheckout (validates cart, generates order, creates Razorpay order), checkPincodeServiceability (optimistic until Delhivery wired)
 
 ---
 
 ## What Is In Progress / Not Done Yet
 
-- [ ] Razorpay KYC — Sam to submit (docs: PAN, bank, address proof, Aadhaar)
-- [ ] Shiprocket KYC — waiting for client to confirm Shiprocket vs Delhivery
+- [ ] **Razorpay webhook secret** — Razorpay dashboard has a platform outage (2 days+); add `RAZORPAY_WEBHOOK_SECRET` once dashboard is back
+- [ ] Delhivery KYC — client confirmed Delhivery, start onboarding
 - [ ] WhatsApp BSP (Interakt) — waiting for client's Facebook Business Manager + spare phone number
+- [ ] Resend account + DNS verification for `hello@aarna.in` (and `hello@solarisstudios.co.in` for testing)
+- [ ] Cloudinary account + upload helper (`lib/cloudinary/`)
 - [ ] Mood board approval from client in writing — needed to trigger ₹52K milestone payment
-- [ ] Server actions — all stubbed, need real implementations (Sam's job)
-- [ ] Supabase Auth email templates via Resend — not wired
-- [ ] RLS policies on Supabase — not set up
-- [x] DB seed — Dresses and Tops seeded via scripts/seed.ts
-- [ ] All 3rd-party integrations — Cloudinary, Razorpay, Shiprocket, WhatsApp, Resend
+- [ ] Priority 2 — Auth & Account:
+    - `lib/actions/auth.ts` — signup/login/logout/reset password (Supabase Auth)
+    - `lib/actions/account.ts` (new) — orders, wishlist, addresses, returns
+    - `middleware.ts` — RBAC + Supabase session refresh
+    - Supabase Auth email templates wired to Resend
+    - RLS policies on Supabase tables
+- [ ] Priority 3 — Integrations: `lib/delhivery/`, `lib/whatsapp/`, additional Resend templates (verify_email, password_reset, order_shipped, refund_processed)
+- [ ] Priority 4 — Webhooks: rename shiprocket route → delhivery, implement tracking + whatsapp delivery receipts
+- [ ] Priority 5 — Admin server actions (categories, products, orders, inventory, coupons, banners, collections, reviews) + product hang tag PDF generator
 
 ---
 
@@ -83,7 +101,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - `lib/db/` — Drizzle schema + queries
 - `lib/actions/` — all server actions (the typed API Vismaya calls)
 - `lib/supabase/` — Supabase client helpers
-- `lib/razorpay/`, `lib/shiprocket/`, `lib/whatsapp/`, `lib/resend/`, `lib/cloudinary/`
+- `lib/razorpay/`, `lib/delhivery/`, `lib/whatsapp/`, `lib/resend/`, `lib/cloudinary/`
 - `app/api/` — all webhook handlers
 - `middleware.ts` — RBAC, session refresh
 - `drizzle/` — migrations
@@ -107,7 +125,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - **Server actions as the FE/BE contract** — Vismaya calls typed functions from lib/actions/, never writes SQL or API calls directly
 - **No Figma** — building directly from the mood board. Client approval via WhatsApp message replaces the Figma approval milestone.
 - **No COD** — Razorpay online only
-- **GST registered** — issue proper "Tax Invoice" not "Bill of Supply". GSTIN: `29ACNFA3302J1ZD` (Karnataka). Include GSTIN on all order invoices. Use CGST + SGST for intra-state orders (Karnataka), IGST for inter-state. HSN code for garments: 6211.
+- **GST registered** — issue proper "Tax Invoice" not "Bill of Supply". Business legal name: **Aarna Label**. GSTIN: `29ACNFA3302J1ZD` (Karnataka). Registered address: No. 3571, 1st H Cross, Behind Girinagar Police Station, Giri Nagar, Bengaluru – 560085, Karnataka. Business phone: +91 79-75639485. Include GSTIN on all order invoices. Use CGST 6% + SGST 6% for intra-state orders (Karnataka), IGST 12% for inter-state. HSN code for garments: 6211. **Invoice number format:** `AL/26-27/00001` (financial year, resets every April).
 - **shadcn/ui for admin only** — storefront is fully custom for premium feel
 - **Dynamic navbar** — `Shop ▾` dropdown pulls categories from DB via `getCategories()`. No category names hardcoded anywhere — when client adds a category in admin it appears in nav, homepage grid, PLP filters, and footer automatically
 - **Admin is self-service** — after handover, client manages categories, products, collections, banners, coupons entirely via admin. No dev needed for content changes
@@ -162,13 +180,14 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 ## Immediate Next Steps for Sam
 
 1. Get mood board approval from client in writing → triggers ₹52K payment
-2. Submit Razorpay KYC today
-3. Confirm Shiprocket with client → start their KYC
-4. Wait for client on WhatsApp BSP (Facebook BM + spare number)
-5. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
-6. Wire getCategories, getCollections, getNewArrivals, getProducts, getProductBySlug server actions
-7. Set up RLS policies on Supabase
-8. Set up Supabase Auth + Resend email templates
+2. ~~Submit Razorpay KYC~~ — done, test keys live
+3. Add `RAZORPAY_WEBHOOK_SECRET` to `.env.local` once Razorpay dashboard outage is resolved
+4. Start Delhivery KYC — client has confirmed Delhivery as shipping partner
+5. Wait for client on WhatsApp BSP (Facebook BM + spare number)
+6. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
+7. ~~Wire Priority 1 server actions~~ — done (products, cart, checkout)
+8. Build Priority 2 — auth actions, account actions, middleware (RBAC + session refresh), RLS policies, Supabase Auth email templates via Resend
+9. Resend account + verify `hello@aarna.in` DNS so emails actually send
 
 ---
 
@@ -182,7 +201,7 @@ Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
 6. `lib/cloudinary/` — upload helper
 7. `lib/resend/` — email templates (order confirm, verify, reset)
 8. `lib/razorpay/` — create order, verify payment, refund + webhook handler
-9. `lib/shiprocket/` — create shipment, AWB, tracking + webhook handler
+9. `lib/delhivery/` — create shipment, AWB, tracking + webhook handler
 10. `lib/whatsapp/` — send template, delivery receipt logging + webhook handler
 11. Admin server actions — split by resource:
     - **Categories:** `getAdminCategories()`, `createCategory(name, slug)`, `updateCategory(id, data)`, `deleteCategory(id)`
@@ -219,6 +238,47 @@ All admin actions must be guarded with `requireAdmin()` so only logged-in admins
 - Homepage "Shop by Category" grid — calls `getCategories()`, never hardcoded
 - PLP category filter sidebar — calls `getCategories()`, never hardcoded
 - Footer shop links — calls `getCategories()`, never hardcoded
+
+---
+
+## Product Tag / Label Printing (Admin Feature)
+
+The client uses pre-printed branded hang tags (design already done). For each product/variant added in admin, a small dynamic label needs to be generated and printed to stick onto the hang tag.
+
+**Why it can't be bulk-printed:** every variant has unique details (size, price, SKU, fabric) — labels must be generated from the DB per product.
+
+**The flow:**
+1. Client adds product + variants in admin
+2. Admin has a **"Print Tags"** button per product (and bulk print for all variants)
+3. System generates a PDF label with all product details
+4. Client prints on Xprinter XP-365B using a smaller label roll (50×30mm or 2×3 inch)
+
+**What Sam must build:**
+- PDF label generator in admin panel (per variant + bulk)
+- "Print Tags" button on the admin product detail page
+- Label content: Product name, Size, MRP (₹), SKU/barcode, Fabric composition, Care instructions, HSN code (6211)
+
+**Required fields to add to the admin product form:**
+- Fabric composition (e.g. "100% Linen")
+- Care instructions (e.g. "Dry clean only")
+- MRP — separate from selling price (important if product is on sale/discount)
+
+**Legal requirement — Legal Metrology Act (India):**
+Garment labels must show MRP, manufacturer details, fabric composition, size, and care instructions. This is a compliance requirement, not optional. All these fields must be captured in the product form and printed on the label.
+
+**Printer:** Xprinter XP-365B — same printer as shipping labels, just swap to a smaller label roll for hang tags.
+
+**Barcode standard — Code 128 (decided, not EAN-13):**
+- Use **Code 128** generated from the existing `sku` column. Free, no registration, alphanumeric, encodes the SKU as-is. Scans on any reader.
+- Library: **`bwip-js`** (MIT, ~50KB) — generates Code 128 as PNG/SVG, embed in the hang tag PDF.
+- No schema changes needed — the SKU IS the barcode.
+- Client also needs a **basic USB/Bluetooth barcode scanner** (~₹800–2,000 on Amazon) for inventory counts and returns processing. Any model that reads Code 128 will work.
+
+**EAN-13 deferred — only register with GS1 India if/when client expands to marketplaces:**
+- Required by Myntra, Amazon, Ajio, Nykaa, Flipkart and physical retail chains. NOT required for direct-to-consumer launch.
+- Cost: ~₹38K first year (₹28K one-time allocation for 1,000 codes + ₹4K annual sub for <₹50L turnover + 18% GST), then ~₹5K/year recurring. Recurring renewal is annual; missing it makes codes inactive for marketplace verification.
+- When the trigger hits (client wants to list on a marketplace), it's a one-day job to register + add an `ean13` column to `product_variants` + print both barcodes on the hang tag.
+- Source for current pricing: https://www.gs1india.org/services/registration/ (verify before quoting client).
 
 ---
 

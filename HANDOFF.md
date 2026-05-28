@@ -113,13 +113,13 @@ Everything from the brand mood board is already coded into the project. Never ha
 | Cart | `/cart` | Line items, quantities, order summary, proceed to checkout |
 | Checkout | `/checkout` | Address form, order review, Razorpay payment |
 | Account | `/account` | Orders, wishlist, addresses, return requests |
-| Auth | `/login`, `/signup`, `/forgot-password` | Auth forms |
+| Auth | `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback` | Auth forms + email-verify callback |
 | Legal | `/privacy`, `/terms`, `/returns`, `/shipping` | Static text pages (client provides copy) |
 
 ### Admin (`app/admin/`)
 | Page | What it manages |
 |---|---|
-| `/admin/products` | Create / edit products, variants, images |
+| `/admin/products` | Create / edit products, variants, images. **Form must include MRP (separate from selling price), fabric composition, care instructions** — legal requirement under India's Legal Metrology Act. Product detail page needs a **"Print Tags"** button that generates the hang-tag label PDF. |
 | `/admin/orders` | View orders, update status, generate invoice |
 | `/admin/inventory` | Stock levels, low-stock alerts |
 | `/admin/coupons` | Create discount codes |
@@ -155,6 +155,54 @@ Trust badges (bottom of homepage):
 - 🔄 Easy Returns — 14 days return policy
 - 🌿 Premium Fabrics — Quality you can feel
 - 🔒 Secure Checkout — Multiple payment options
+
+---
+
+## 6.5 Backend Contract Updates (read this if you started before Week 2)
+
+A few backend changes happened after this doc was first written. If anything in your existing components looks like it doesn't match these, update it.
+
+### Checkout requires `email`
+`initCheckout()` now takes an `email` field on `CheckoutInitInput`, separate from the shipping address. The shipping address has a phone but no email. The checkout form must collect the customer's email — that's where the order confirmation + invoice PDF goes.
+
+```ts
+await initCheckout({
+  email: "customer@example.com",   // ← new, required
+  shippingAddress: { ... },
+  billingSameAsShipping: true,
+  whatsappOptIn: false,
+})
+```
+
+### `applyCoupon()` now returns a `discount` amount
+The return shape changed:
+```ts
+{ ok: boolean; message: string; cart: CartState; discount: number }
+```
+`discount` is the calculated discount in paise. When a coupon is applied, show:
+- `subtotal − discount + shipping = total`
+Don't try to compute the discount yourself — the server does it (flat vs percent, capped at subtotal).
+
+### Razorpay handle from `initCheckout()`
+On success, `initCheckout` returns `{ summary, razorpay }`. Use the `razorpay` object to open the Razorpay modal:
+```ts
+const { summary, razorpay } = await initCheckout({ ... })
+
+const rzp = new Razorpay({
+  key: razorpay.razorpayKeyId,
+  amount: razorpay.amount,           // already in paise
+  currency: razorpay.currency,       // "INR"
+  order_id: razorpay.razorpayOrderId,
+  name: "Aarna",
+  description: razorpay.orderNumber,
+  // ...callbacks
+})
+rzp.open()
+```
+The webhook on the server side handles confirmation + emailing the invoice — your client just needs to redirect to a thank-you page on success.
+
+### Wishlist is variant-level, not product-level
+Wishlist actions take a `variantId` (specific size/color), not a `productId`. So the heart button on PDP should only be enabled after the user picks a size.
 
 ---
 
@@ -231,6 +279,40 @@ Always prefix with `fe/`:
 - `fe/homepage` — homepage sections
 - `fe/product-card` — product card component
 - `fe/plp-filters` — PLP filter sidebar
+
+### Staying in sync with Sam's changes (important)
+
+Sam is constantly merging backend changes to `main` while you build. If you fork from a stale `main`, you'll be coding against an outdated contract and your PR will conflict at review time.
+
+**The one rule that keeps you out of trouble:**
+> Always pull `main` before starting a new task or opening a new PR.
+
+**Morning ritual — run this before opening your editor:**
+```bash
+cd ~/Documents/Aarna
+git checkout main
+git pull
+```
+
+**Starting a new task — fork from a freshly-pulled main:**
+```bash
+git checkout main
+git pull
+git checkout -b fe/new-task
+```
+
+**Your current branch is getting old and main has moved on?** Pull main into your branch:
+```bash
+git checkout fe/your-branch
+git fetch origin
+git merge origin/main
+# resolve conflicts in VS Code, then:
+git add -A && git commit -m "merge main"
+```
+
+**Get notified when things change:**
+1. Visit [github.com/Sam1512-tech/Aarna](https://github.com/Sam1512-tech/Aarna), click the **Watch** button (top-right), pick **"All Activity"** — you'll get an email on every merge.
+2. Sam will WhatsApp you only when a merge changes the FE/BE contract (i.e., section 6.5 changes, new actions, renamed types). Not every merge — that's noise.
 
 ### PR rules
 - One feature per PR — don't bundle 5 things into one

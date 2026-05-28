@@ -48,8 +48,11 @@ next-env.d.ts
 .vscode/
 *.swp
 
-# claude
+# AI tool context files (auto-generated per dev)
 .claude/
+AGENTS.md
+.cursor/
+.cursorrules
 
 # logs
 logs/
