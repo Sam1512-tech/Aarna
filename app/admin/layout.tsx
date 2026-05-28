@@ -3,14 +3,14 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const NAV = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/products", label: "Products" },
-  { href: "/admin/inventory", label: "Inventory" },
-  { href: "/admin/orders", label: "Orders" },
-  { href: "/admin/coupons", label: "Coupons" },
-  { href: "/admin/banners", label: "Banners" },
-  { href: "/admin/collections", label: "Collections" },
-  { href: "/admin/reviews", label: "Reviews" },
+  { href: "/admin", label: "dashboard" },
+  { href: "/admin/products", label: "products" },
+  { href: "/admin/inventory", label: "inventory" },
+  { href: "/admin/orders", label: "orders" },
+  { href: "/admin/coupons", label: "coupons" },
+  { href: "/admin/banners", label: "banners" },
+  { href: "/admin/collections", label: "collections" },
+  { href: "/admin/reviews", label: "reviews" },
 ];
 
 export default async function AdminLayout({
@@ -28,17 +28,17 @@ export default async function AdminLayout({
   // TODO(backend): check user.id is in admins table; redirect if not.
 
   return (
-    <div className="grid min-h-screen grid-cols-[240px_1fr] bg-white text-ink">
-      <aside className="border-r border-zinc-200 bg-zinc-50/60 px-4 py-6">
-        <p className="px-2 font-display text-lg tracking-[0.25em] text-maroon">
-          AARNA · ADMIN
+    <div className="grid min-h-screen grid-cols-[240px_1fr] bg-cream text-charcoal">
+      <aside className="border-r border-cocoa/12 bg-cream px-4 py-6">
+        <p className="px-2 font-display text-2xl lowercase leading-none text-maroon">
+          aarna admin
         </p>
-        <nav className="mt-8 flex flex-col gap-1 text-sm">
+        <nav className="mt-8 flex flex-col gap-1 text-sm lowercase text-charcoal/72">
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="rounded px-2 py-1.5 hover:bg-zinc-100"
+              className="px-2 py-2 transition duration-700 hover:bg-cocoa/10 hover:text-cocoa"
             >
               {item.label}
             </Link>
