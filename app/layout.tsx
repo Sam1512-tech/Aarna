@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Poppins } from "next/font/google";
+import { Cormorant_Garamond, Karla } from "next/font/google";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -8,19 +8,19 @@ const cormorant = Cormorant_Garamond({
   weight: ["400", "500", "600"],
 });
 
-const poppins = Poppins({
-  variable: "--font-poppins",
+const karla = Karla({
+  variable: "--font-karla",
   subsets: ["latin"],
-  weight: ["300", "400", "500"],
+  weight: ["300", "400", "500", "600"],
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Aarna — Minimal. Modern. Refined.",
-    template: "%s · Aarna",
+    default: "Aarna - made to live in",
+    template: "%s - Aarna",
   },
   description:
-    "Indo-western women's fashion. Clean lines, subtle details, and elevated silhouettes for the woman of today.",
+    "Aarna by Arpitha Abhishek is a slow-made women's clothing line for soft everyday rituals, intimate gatherings, travel, and thoughtful styling.",
 };
 
 export default function RootLayout({
@@ -29,9 +29,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cormorant.variable} ${poppins.variable} h-full antialiased`}
+      className={`${cormorant.variable} ${karla.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
 }
