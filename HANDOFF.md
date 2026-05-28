@@ -11,8 +11,9 @@ Read this fully before writing a single line of code. Use it as your daily refer
 - India-only, English, prices in ₹ (INR)
 - Online payments only (UPI, cards, net banking via Razorpay — no cash on delivery)
 - Customers: women shopping for dresses, co-ord sets, kurta sets, jackets, tops & tunics
-- Brand personality: **Minimal. Modern. Refined.** — clean lines, elevated silhouettes, premium feel
 - 10–12 week delivery timeline — we are already in Week 1
+
+**Design direction, brand voice, palette, typography, layout — all your call.** Build what feels right. Sam reviews PRs for correctness (broken routes, calling server actions properly), not for aesthetic choices.
 
 ---
 
@@ -66,55 +67,21 @@ Open **http://localhost:3000** in your browser. You should see the Aarna home pa
 
 ---
 
-## 4. Design System — Use These, Don't Invent
-
-Everything from the brand mood board is already coded into the project. Never hardcode a hex value.
-
-### Colors (Tailwind classes)
-| Token | Class | Hex | Use for |
-|---|---|---|---|
-| Ivory | `bg-ivory` / `text-ivory` | `#FAF7F2` | Page background |
-| Sand | `bg-sand` / `text-sand` | `#E0D0C6` | Cards, subtle borders |
-| Light Taupe | `bg-taupe` / `text-taupe` | `#C8BFB3` | Dividers, placeholder text |
-| Warm Grey | `bg-warm-grey` / `text-warm-grey` | `#9D948E` | Secondary text, captions |
-| Maroon | `bg-maroon` / `text-maroon` | `#4B1323` | Primary CTA buttons, links, brand accents |
-| Black | `bg-ink` / `text-ink` | `#111111` | Body text, headings |
-
-### Typography (Tailwind classes)
-| Use | Class | Font |
-|---|---|---|
-| All headings, hero text, product titles | `font-display` | Cormorant Garamond |
-| All body text, labels, buttons, nav | `font-sans` | Poppins |
-
-```tsx
-// Correct usage examples
-<h1 className="font-display text-5xl font-medium text-ink">Effortless Silhouettes</h1>
-<p className="font-sans text-sm text-warm-grey">Thoughtfully designed for every chapter of your life.</p>
-<button className="font-sans text-xs tracking-widest bg-maroon text-ivory px-8 py-3">EXPLORE NOW</button>
-```
-
-### Layout principles from the mood board
-- **Lots of whitespace** — generous padding, let things breathe
-- **Image-led** — photos are the hero, text is secondary
-- **Subtle** — no harsh shadows, no bright colors outside the palette
-- **Hover states** — soft opacity or underline transitions, nothing jarring
-- **Typography hierarchy** — display font for impact, Poppins for everything readable
-
----
-
-## 5. Site Structure — Pages You Build
+## 4. Site Structure — Pages You Build
 
 ### Storefront (`app/(storefront)/`)
 | Page | Route | What it shows |
 |---|---|---|
-| Home | `/` | Hero carousel, Shop by Category, New Arrivals, Trust badges |
-| Shop / PLP | `/shop/[category]` | Product grid with filters (size, color, price) and sort |
-| Product / PDP | `/product/[slug]` | Images, title, price, size picker, Add to Bag, fabric info |
-| Cart | `/cart` | Line items, quantities, order summary, proceed to checkout |
-| Checkout | `/checkout` | Address form, order review, Razorpay payment |
-| Account | `/account` | Orders, wishlist, addresses, return requests |
+| Home | `/` | Anything you want |
+| Shop / PLP | `/shop/[category]` | Product grid — content + filters your call. Use `getProducts({ category })` |
+| Product / PDP | `/product/[slug]` | Product detail — use `getProductBySlug(slug)` |
+| Cart | `/cart` | Cart — use `getCart()` and the cart actions |
+| Checkout | `/checkout` | Address form + payment — calls `initCheckout()` to open Razorpay |
+| Account | `/account` (+ `/orders`, `/addresses`, `/wishlist`, `/returns` under it) | Customer account — use `lib/actions/account.ts` |
 | Auth | `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback` | Auth forms + email-verify callback |
 | Legal | `/privacy`, `/terms`, `/returns`, `/shipping` | Static text pages (client provides copy) |
+
+**Only constraint:** the route paths above must be exactly as listed (the backend / Supabase Auth redirects / webhook return URLs all assume them). Everything inside each page — layout, content, components, styling — is your call.
 
 ### Admin (`app/admin/`)
 | Page | What it manages |
@@ -127,38 +94,21 @@ Everything from the brand mood board is already coded into the project. Never ha
 | `/admin/collections` | Seasonal groupings |
 | `/admin/reviews` | Approve / reject customer reviews |
 
-**For admin pages — always use shadcn/ui components.** They are already installed. This cuts weeks off admin build time. Don't custom-design admin — functional and clean is enough.
+shadcn/ui is already installed if you want to use it for admin to move faster — but not required.
 
 ---
 
-## 6. Navigation Structure
+## 5. Categories Are Dynamic (one architectural rule)
 
-Top navbar:
-```
-AARNA    New Arrivals    Shop ▾    Collections    Sale    🔍 👤 🤍 🛍
-```
+The whole point of the admin is that the client can self-manage. Categories are the cleanest example: when the client adds "Kurta Sets" via admin tomorrow, it should appear everywhere on the site automatically — navbar, homepage, PLP filters, footer — without anyone touching code.
 
-**"Shop ▾" is a dropdown — fully dynamic, never hardcoded.**
-It fetches categories from the DB using `getCategories()` and renders each as a link.
-Right now it shows: Dresses, Tops.
-When the client adds a new category via admin later, it appears automatically — no code change needed.
+**The rule:** anywhere you display category names or links, fetch them with `getCategories()`. Don't hardcode "Dresses" or "Tops" as strings anywhere — not even as fallbacks. If `getCategories()` returns an empty array, render nothing (or a generic placeholder), but never invent category names in code.
 
-**Important rule: never hardcode category names anywhere in the frontend.**
-Always fetch from `getCategories()`. This applies to:
-- The Shop dropdown in the navbar
-- The "Shop by Category" grid on the homepage
-- Any filter or category list on the PLP
-- Footer shop links
-
-Trust badges (bottom of homepage):
-- 🚚 Complimentary Shipping — On orders above ₹2999
-- 🔄 Easy Returns — 14 days return policy
-- 🌿 Premium Fabrics — Quality you can feel
-- 🔒 Secure Checkout — Multiple payment options
+That's the only frontend rule — and it's an architecture rule, not a design one.
 
 ---
 
-## 6.5 Backend Contract Updates (read this if you started before Week 2)
+## 6. Backend Contract Updates (read this if you started before Week 2)
 
 A few backend changes happened after this doc was first written. If anything in your existing components looks like it doesn't match these, update it.
 
@@ -312,7 +262,7 @@ git add -A && git commit -m "merge main"
 
 **Get notified when things change:**
 1. Visit [github.com/Sam1512-tech/Aarna](https://github.com/Sam1512-tech/Aarna), click the **Watch** button (top-right), pick **"All Activity"** — you'll get an email on every merge.
-2. Sam will WhatsApp you only when a merge changes the FE/BE contract (i.e., section 6.5 changes, new actions, renamed types). Not every merge — that's noise.
+2. Sam will WhatsApp you only when a merge changes the FE/BE contract (i.e., section 6 changes, new actions, renamed types). Not every merge — that's noise.
 
 ### PR rules
 - One feature per PR — don't bundle 5 things into one
@@ -321,43 +271,25 @@ git add -A && git commit -m "merge main"
 
 ---
 
-## 9. Build Order — What to Build First
+## 9. Build Order — Suggestion, Not Rule
 
-Work in this order. Don't jump ahead — later pages depend on earlier components.
+This is just an ordering that tends to work well — later pages depend on earlier components. Feel free to rearrange if you have your own flow.
 
-| Priority | What | Why first |
+| Priority | What | Why |
 |---|---|---|
 | 1 | Navbar + footer | Every page uses them |
-| 2 | Homepage | The client's reference design exists — closest to done |
-| 3 | Product card component | Used on homepage AND PLP |
+| 2 | Homepage | Sets the look + feel for everything else |
+| 3 | Product card component | Reused on homepage AND PLP |
 | 4 | PLP (product listing) | Depends on product card |
 | 5 | PDP (product detail) | Depends on product card |
 | 6 | Cart drawer / page | Depends on PDP |
 | 7 | Checkout | Depends on cart |
 | 8 | Account pages | Independent |
-| 9 | Admin screens | Use shadcn — fastest section |
+| 9 | Admin screens | shadcn/ui is installed if you want to move fast |
 
 ---
 
-## 10. Your Day 1 Task — Homepage
-
-Build `app/(storefront)/page.tsx`. It should have these sections top to bottom:
-
-1. **Navbar** — logo left, nav links center (`New Arrivals`, `Shop ▾` dropdown with dynamic categories from `getCategories()`, `Collections`, `Sale`), icons right (search, account, wishlist, bag)
-2. **Hero carousel** — full-width image slider, 3 slides, headline + subtext + CTA button
-   - Slide 1: "New Collection — Effortless Silhouettes"
-   - Use `bg-sand` as placeholder until real photos arrive
-3. **Shop by Category** — 2 large tiles side by side (Dresses, Tops). Make them large since only 2 — each roughly half the screen width on desktop, full width stacked on mobile
-   - Each tile: image + category name below
-4. **Trust badges** — 4 badges in a row (Shipping, Returns, Fabrics, Checkout)
-5. **Footer** — brand name, links, copyright
-
-Use mock images as placeholders (gray boxes) — real product photography comes in Week 8.
-Use the mock data from `lib/mocks/` for any product data.
-
----
-
-## 11. When You Are Stuck
+## 10. When You Are Stuck
 
 1. Re-read this document
 2. Check `lib/mocks/` for data shapes
@@ -368,7 +300,7 @@ Use the mock data from `lib/mocks/` for any product data.
 - Install npm packages without asking Sam first
 - Edit `package.json`, `tsconfig.json`, `next.config.ts`, `.github/`, `middleware.ts`
 - Push directly to `main` — the branch protection will block it anyway
-- Hardcode colors, hex values, or font names — use the Tailwind tokens
+- Hardcode category names (use `getCategories()`)
 
 ---
 

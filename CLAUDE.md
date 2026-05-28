@@ -16,7 +16,9 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - 2 categories at launch: **Dresses** and **Tops**
 - Long-term vision: client self-manages everything via admin (categories, products, collections, banners, coupons) — zero developer involvement needed after handover
 
-**Critical architecture rule:** categories, nav links, and homepage category grid must ALL be dynamic (pulled from DB via `getCategories()`) — never hardcoded anywhere in the codebase. When client adds a new category in admin, it must appear everywhere on the site automatically.
+**Critical architecture rule:** category names must always come from `getCategories()` — never hardcoded as strings anywhere in the codebase (not even as fallbacks). When the client adds a new category via admin, it must appear automatically wherever categories are displayed.
+
+**Frontend design direction is fully Vismaya's call** — palette, typography, brand voice, layout, copy, section structure. Client has approved her direction. The only frontend constraint is the dynamic-categories rule above.
 
 ---
 
@@ -53,7 +55,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - [x] Vismaya invited as collaborator (@vismayahm21-lab)
 - [x] Full Next.js 15 scaffold with all dependencies installed
 - [x] Folder structure matches technical plan exactly
-- [x] Tailwind design tokens configured (ivory/sand/taupe/warm-grey/maroon/ink, Cormorant+Poppins)
+- [x] Tailwind + globals.css scaffolded — Vismaya owns the actual design tokens
 - [x] Drizzle schema written — all 20+ tables from the technical plan
 - [x] Schema pushed to Supabase (aarna-dev project, Mumbai region)
 - [x] .env.local created with real Supabase keys (gitignored)
@@ -127,15 +129,14 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - **No COD** — Razorpay online only
 - **GST registered** — issue proper "Tax Invoice" not "Bill of Supply". Business legal name: **Aarna Label**. GSTIN: `29ACNFA3302J1ZD` (Karnataka). Registered address: No. 3571, 1st H Cross, Behind Girinagar Police Station, Giri Nagar, Bengaluru – 560085, Karnataka. Business phone: +91 79-75639485. Include GSTIN on all order invoices. Use CGST 6% + SGST 6% for intra-state orders (Karnataka), IGST 12% for inter-state. HSN code for garments: 6211. **Invoice number format:** `AL/26-27/00001` (financial year, resets every April).
 - **shadcn/ui for admin only** — storefront is fully custom for premium feel
-- **Dynamic navbar** — `Shop ▾` dropdown pulls categories from DB via `getCategories()`. No category names hardcoded anywhere — when client adds a category in admin it appears in nav, homepage grid, PLP filters, and footer automatically
+- **Dynamic categories** — wherever categories appear on the storefront, they come from `getCategories()`. No category names hardcoded anywhere — when client adds a category in admin it appears automatically. (How and where Vismaya chooses to display them is her call.)
 - **Admin is self-service** — after handover, client manages categories, products, collections, banners, coupons entirely via admin. No dev needed for content changes
 
 ---
 
-## Design Tokens (already in globals.css)
+## Design
 
-Colors: `bg-ivory` (#FAF7F2), `bg-sand` (#E0D0C6), `bg-taupe` (#C8BFB3), `bg-warm-grey` (#9D948E), `bg-maroon` (#4B1323), `bg-ink` (#111111)
-Fonts: `font-display` (Cormorant Garamond), `font-sans` (Poppins)
+Vismaya owns frontend design end-to-end — palette, typography, brand voice, layout, copy. Client has signed off on her direction. Backend has no opinion on these; don't impose old design tokens on her.
 
 ---
 
@@ -233,11 +234,8 @@ File: `lib/actions/admin/categories.ts`:
 
 All admin actions must be guarded with `requireAdmin()` so only logged-in admins can call them.
 
-### Where categories must be dynamic (Vismaya's responsibility — Sam to enforce in review)
-- Navbar `Shop ▾` dropdown — calls `getCategories()`, never hardcoded
-- Homepage "Shop by Category" grid — calls `getCategories()`, never hardcoded
-- PLP category filter sidebar — calls `getCategories()`, never hardcoded
-- Footer shop links — calls `getCategories()`, never hardcoded
+### Dynamic categories rule (architectural — enforce in PR review)
+Wherever categories appear on the storefront (whatever sections Vismaya designs), the names + slugs must come from `getCategories()`. No hardcoded "Dresses" / "Tops" strings anywhere — not even as fallbacks. This is what makes the admin self-service promise actually work.
 
 ---
 
