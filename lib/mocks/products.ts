@@ -15,6 +15,7 @@ export const MOCK_PRODUCTS: ProductWithVariants[] = [
     fabric: "100% Linen",
     washCare: "Dry clean only",
     basePrice: 4499,
+    mrp: 4999,
     status: "active",
     categoryId: null,
     metadata: null,

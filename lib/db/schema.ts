@@ -106,6 +106,7 @@ export const products = pgTable("products", {
   fabric: varchar("fabric", { length: 120 }),
   washCare: text("wash_care"),
   basePrice: integer("base_price").notNull(),
+  mrp: integer("mrp"),
   status: productStatus("status").default("draft").notNull(),
   categoryId: uuid("category_id").references(() => categories.id),
   metadata: jsonb("metadata"),
