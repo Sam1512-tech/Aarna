@@ -85,6 +85,26 @@ export const categories = pgTable("categories", {
     .notNull(),
 });
 
+export const banners = pgTable("banners", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: varchar("title", { length: 200 }),
+  subtitle: varchar("subtitle", { length: 300 }),
+  imageUrl: text("image_url").notNull(),
+  mobileImageUrl: text("mobile_image_url"),
+  ctaLabel: varchar("cta_label", { length: 60 }),
+  ctaHref: varchar("cta_href", { length: 300 }),
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  startsAt: timestamp("starts_at", { withTimezone: true }),
+  endsAt: timestamp("ends_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export const collections = pgTable("collections", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 140 }).notNull(),
