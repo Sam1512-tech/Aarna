@@ -40,6 +40,7 @@ export async function generateHangTagsForProduct(productId: string): Promise<Buf
       size: v.size,
       color: v.color,
       sku: v.sku,
+      mrp: product.mrp,
       fabric: product.fabric,
       careInstructions: product.washCare,
       barcodePng: await generateCode128Png(v.sku),
@@ -68,6 +69,7 @@ export async function generateHangTagsForVariants(
       sku: productVariants.sku,
       productId: products.id,
       productTitle: products.title,
+      mrp: products.mrp,
       fabric: products.fabric,
       washCare: products.washCare,
     })
@@ -89,6 +91,7 @@ export async function generateHangTagsForVariants(
       size: v.size,
       color: v.color,
       sku: v.sku,
+      mrp: v.mrp,
       fabric: v.fabric,
       careInstructions: v.washCare,
       barcodePng: await generateCode128Png(v.sku),
