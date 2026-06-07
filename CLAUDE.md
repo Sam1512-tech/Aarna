@@ -91,8 +91,8 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
     - `middleware.ts` — RBAC + Supabase session refresh
     - Supabase Auth email templates wired to Resend
     - RLS policies on Supabase tables
-- [ ] Priority 3 — Integrations: `lib/delhivery/`, `lib/whatsapp/`, additional Resend templates (verify_email, password_reset, order_shipped, refund_processed)
-- [ ] Priority 4 — Webhooks: rename shiprocket route → delhivery, implement tracking + whatsapp delivery receipts
+- [ ] Priority 3 — Integrations: `lib/delhivery/`, `lib/whatsapp/`
+- [ ] Priority 4 — Webhooks: rename shiprocket route → delhivery, implement tracking
 - [ ] Priority 5 — Admin server actions (categories, products, orders, inventory, coupons, banners, collections, reviews) + product hang tag PDF generator
 
 ---
@@ -127,6 +127,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - **Server actions as the FE/BE contract** — Vismaya calls typed functions from lib/actions/, never writes SQL or API calls directly
 - **No Figma** — building directly from the mood board. Client approval via WhatsApp message replaces the Figma approval milestone.
 - **No COD** — Razorpay online only
+- **Customer communication split** — Aarna only emails 4 things via Resend: order confirmation (with invoice PDF), email verification, password reset, refund processed. **All shipping milestones (shipped, in transit, out for delivery, delivered) are sent by Delhivery's own customer-communication system.** Don't duplicate them — confuses the customer with two messages saying the same thing.
 - **GST registered** — issue proper "Tax Invoice" not "Bill of Supply". Business legal name: **Aarna Label**. GSTIN: `29ACNFA3302J1ZD` (Karnataka). Registered address: No. 3571, 1st H Cross, Behind Girinagar Police Station, Giri Nagar, Bengaluru – 560085, Karnataka. Business phone: +91 79-75639485. Include GSTIN on all order invoices. Use CGST 6% + SGST 6% for intra-state orders (Karnataka), IGST 12% for inter-state. HSN code for garments: 6211. **Invoice number format:** `AL/26-27/00001` (financial year, resets every April).
 - **shadcn/ui for admin only** — storefront is fully custom for premium feel
 - **Dynamic categories** — wherever categories appear on the storefront, they come from `getCategories()`. No category names hardcoded anywhere — when client adds a category in admin it appears automatically. (How and where Vismaya chooses to display them is her call.)
