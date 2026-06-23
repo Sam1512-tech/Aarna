@@ -82,7 +82,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - [ ] **Razorpay webhook secret** — Razorpay dashboard has a platform outage (2 days+); add `RAZORPAY_WEBHOOK_SECRET` once dashboard is back
 - [ ] Delhivery KYC — client confirmed Delhivery, start onboarding
 - [ ] WhatsApp BSP (Interakt) — **code complete**, blocked on client (Facebook Business Manager + spare number) + Meta template approval. `sendTemplate()` (Interakt) + all 4 trigger points wired (order_placed, delivered, return_received, refund_processed), opt-in gated via `orders.whatsapp_opt_in`, every send logged to `message_log`. Graceful no-op until `WHATSAPP_API_KEY` is set. Template drafts: `docs/whatsapp-templates.md` (submit to Meta once the Interakt account exists).
-- [ ] Resend account + DNS verification for `hello@aarna.in` (and `hello@solarisstudios.co.in` for testing)
+- [ ] Resend account + DNS verification for `hello@shopaarna.in` (and `hello@solarisstudios.co.in` for testing)
 - [x] Cloudinary — account connected, keys in `.env.local`; `lib/cloudinary/` signed-upload helper done and verified live (upload → fetch metadata → f_auto/q_auto transform → destroy all OK)
 - [ ] Mood board approval from client in writing — needed to trigger ₹52K milestone payment
 - [ ] Priority 2 — Auth & Account:
@@ -190,7 +190,7 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 6. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
 7. ~~Wire Priority 1 server actions~~ — done (products, cart, checkout)
 8. ~~Build Priority 2~~ — auth, account, middleware/RBAC, RLS all done. **Remaining:** Supabase Auth email templates wired to Resend
-9. Resend account + verify `hello@aarna.in` DNS so emails actually send
+9. Resend account + verify `hello@shopaarna.in` DNS so emails actually send
 10. ~~Cloudinary~~ — done (account connected, keys in `.env.local`, verified live)
 
 ---

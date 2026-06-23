@@ -38,7 +38,7 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
   const html = buildEmailHtml(input.templateKey, input.data);
 
   const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_ADDRESS ?? "Aarna <hello@aarna.in>",
+    from: process.env.RESEND_FROM_ADDRESS ?? "Aarna <hello@shopaarna.in>",
     to: input.to,
     subject: input.subject,
     html,
@@ -104,7 +104,7 @@ function shell({ preheader, bodyHtml }: ShellOptions): string {
             <td style="padding:20px 40px;background:#FAF7F2;border-top:1px solid #E0D0C6;text-align:center;">
               <p style="margin:0;font-size:11px;color:#9D948E;line-height:1.8;">
                 Aarna Label · Giri Nagar, Bengaluru · GSTIN: 29ACNFA3302J1ZD<br/>
-                Questions? Write to <a href="mailto:hello@aarna.in" style="color:#9D948E;">hello@aarna.in</a>
+                Questions? Write to <a href="mailto:hello@shopaarna.in" style="color:#9D948E;">hello@shopaarna.in</a>
               </p>
             </td>
           </tr>
@@ -162,7 +162,7 @@ function orderReceiptHtml(data: Record<string, unknown>): string {
       ${detailsTable}
       <p style="margin:0 0 8px;font-size:13px;color:#555;line-height:1.7;">
         Your tax invoice is attached to this email as a PDF. You can also find your order details in your account at
-        <a href="https://aarna.in/account" style="color:#4B1323;">aarna.in/account</a>.
+        <a href="https://shopaarna.in/account" style="color:#4B1323;">shopaarna.in/account</a>.
       </p>
     `,
   });
@@ -172,7 +172,7 @@ function orderReceiptHtml(data: Record<string, unknown>): string {
 
 function verifyEmailHtml(data: Record<string, unknown>): string {
   const name = (data.name as string | undefined) ?? "there";
-  const verifyUrl = (data.verifyUrl as string | undefined) ?? "https://aarna.in";
+  const verifyUrl = (data.verifyUrl as string | undefined) ?? "https://shopaarna.in";
 
   return shell({
     preheader: "Confirm your email to start shopping at Aarna.",
@@ -196,7 +196,7 @@ function verifyEmailHtml(data: Record<string, unknown>): string {
 // ── Password reset ───────────────────────────────────────────────────────────
 
 function passwordResetHtml(data: Record<string, unknown>): string {
-  const resetUrl = (data.resetUrl as string | undefined) ?? "https://aarna.in";
+  const resetUrl = (data.resetUrl as string | undefined) ?? "https://shopaarna.in";
 
   return shell({
     preheader: "Reset your Aarna account password.",

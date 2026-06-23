@@ -44,7 +44,7 @@ Order total: ₹{{3}}
 We'll let you know the moment it arrives. 💛
 ```
 **Footer:** `Aarna by Arpitha Abhishek`
-**Button:** URL · `View my orders` → `https://aarna.in/account`
+**Button:** URL · `View my orders` → `https://shopaarna.in/account`
 
 | Var | Meaning | Sample |
 |---|---|---|
@@ -67,7 +67,7 @@ We truly hope you love it. If anything isn't quite right, you have {{3}} days to
 We'd love to see how you style it — tag us @aarna 💛
 ```
 **Footer:** `Aarna by Arpitha Abhishek`
-**Button:** URL · `View my orders` → `https://aarna.in/account`
+**Button:** URL · `View my orders` → `https://shopaarna.in/account`
 
 | Var | Meaning | Sample |
 |---|---|---|
@@ -124,6 +124,8 @@ It should reflect in your original payment method within {{4}}. Thank you for yo
 
 - **Client:** Facebook Business Manager + a spare phone number (the WhatsApp
   sender number can't be one already on personal WhatsApp).
-- **You:** create the Interakt account, add these 4 templates, submit to Meta.
-- **Code:** `lib/whatsapp/index.ts` `sendTemplate()` is still a stub — wire the
-  Interakt REST call + the 4 trigger points once the BSP account + API key exist.
+- **You:** create the Interakt account, add these 4 templates, submit to Meta,
+  then drop the API key into `WHATSAPP_API_KEY`.
+- **Code:** ✅ done — `sendTemplate()` (Interakt) + all 4 trigger points are
+  wired, opt-in gated, and log to `message_log`. Graceful no-op until the API
+  key is set, so it activates with zero code changes.
