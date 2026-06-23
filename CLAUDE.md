@@ -73,7 +73,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - [x] **Priority 1 server actions complete (unblocks Vismaya):**
     - `lib/actions/products.ts` — getCategories, getProducts, getProductBySlug, getCollections, getNewArrivals, getRelatedProducts
     - `lib/actions/cart.ts` — getCart, addToCart, updateCartItem, removeFromCart, applyCoupon, mergeGuestCartOnLogin (cookie-based guest cart + Supabase auth)
-    - `lib/actions/checkout.ts` — initCheckout (validates cart, generates order, creates Razorpay order), checkPincodeServiceability (optimistic until Delhivery wired)
+    - `lib/actions/checkout.ts` — initCheckout (validates cart, generates order, creates Razorpay order), checkPincodeServiceability (calls Delhivery pincode API; optimistic fallback pre-KYC)
 
 ---
 
@@ -81,16 +81,16 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 
 - [ ] **Razorpay webhook secret** — Razorpay dashboard has a platform outage (2 days+); add `RAZORPAY_WEBHOOK_SECRET` once dashboard is back
 - [ ] Delhivery KYC — client confirmed Delhivery, start onboarding
-- [ ] WhatsApp BSP (Interakt) — waiting for client's Facebook Business Manager + spare phone number
+- [ ] WhatsApp BSP (Interakt) — waiting for client's Facebook Business Manager + spare phone number. Scope locked to 4 key-milestone templates; drafts ready in `docs/whatsapp-templates.md` (submit to Meta once Interakt account exists). `sendTemplate()` + trigger points still to wire once the API key lands.
 - [ ] Resend account + DNS verification for `hello@aarna.in` (and `hello@solarisstudios.co.in` for testing)
-- [ ] Cloudinary account + upload helper (`lib/cloudinary/`)
+- [x] Cloudinary — account connected, keys in `.env.local`; `lib/cloudinary/` signed-upload helper done and verified live (upload → fetch metadata → f_auto/q_auto transform → destroy all OK)
 - [ ] Mood board approval from client in writing — needed to trigger ₹52K milestone payment
 - [ ] Priority 2 — Auth & Account:
     - [x] `lib/actions/auth.ts` — signup/login/logout/reset password (Supabase Auth)
     - [x] `lib/actions/account.ts` — orders, wishlist, addresses, returns
     - [x] `middleware.ts` — Supabase session refresh + `/admin` & `/account` redirects. Admin RBAC is enforced in `app/admin/layout.tsx` via `getCurrentAdmin()` (Drizzle can't run in edge middleware, so the admins-table check lives in the server-component layout)
     - [ ] Supabase Auth email templates wired to Resend
-    - [x] RLS policies — `lib/db/rls.sql` (default-deny on all 20 public tables; apply with `npm run db:rls`). Server actions use the Drizzle owner role which bypasses RLS; this only locks the public PostgREST/anon surface
+    - [x] RLS policies — `lib/db/rls.sql` (default-deny on all 20 public tables; apply with `npm run db:rls`). Applied + verified on aarna-dev (anon REST now returns 0 rows). Server actions use the Drizzle owner role which bypasses RLS; this only locks the public PostgREST/anon surface. **Re-run `npm run db:rls` on the prod project before go-live.**
 - [ ] Priority 3 — Integrations: `lib/delhivery/` (client + serviceability + webhook done; shipment creation/tracking stubbed pending KYC token), `lib/whatsapp/` (stubbed — blocked on BSP)
 - [ ] Priority 4 — Webhooks: Delhivery webhook wired (status → fulfillment_status); Razorpay `payment.failed` + `refund.processed` now handled (refund flips order status + emails customer). Implement live Delhivery shipment creation + tracking once the KYC API token is set
 - [x] Priority 5 — Admin server actions (categories, products, orders, inventory, coupons, banners, collections, **reviews**) + product hang tag PDF generator
@@ -128,6 +128,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - **No Figma** — building directly from the mood board. Client approval via WhatsApp message replaces the Figma approval milestone.
 - **No COD** — Razorpay online only
 - **Customer communication split** — Aarna only emails 4 things via Resend: order confirmation (with invoice PDF), email verification, password reset, refund processed. **All shipping milestones (shipped, in transit, out for delivery, delivered) are sent by Delhivery's own customer-communication system.** Don't duplicate them — confuses the customer with two messages saying the same thing.
+- **WhatsApp scope — key milestones only** — WhatsApp (Interakt BSP) sends 4 templates: `order_placed`, `delivered`, `return_received`, `refund_processed`. Shipping-in-progress updates (shipped, out for delivery, in transit) are **not** sent via WhatsApp — Delhivery owns those, same no-duplication rule as email. Template drafts + variable mappings live in `docs/whatsapp-templates.md` (all UTILITY category, pending Meta approval). Copy is Vismaya's voice call.
 - **GST registered** — issue proper "Tax Invoice" not "Bill of Supply". Business legal name: **Aarna Label**. GSTIN: `29ACNFA3302J1ZD` (Karnataka). Registered address: No. 3571, 1st H Cross, Behind Girinagar Police Station, Giri Nagar, Bengaluru – 560085, Karnataka. Business phone: +91 79-75639485. Include GSTIN on all order invoices. Use CGST 6% + SGST 6% for intra-state orders (Karnataka), IGST 12% for inter-state. HSN code for garments: 6211. **Invoice number format:** `AL/26-27/00001` (financial year, resets every April).
 - **shadcn/ui for admin only** — storefront is fully custom for premium feel
 - **Dynamic categories** — wherever categories appear on the storefront, they come from `getCategories()`. No category names hardcoded anywhere — when client adds a category in admin it appears automatically. (How and where Vismaya chooses to display them is her call.)
@@ -185,11 +186,12 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 2. ~~Submit Razorpay KYC~~ — done, test keys live
 3. Add `RAZORPAY_WEBHOOK_SECRET` to `.env.local` once Razorpay dashboard outage is resolved
 4. Start Delhivery KYC — client has confirmed Delhivery as shipping partner
-5. Wait for client on WhatsApp BSP (Facebook BM + spare number)
+5. WhatsApp BSP — waiting on client (Facebook BM + spare number). Scope locked + 4 templates drafted (`docs/whatsapp-templates.md`); submit to Meta once the Interakt account exists
 6. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
 7. ~~Wire Priority 1 server actions~~ — done (products, cart, checkout)
-8. Build Priority 2 — auth actions, account actions, middleware (RBAC + session refresh), RLS policies, Supabase Auth email templates via Resend
+8. ~~Build Priority 2~~ — auth, account, middleware/RBAC, RLS all done. **Remaining:** Supabase Auth email templates wired to Resend
 9. Resend account + verify `hello@aarna.in` DNS so emails actually send
+10. ~~Cloudinary~~ — done (account connected, keys in `.env.local`, verified live)
 
 ---
 
