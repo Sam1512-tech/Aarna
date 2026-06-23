@@ -281,6 +281,7 @@ export const orders = pgTable("orders", {
   customerId: uuid("customer_id").references(() => customers.id),
   email: varchar("email", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 20 }).notNull(),
+  whatsappOptIn: boolean("whatsapp_opt_in").default(false).notNull(),
   shippingAddress: jsonb("shipping_address").notNull(),
   billingAddress: jsonb("billing_address"),
   subtotal: integer("subtotal").notNull(),

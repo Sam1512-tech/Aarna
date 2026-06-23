@@ -10,6 +10,7 @@ import {
   recordRefund,
 } from "@/lib/db/queries/orders";
 import { sendEmail } from "@/lib/resend";
+import { notifyWhatsApp, firstNameFromAddress, rupees } from "@/lib/whatsapp/notify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,6 +55,19 @@ export async function POST(req: Request) {
       }).catch((err) => {
         // Never let email failure break the webhook response
         console.error("[razorpay webhook] email send failed:", err);
+      });
+
+      // WhatsApp order confirmation (opt-in gated; no-op until Interakt is live)
+      await notifyWhatsApp({
+        orderId: order.id,
+        phone: order.phone,
+        whatsappOptIn: order.whatsappOptIn,
+        templateKey: "order_placed",
+        bodyValues: [
+          firstNameFromAddress(order.shippingAddress),
+          order.orderNumber,
+          rupees(order.total),
+        ],
       });
 
       break;
@@ -104,6 +118,20 @@ export async function POST(req: Request) {
         data: { order: result.order, refundAmount: refund.amount },
       }).catch((err) => {
         console.error("[razorpay webhook] refund email failed:", err);
+      });
+
+      // WhatsApp refund confirmation (opt-in gated; no-op until Interakt is live)
+      await notifyWhatsApp({
+        orderId: result.order.id,
+        phone: result.order.phone,
+        whatsappOptIn: result.order.whatsappOptIn,
+        templateKey: "refund_processed",
+        bodyValues: [
+          firstNameFromAddress(result.order.shippingAddress),
+          rupees(refund.amount),
+          result.order.orderNumber,
+          "5–7 business days",
+        ],
       });
 
       break;

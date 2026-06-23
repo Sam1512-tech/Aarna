@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { mapDelhiveryStatus } from "@/lib/delhivery";
+import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
 
 const { orders } = schema;
+
+// Days the customer has to request a return after delivery (shown in the
+// delivered WhatsApp). Keep in sync with the returns policy.
+const RETURN_WINDOW_DAYS = 7;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,10 +54,32 @@ export async function POST(req: Request) {
       .update(orders)
       .set({ fulfillmentStatus: next, updatedAt: new Date() })
       .where(eq(orders.awbNumber, awb));
+
+    // In-transit / shipped / out-for-delivery updates are left to Delhivery's own
+    // comms — we don't duplicate those. On delivery we send Aarna's own branded
+    // WhatsApp (a key milestone: return reminder + brand touch). No email here —
+    // delivery isn't one of Aarna's transactional emails. (docs/whatsapp-templates.md)
+    if (next === "delivered") {
+      const [order] = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.awbNumber, awb))
+        .limit(1);
+      if (order) {
+        await notifyWhatsApp({
+          orderId: order.id,
+          phone: order.phone,
+          whatsappOptIn: order.whatsappOptIn,
+          templateKey: "delivered",
+          bodyValues: [
+            firstNameFromAddress(order.shippingAddress),
+            order.orderNumber,
+            String(RETURN_WINDOW_DAYS),
+          ],
+        });
+      }
+    }
   }
 
-  // NOTE: customer shipping notifications (shipped / out-for-delivery / delivered)
-  // are sent by Delhivery's own comms — we do NOT email or WhatsApp here, to avoid
-  // sending the customer two messages that say the same thing.
   return NextResponse.json({ ok: true });
 }
