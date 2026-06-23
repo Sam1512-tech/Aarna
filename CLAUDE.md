@@ -92,7 +92,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
     - Supabase Auth email templates wired to Resend
     - RLS policies on Supabase tables
 - [ ] Priority 3 — Integrations: `lib/delhivery/`, `lib/whatsapp/`
-- [ ] Priority 4 — Webhooks: rename shiprocket route → delhivery, implement tracking
+- [ ] Priority 4 — Webhooks: Delhivery webhook wired (status → fulfillment_status); implement live shipment creation + tracking once the KYC API token is set
 - [ ] Priority 5 — Admin server actions (categories, products, orders, inventory, coupons, banners, collections, reviews) + product hang tag PDF generator
 
 ---

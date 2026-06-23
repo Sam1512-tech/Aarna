@@ -370,7 +370,7 @@ export const returns = pgTable("returns", {
   status: returnStatus("status").default("requested").notNull(),
   refundAmount: integer("refund_amount"),
   razorpayRefundId: varchar("razorpay_refund_id", { length: 60 }),
-  shiprocketReversePickupId: varchar("shiprocket_reverse_pickup_id", {
+  delhiveryReversePickupId: varchar("delhivery_reverse_pickup_id", {
     length: 60,
   }),
   createdAt: timestamp("created_at", { withTimezone: true })

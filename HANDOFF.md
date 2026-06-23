@@ -21,7 +21,7 @@ Read this fully before writing a single line of code. Use it as your daily refer
 
 | | Sam | Vismaya |
 |---|---|---|
-| **Owns** | Database, server actions, all 3rd-party APIs (Razorpay, Shiprocket, WhatsApp, Resend, Cloudinary), auth, webhooks, deployments | All storefront UI, all admin UI, components, Tailwind styling |
+| **Owns** | Database, server actions, all 3rd-party APIs (Razorpay, Delhivery, WhatsApp, Resend, Cloudinary), auth, webhooks, deployments | All storefront UI, all admin UI, components, Tailwind styling |
 | **Reviews** | Every PR Vismaya opens — nothing merges without Sam's approval | Her own code before opening a PR |
 | **Never touches** | Design — Sam trusts Vismaya's eye | `lib/db/`, `lib/actions/`, `lib/supabase/`, `app/api/`, `middleware.ts`, `drizzle/` — CODEOWNERS will block the PR anyway |
 
