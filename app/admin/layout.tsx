@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentAdmin } from "@/lib/actions/auth";
 
 const NAV = [
   { href: "/admin", label: "dashboard" },
@@ -25,7 +26,10 @@ export default async function AdminLayout({
 
   if (!user) redirect("/login?redirect=/admin");
 
-  // TODO(backend): check user.id is in admins table; redirect if not.
+  // Authenticated, but admin access requires a row in the admins table.
+  // A logged-in customer who hits /admin gets bounced to the storefront.
+  const admin = await getCurrentAdmin();
+  if (!admin) redirect("/");
 
   return (
     <div className="grid min-h-screen grid-cols-[240px_1fr] bg-cream text-charcoal">

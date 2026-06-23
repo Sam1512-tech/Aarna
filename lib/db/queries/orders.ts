@@ -1,9 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { InvoiceData } from "@/lib/invoice/generate";
 import { calculateGst, isInterStateOrder } from "@/lib/invoice/generate";
 
-const { orders, orderItems } = schema;
+const { orders, orderItems, returns } = schema;
 
 export type OrderRow = typeof orders.$inferSelect;
 export type OrderItemRow = typeof orderItems.$inferSelect;
@@ -45,6 +45,78 @@ export async function markOrderPaid(
       updatedAt: new Date(),
     })
     .where(eq(orders.id, orderId));
+}
+
+export async function getOrderByRazorpayPaymentId(
+  razorpayPaymentId: string,
+): Promise<OrderRow | null> {
+  return db
+    .select()
+    .from(orders)
+    .where(eq(orders.razorpayPaymentId, razorpayPaymentId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+}
+
+/**
+ * Marks a still-pending order as failed. No-op if the order was already paid
+ * (a late payment.failed event must never override a successful capture).
+ * Returns true if a row was actually updated.
+ */
+export async function markOrderPaymentFailed(
+  razorpayOrderId: string,
+): Promise<boolean> {
+  const updated = await db
+    .update(orders)
+    .set({ paymentStatus: "failed", updatedAt: new Date() })
+    .where(
+      and(
+        eq(orders.razorpayOrderId, razorpayOrderId),
+        eq(orders.paymentStatus, "pending"),
+      ),
+    )
+    .returning({ id: orders.id });
+  return updated.length > 0;
+}
+
+/**
+ * Records a processed Razorpay refund:
+ *  - flips the order to "refunded" (full) or "partially_refunded"
+ *  - marks any return row carrying this refund id as "refunded"
+ * Returns the order plus whether it was already fully refunded (webhook retry),
+ * so the caller can avoid sending a duplicate refund email. Null if no order
+ * matches the refunded payment.
+ */
+export async function recordRefund(params: {
+  razorpayPaymentId: string;
+  razorpayRefundId: string;
+  amountRefundedPaise: number;
+}): Promise<{ order: OrderRow; isDuplicate: boolean } | null> {
+  const order = await getOrderByRazorpayPaymentId(params.razorpayPaymentId);
+  if (!order) return null;
+
+  const isDuplicate = order.paymentStatus === "refunded";
+
+  const nextStatus =
+    params.amountRefundedPaise >= order.total ? "refunded" : "partially_refunded";
+
+  await db
+    .update(orders)
+    .set({ paymentStatus: nextStatus, updatedAt: new Date() })
+    .where(eq(orders.id, order.id));
+
+  // Resolve the return that triggered this refund (idempotent on retries).
+  await db
+    .update(returns)
+    .set({ status: "refunded", resolvedAt: new Date() })
+    .where(
+      and(
+        eq(returns.razorpayRefundId, params.razorpayRefundId),
+        ne(returns.status, "refunded"),
+      ),
+    );
+
+  return { order, isDuplicate };
 }
 
 /**

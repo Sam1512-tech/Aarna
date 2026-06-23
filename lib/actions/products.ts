@@ -90,7 +90,7 @@ export async function getProducts(
 
   const whereClause = and(...conditions);
 
-  let query = db.select().from(products).where(whereClause);
+  const query = db.select().from(products).where(whereClause);
 
   // Filter by collection via join (slug → collection_products → products)
   if (filters.collection) {
