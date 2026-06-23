@@ -123,6 +123,7 @@ export async function initCheckout(
       customerId,
       email: input.email,
       phone: input.shippingAddress.phone,
+      whatsappOptIn: input.whatsappOptIn,
       shippingAddress: input.shippingAddress,
       billingAddress: input.billingSameAsShipping
         ? input.shippingAddress

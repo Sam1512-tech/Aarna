@@ -81,7 +81,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 
 - [ ] **Razorpay webhook secret** — Razorpay dashboard has a platform outage (2 days+); add `RAZORPAY_WEBHOOK_SECRET` once dashboard is back
 - [ ] Delhivery KYC — client confirmed Delhivery, start onboarding
-- [ ] WhatsApp BSP (Interakt) — waiting for client's Facebook Business Manager + spare phone number. Scope locked to 4 key-milestone templates; drafts ready in `docs/whatsapp-templates.md` (submit to Meta once Interakt account exists). `sendTemplate()` + trigger points still to wire once the API key lands.
+- [ ] WhatsApp BSP (Interakt) — **code complete**, blocked on client (Facebook Business Manager + spare number) + Meta template approval. `sendTemplate()` (Interakt) + all 4 trigger points wired (order_placed, delivered, return_received, refund_processed), opt-in gated via `orders.whatsapp_opt_in`, every send logged to `message_log`. Graceful no-op until `WHATSAPP_API_KEY` is set. Template drafts: `docs/whatsapp-templates.md` (submit to Meta once the Interakt account exists).
 - [ ] Resend account + DNS verification for `hello@aarna.in` (and `hello@solarisstudios.co.in` for testing)
 - [x] Cloudinary — account connected, keys in `.env.local`; `lib/cloudinary/` signed-upload helper done and verified live (upload → fetch metadata → f_auto/q_auto transform → destroy all OK)
 - [ ] Mood board approval from client in writing — needed to trigger ₹52K milestone payment
@@ -91,9 +91,9 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
     - [x] `middleware.ts` — Supabase session refresh + `/admin` & `/account` redirects. Admin RBAC is enforced in `app/admin/layout.tsx` via `getCurrentAdmin()` (Drizzle can't run in edge middleware, so the admins-table check lives in the server-component layout)
     - [ ] Supabase Auth email templates wired to Resend
     - [x] RLS policies — `lib/db/rls.sql` (default-deny on all 20 public tables; apply with `npm run db:rls`). Applied + verified on aarna-dev (anon REST now returns 0 rows). Server actions use the Drizzle owner role which bypasses RLS; this only locks the public PostgREST/anon surface. **Re-run `npm run db:rls` on the prod project before go-live.**
-- [ ] Priority 3 — Integrations: `lib/delhivery/` (client + serviceability + webhook done; shipment creation/tracking stubbed pending KYC token), `lib/whatsapp/` (stubbed — blocked on BSP)
+- [ ] Priority 3 — Integrations: `lib/delhivery/` (client + serviceability + webhook done; shipment creation/tracking stubbed pending KYC token), `lib/whatsapp/` (Interakt `sendTemplate` + opt-in `notify` helper + 4 trigger points wired; graceful no-op until BSP API key + Meta approval)
 - [ ] Priority 4 — Webhooks: Delhivery webhook wired (status → fulfillment_status); Razorpay `payment.failed` + `refund.processed` now handled (refund flips order status + emails customer). Implement live Delhivery shipment creation + tracking once the KYC API token is set
-- [x] Priority 5 — Admin server actions (categories, products, orders, inventory, coupons, banners, collections, **reviews**) + product hang tag PDF generator
+- [x] Priority 5 — Admin server actions (categories, products, orders, inventory, coupons, banners, collections, **reviews**, **returns**) + product hang tag PDF generator
 
 ---
 
