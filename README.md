@@ -13,7 +13,7 @@ E-commerce storefront and admin for **Aarna** — an indo-western women's fashio
 - **Supabase** (Postgres + Auth + Storage)
 - **Drizzle ORM** for the database layer
 - **Tailwind CSS v4** + shadcn/ui (admin) + custom storefront
-- **Razorpay** payments · **Shiprocket** logistics · **WhatsApp BSP** notifications · **Resend** email · **Cloudinary** images · **Cloudflare** WAF/CDN
+- **Razorpay** payments · **Delhivery** logistics · **WhatsApp BSP** notifications · **Resend** email · **Cloudinary** images · **Cloudflare** WAF/CDN
 
 The full stack rationale and 12-week phase plan live in the technical implementation plan PDF (not in this repo).
 
@@ -58,7 +58,7 @@ app/
   (storefront)/        # public site — FE territory
   (auth)/              # login, signup
   admin/               # admin dashboard — gated by middleware
-  api/webhooks/        # razorpay, shiprocket, whatsapp — BE only
+  api/webhooks/        # razorpay, delhivery, whatsapp — BE only
 components/
   storefront/          # storefront components
   admin/               # admin components (shadcn-based)
@@ -70,7 +70,7 @@ lib/
   actions/             # server actions — BE writes, FE consumes
   supabase/            # auth helpers (browser, server, middleware)
   razorpay/            # Razorpay SDK wrapper
-  shiprocket/          # Shiprocket REST client
+  delhivery/           # Delhivery REST client
   whatsapp/            # BSP wrapper
   resend/              # email sender
   cloudinary/          # signed uploads + helpers

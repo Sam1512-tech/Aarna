@@ -3,6 +3,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createRazorpayOrder } from "@/lib/razorpay";
+import { checkServiceability } from "@/lib/delhivery";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCart, applyCoupon } from "@/lib/actions/cart";
 import type { AddressInput, CheckoutSummary } from "@/lib/types";
@@ -200,11 +201,24 @@ export async function checkPincodeServiceability(
     return { serviceable: false };
   }
 
-  // TODO(backend): once Delhivery KYC is done, call the pincode serviceability API:
-  // https://track.delhivery.com/c/api/pin-codes/json/?filter_codes={pincode}
-  //
-  // For now, optimistically return serviceable with a 5-day ETA so Vismaya can build
-  // the UI. The webhook + admin will catch any genuinely unserviceable pincodes once
-  // the integration is live.
-  return { serviceable: true, etaDays: 5 };
+  // Pre-KYC: if the Delhivery token isn't set yet, stay optimistic so Vismaya's
+  // checkout UI keeps working. Once DELHIVERY_API_TOKEN is configured this hits
+  // the real pincode serviceability API.
+  if (!process.env.DELHIVERY_API_TOKEN) {
+    return { serviceable: true, etaDays: 5 };
+  }
+
+  try {
+    const result = await checkServiceability(pincode);
+    // Aarna is prepaid-only, so prepaid serviceability is what matters.
+    // (Delhivery's pincode endpoint doesn't return an ETA; 5 days is a placeholder.)
+    return {
+      serviceable: result.serviceable,
+      etaDays: result.serviceable ? 5 : undefined,
+    };
+  } catch (err) {
+    console.error("[checkout] Delhivery serviceability failed:", err);
+    // Don't block checkout on a logistics-API hiccup.
+    return { serviceable: true, etaDays: 5 };
+  }
 }
