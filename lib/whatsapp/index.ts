@@ -1,13 +1,15 @@
-// WhatsApp Business API via BSP (Interakt or AiSensy).
-// The exact REST shape depends on the BSP chosen — fill in once selected.
+// WhatsApp Business API via BSP (Interakt).
+// The exact REST shape depends on the BSP — fill in once the account exists.
 //
-// Required templates (all need Meta approval, 1–7 day cycle):
-//   order_placed, order_shipped, out_for_delivery, delivered, return_received, refund_processed
+// Scope: WhatsApp sends KEY MILESTONES ONLY. Shipping-in-progress updates
+// (shipped / out for delivery / in transit) are owned by Delhivery's own
+// customer comms — we don't duplicate them. See docs/whatsapp-templates.md.
+//
+// Templates (all need Meta approval, 1–7 day cycle):
+//   order_placed, delivered, return_received, refund_processed
 
 export type WhatsappTemplateKey =
   | "order_placed"
-  | "order_shipped"
-  | "out_for_delivery"
   | "delivered"
   | "return_received"
   | "refund_processed";
