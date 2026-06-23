@@ -86,14 +86,14 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - [ ] Cloudinary account + upload helper (`lib/cloudinary/`)
 - [ ] Mood board approval from client in writing — needed to trigger ₹52K milestone payment
 - [ ] Priority 2 — Auth & Account:
-    - `lib/actions/auth.ts` — signup/login/logout/reset password (Supabase Auth)
-    - `lib/actions/account.ts` (new) — orders, wishlist, addresses, returns
-    - `middleware.ts` — RBAC + Supabase session refresh
-    - Supabase Auth email templates wired to Resend
-    - RLS policies on Supabase tables
-- [ ] Priority 3 — Integrations: `lib/delhivery/`, `lib/whatsapp/`
-- [ ] Priority 4 — Webhooks: Delhivery webhook wired (status → fulfillment_status); implement live shipment creation + tracking once the KYC API token is set
-- [ ] Priority 5 — Admin server actions (categories, products, orders, inventory, coupons, banners, collections, reviews) + product hang tag PDF generator
+    - [x] `lib/actions/auth.ts` — signup/login/logout/reset password (Supabase Auth)
+    - [x] `lib/actions/account.ts` — orders, wishlist, addresses, returns
+    - [x] `middleware.ts` — Supabase session refresh + `/admin` & `/account` redirects. Admin RBAC is enforced in `app/admin/layout.tsx` via `getCurrentAdmin()` (Drizzle can't run in edge middleware, so the admins-table check lives in the server-component layout)
+    - [ ] Supabase Auth email templates wired to Resend
+    - [x] RLS policies — `lib/db/rls.sql` (default-deny on all 20 public tables; apply with `npm run db:rls`). Server actions use the Drizzle owner role which bypasses RLS; this only locks the public PostgREST/anon surface
+- [ ] Priority 3 — Integrations: `lib/delhivery/` (client + serviceability + webhook done; shipment creation/tracking stubbed pending KYC token), `lib/whatsapp/` (stubbed — blocked on BSP)
+- [ ] Priority 4 — Webhooks: Delhivery webhook wired (status → fulfillment_status); Razorpay `payment.failed` + `refund.processed` now handled (refund flips order status + emails customer). Implement live Delhivery shipment creation + tracking once the KYC API token is set
+- [x] Priority 5 — Admin server actions (categories, products, orders, inventory, coupons, banners, collections, **reviews**) + product hang tag PDF generator
 
 ---
 

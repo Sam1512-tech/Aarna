@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/razorpay";
 import { nextInvoiceNumber } from "@/lib/invoice/counter";
 import { generateInvoicePdf } from "@/lib/invoice/generate";
-import { buildInvoiceData, getOrderByRazorpayId, markOrderPaid } from "@/lib/db/queries/orders";
+import {
+  buildInvoiceData,
+  getOrderByRazorpayId,
+  markOrderPaid,
+  markOrderPaymentFailed,
+  recordRefund,
+} from "@/lib/db/queries/orders";
 import { sendEmail } from "@/lib/resend";
 
 export const runtime = "nodejs";
@@ -56,16 +62,50 @@ export async function POST(req: Request) {
     case "payment.failed": {
       const payment = event.payload?.payment?.entity;
       if (!payment?.order_id) break;
-      // TODO: update order paymentStatus to "failed", notify customer
-      console.log("[razorpay webhook] payment.failed for", payment.order_id);
+
+      // Mark the order failed (no-op if it was already captured). We do NOT
+      // email the customer — Razorpay Checkout already surfaces the failure in
+      // real time, and payment-failed isn't one of Aarna's customer emails.
+      const marked = await markOrderPaymentFailed(payment.order_id);
+      if (!marked) {
+        console.warn(
+          "[razorpay webhook] payment.failed ignored (order not pending):",
+          payment.order_id,
+        );
+      }
       break;
     }
 
     case "refund.processed": {
       const refund = event.payload?.refund?.entity;
-      if (!refund) break;
-      // TODO: mark return as refunded, update order paymentStatus
-      console.log("[razorpay webhook] refund.processed", refund.id);
+      if (!refund?.id || !refund?.payment_id) break;
+
+      const result = await recordRefund({
+        razorpayPaymentId: refund.payment_id,
+        razorpayRefundId: refund.id,
+        amountRefundedPaise: refund.amount,
+      });
+
+      if (!result) {
+        console.error(
+          "[razorpay webhook] refund.processed — no order for payment",
+          refund.payment_id,
+        );
+        break;
+      }
+
+      // Idempotency — already fully refunded means this is a webhook retry.
+      if (result.isDuplicate) break;
+
+      await sendEmail({
+        to: result.order.email,
+        subject: `Refund Processed — ${result.order.orderNumber} | Aarna`,
+        templateKey: "refund_processed",
+        data: { order: result.order, refundAmount: refund.amount },
+      }).catch((err) => {
+        console.error("[razorpay webhook] refund email failed:", err);
+      });
+
       break;
     }
 
