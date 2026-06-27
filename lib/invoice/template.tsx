@@ -57,7 +57,7 @@ const SELLER = {
   locality: "Giri Nagar, Bengaluru – 560085, Karnataka",
   gstin: "29ACNFA3302J1ZD",
   phone: "+91 79-75639485",
-  email: "hello@aarna.in",
+  email: "hello@shopaarna.in",
 };
 
 const LOGO_PATH = path.join(process.cwd(), "public", "logo.png");
@@ -305,8 +305,8 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
           <View style={s.footerDivider} />
           <Text style={s.footerText}>
             This is a system-generated invoice and does not require a physical signature.{"\n"}
-            Returns accepted within 14 days of delivery. Visit aarna.in/returns for the return policy.{"\n"}
-            Aarna Label · GSTIN: 29ACNFA3302J1ZD · hello@aarna.in · +91 79-75639485
+            Returns accepted within 14 days of delivery. Visit shopaarna.in/returns for the return policy.{"\n"}
+            Aarna Label · GSTIN: 29ACNFA3302J1ZD · hello@shopaarna.in · +91 79-75639485
           </Text>
         </View>
 

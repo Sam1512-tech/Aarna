@@ -80,9 +80,9 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 ## What Is In Progress / Not Done Yet
 
 - [ ] **Razorpay webhook secret** — Razorpay dashboard has a platform outage (2 days+); add `RAZORPAY_WEBHOOK_SECRET` once dashboard is back
-- [ ] Delhivery KYC — client confirmed Delhivery, start onboarding
+- [x] Delhivery — Delhivery One account live; API token + pickup (`Aarna Godown`, 560085) + generated `DELHIVERY_WEBHOOK_TOKEN` in `.env.local` (production base `track.delhivery.com`). **Live serviceability verified** (prepaid serviceable: Bengaluru/Delhi/Mumbai/Kolkata/Sikkim); checkout pincode check now hits the real API. **Remaining:** live shipment creation + AWB + status webhook — exercised at deploy/first real shipment (webhook needs the deployed URL). Pickup name must match the Delhivery One panel exactly.
 - [ ] WhatsApp BSP (Interakt) — **code complete**, blocked on client (Facebook Business Manager + spare number) + Meta template approval. `sendTemplate()` (Interakt) + all 4 trigger points wired (order_placed, delivered, return_received, refund_processed), opt-in gated via `orders.whatsapp_opt_in`, every send logged to `message_log`. Graceful no-op until `WHATSAPP_API_KEY` is set. Template drafts: `docs/whatsapp-templates.md` (submit to Meta once the Interakt account exists).
-- [ ] Resend account + DNS verification for `hello@aarna.in` (and `hello@solarisstudios.co.in` for testing)
+- [x] Resend — account live, domain `shopaarna.in` verified (DKIM + SPF + DMARC + tracking CNAME added in Hostinger DNS), `RESEND_API_KEY` + `RESEND_FROM_ADDRESS="Aarna <hello@shopaarna.in>"` in `.env.local`; live order-receipt test send to Gmail succeeded. Inbound mailbox `hello@shopaarna.in` now live via **Hostinger Email** (root MX mx1/mx2.hostinger.com + SPF `_spf.mail.hostinger.com`); coexists cleanly with Resend's `send`-subdomain records (sending + receiving both work, no conflict)
 - [x] Cloudinary — account connected, keys in `.env.local`; `lib/cloudinary/` signed-upload helper done and verified live (upload → fetch metadata → f_auto/q_auto transform → destroy all OK)
 - [ ] Mood board approval from client in writing — needed to trigger ₹52K milestone payment
 - [ ] Priority 2 — Auth & Account:
@@ -185,12 +185,12 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 1. Get mood board approval from client in writing → triggers ₹52K payment
 2. ~~Submit Razorpay KYC~~ — done, test keys live
 3. Add `RAZORPAY_WEBHOOK_SECRET` to `.env.local` once Razorpay dashboard outage is resolved
-4. Start Delhivery KYC — client has confirmed Delhivery as shipping partner
+4. ~~Start Delhivery KYC~~ — done; token live, serviceability verified. **Next:** wire live shipment creation + configure the status webhook at deploy
 5. WhatsApp BSP — waiting on client (Facebook BM + spare number). Scope locked + 4 templates drafted (`docs/whatsapp-templates.md`); submit to Meta once the Interakt account exists
 6. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
 7. ~~Wire Priority 1 server actions~~ — done (products, cart, checkout)
 8. ~~Build Priority 2~~ — auth, account, middleware/RBAC, RLS all done. **Remaining:** Supabase Auth email templates wired to Resend
-9. Resend account + verify `hello@aarna.in` DNS so emails actually send
+9. ~~Resend + `hello@shopaarna.in` mailbox~~ — done; sending (Resend) + receiving (Hostinger Email) both live + verified. **Next:** wire Supabase Auth emails to Resend
 10. ~~Cloudinary~~ — done (account connected, keys in `.env.local`, verified live)
 
 ---

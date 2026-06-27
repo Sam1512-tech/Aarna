@@ -7,7 +7,7 @@
 import type { Metadata } from "next";
 import type { ProductWithVariants, Category, Collection } from "@/lib/types";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://aarna.in";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://shopaarna.in";
 const SITE_NAME = "Aarna";
 const DEFAULT_OG_IMAGE = `${APP_URL}/logo.png`;
 

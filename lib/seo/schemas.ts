@@ -19,7 +19,7 @@
 
 import type { ProductWithVariants } from "@/lib/types";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://aarna.in";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://shopaarna.in";
 
 const BRAND_LD = {
   "@type": "Brand",
@@ -31,7 +31,7 @@ const SELLER_LD = {
   "@type": "Organization",
   name: "Aarna Label",
   url: APP_URL,
-  email: "hello@aarna.in",
+  email: "hello@shopaarna.in",
   telephone: "+91-79-75639485",
   address: {
     "@type": "PostalAddress",
