@@ -82,9 +82,9 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 - [ ] **Razorpay webhook secret** — Razorpay dashboard has a platform outage (2 days+); add `RAZORPAY_WEBHOOK_SECRET` once dashboard is back
 - [x] Delhivery — Delhivery One account live; API token + pickup (`Aarna Godown`, 560085) + generated `DELHIVERY_WEBHOOK_TOKEN` in `.env.local` (production base `track.delhivery.com`). **Live serviceability verified** (prepaid serviceable: Bengaluru/Delhi/Mumbai/Kolkata/Sikkim); checkout pincode check now hits the real API. **Remaining:** live shipment creation + AWB + status webhook — exercised at deploy/first real shipment (webhook needs the deployed URL). Pickup name must match the Delhivery One panel exactly.
 - [ ] WhatsApp BSP (Interakt) — **code complete**, blocked on client (Facebook Business Manager + spare number) + Meta template approval. `sendTemplate()` (Interakt) + all 4 trigger points wired (order_placed, delivered, return_received, refund_processed), opt-in gated via `orders.whatsapp_opt_in`, every send logged to `message_log`. Graceful no-op until `WHATSAPP_API_KEY` is set. Template drafts: `docs/whatsapp-templates.md` (submit to Meta once the Interakt account exists).
-- [x] Resend — account live, domain `shopaarna.in` verified (DKIM + SPF + DMARC + tracking CNAME added in Hostinger DNS), `RESEND_API_KEY` + `RESEND_FROM_ADDRESS="Aarna <hello@shopaarna.in>"` in `.env.local`; live order-receipt test send to Gmail succeeded. Inbound mailbox `hello@shopaarna.in` now live via **Hostinger Email** (root MX mx1/mx2.hostinger.com + SPF `_spf.mail.hostinger.com`); coexists cleanly with Resend's `send`-subdomain records (sending + receiving both work, no conflict)
+- [x] Resend — account live, domain `shopaarna.in` verified (DKIM + SPF + DMARC + tracking CNAME added in Hostinger DNS), `RESEND_API_KEY` + `RESEND_FROM_ADDRESS="Aarna <hello@shopaarna.in>"` in `.env.local`; live order-receipt test send to Gmail succeeded. Inbound mailbox `hello@shopaarna.in` now live via **Hostinger Email** (root MX mx1/mx2.hostinger.com + SPF `_spf.mail.hostinger.com`); coexists cleanly with Resend's `send`-subdomain records (sending + receiving both work, no conflict). All 4 email templates redesigned with the brand identity — gold logo on maroon header, gold seam, serif headings, branded footer; logos Cloudinary-hosted under `aarna/brand/`
 - [x] Cloudinary — account connected, keys in `.env.local`; `lib/cloudinary/` signed-upload helper done and verified live (upload → fetch metadata → f_auto/q_auto transform → destroy all OK)
-- [ ] Mood board approval from client in writing — needed to trigger ₹52K milestone payment
+- [x] Mood board / design approval received from client → ₹52K milestone unlocked (payment received ~27 Jun 2026)
 - [ ] Priority 2 — Auth & Account:
     - [x] `lib/actions/auth.ts` — signup/login/logout/reset password (Supabase Auth)
     - [x] `lib/actions/account.ts` — orders, wishlist, addresses, returns
@@ -175,7 +175,7 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 ## Payment Milestones
 
 - ₹40,000 advance — already received
-- ₹52,000 — on mood board/design approval (get written confirmation from client NOW)
+- ₹52,000 — design approved; payment received (~27 Jun 2026)
 - ₹39,000 — on go-live (Week 12)
 
 ---
