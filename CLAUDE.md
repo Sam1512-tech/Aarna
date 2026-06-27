@@ -89,7 +89,7 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
     - [x] `lib/actions/auth.ts` — signup/login/logout/reset password (Supabase Auth)
     - [x] `lib/actions/account.ts` — orders, wishlist, addresses, returns
     - [x] `middleware.ts` — Supabase session refresh + `/admin` & `/account` redirects. Admin RBAC is enforced in `app/admin/layout.tsx` via `getCurrentAdmin()` (Drizzle can't run in edge middleware, so the admins-table check lives in the server-component layout)
-    - [ ] Supabase Auth email templates wired to Resend
+    - [x] Supabase Auth → Resend — Send Email hook at `app/api/auth/email-hook/route.ts` renders branded verify/reset templates via `lib/resend` (Standard Webhooks signature verified; tested locally). **Activate at deploy:** Supabase dashboard → Auth → Hooks → Send Email (HTTPS, point at the route) + set `SUPABASE_AUTH_HOOK_SECRET`
     - [x] RLS policies — `lib/db/rls.sql` (default-deny on all 20 public tables; apply with `npm run db:rls`). Applied + verified on aarna-dev (anon REST now returns 0 rows). Server actions use the Drizzle owner role which bypasses RLS; this only locks the public PostgREST/anon surface. **Re-run `npm run db:rls` on the prod project before go-live.**
 - [ ] Priority 3 — Integrations: `lib/delhivery/` (client + serviceability + webhook done; shipment creation/tracking stubbed pending KYC token), `lib/whatsapp/` (Interakt `sendTemplate` + opt-in `notify` helper + 4 trigger points wired; graceful no-op until BSP API key + Meta approval)
 - [ ] Priority 4 — Webhooks: Delhivery webhook wired (status → fulfillment_status); Razorpay `payment.failed` + `refund.processed` now handled (refund flips order status + emails customer). Implement live Delhivery shipment creation + tracking once the KYC API token is set
@@ -189,8 +189,8 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 5. WhatsApp BSP — waiting on client (Facebook BM + spare number). Scope locked + 4 templates drafted (`docs/whatsapp-templates.md`); submit to Meta once the Interakt account exists
 6. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
 7. ~~Wire Priority 1 server actions~~ — done (products, cart, checkout)
-8. ~~Build Priority 2~~ — auth, account, middleware/RBAC, RLS all done. **Remaining:** Supabase Auth email templates wired to Resend
-9. ~~Resend + `hello@shopaarna.in` mailbox~~ — done; sending (Resend) + receiving (Hostinger Email) both live + verified. **Next:** wire Supabase Auth emails to Resend
+8. ~~Build Priority 2~~ — auth, account, middleware/RBAC, RLS, **Supabase Auth → Resend hook** all done (hook activates at deploy via dashboard config)
+9. ~~Resend + `hello@shopaarna.in` mailbox + Supabase Auth → Resend~~ — all done; email + auth comms fully branded
 10. ~~Cloudinary~~ — done (account connected, keys in `.env.local`, verified live)
 
 ---
