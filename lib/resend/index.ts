@@ -66,6 +66,20 @@ function buildEmailHtml(templateKey: EmailTemplateKey, data: Record<string, unkn
   }
 }
 
+// ── Brand tokens ─────────────────────────────────────────────────────────────
+const MAROON = "#4B1323";
+const GOLD = "#C9A063";
+const GOLD_SOFT = "#B8935A";
+const CREAM = "#FAF7F2";
+const INK = "#3D3A38";
+const MUTE = "#A89E96";
+const HAIRLINE = "#EADFD4";
+const SERIF = "Georgia,'Times New Roman',serif";
+
+const CLD = "https://res.cloudinary.com/dnlzgwzeo/image/upload";
+const LOGO_GOLD = `${CLD}/f_png,w_460/aarna/brand/logo-gold-horizontal.png`;
+const MARK_MAROON = `${CLD}/f_png,w_120/aarna/brand/mark-maroon.png`;
+
 // ── Shared shell ─────────────────────────────────────────────────────────────
 
 interface ShellOptions {
@@ -80,31 +94,34 @@ function shell({ preheader, bodyHtml }: ShellOptions): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
-<body style="margin:0;padding:0;background:#FAF7F2;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#111111;">
-  ${preheader ? `<div style="display:none;font-size:1px;color:#FAF7F2;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${preheader}</div>` : ""}
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF7F2;padding:40px 0;">
+<body style="margin:0;padding:0;background:${CREAM};font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:${INK};">
+  ${preheader ? `<div style="display:none;font-size:1px;color:${CREAM};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${preheader}</div>` : ""}
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:${CREAM};padding:40px 12px;">
     <tr>
       <td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border:1px solid #E0D0C6;">
+        <table width="580" cellpadding="0" cellspacing="0" style="width:580px;max-width:100%;background:#FFFFFF;border:1px solid ${HAIRLINE};">
           <!-- Header -->
           <tr>
-            <td style="background:#4B1323;padding:28px 40px;text-align:center;">
-              <p style="margin:0;font-size:22px;font-weight:300;letter-spacing:6px;color:#FAF7F2;">AARNA</p>
-              <p style="margin:4px 0 0;font-size:10px;letter-spacing:2px;color:#C8BFB3;">BY ARPITHA ABHISHEK</p>
+            <td style="background:${MAROON};padding:34px 40px 30px;text-align:center;">
+              <img src="${LOGO_GOLD}" alt="Aarna — by Arpitha Abhishek" width="210" style="display:inline-block;width:210px;max-width:64%;height:auto;border:0;" />
             </td>
           </tr>
+          <!-- Gold seam -->
+          <tr><td style="height:3px;background:${GOLD};line-height:3px;font-size:0;">&nbsp;</td></tr>
           <!-- Body -->
           <tr>
-            <td style="padding:40px;">
+            <td style="padding:40px 44px;">
               ${bodyHtml}
             </td>
           </tr>
           <!-- Footer -->
           <tr>
-            <td style="padding:20px 40px;background:#FAF7F2;border-top:1px solid #E0D0C6;text-align:center;">
-              <p style="margin:0;font-size:11px;color:#9D948E;line-height:1.8;">
-                Aarna Label · Giri Nagar, Bengaluru · GSTIN: 29ACNFA3302J1ZD<br/>
-                Questions? Write to <a href="mailto:hello@shopaarna.in" style="color:#9D948E;">hello@shopaarna.in</a>
+            <td style="padding:28px 40px 30px;background:${CREAM};border-top:1px solid ${HAIRLINE};text-align:center;">
+              <img src="${MARK_MAROON}" alt="Aarna" width="32" style="display:inline-block;width:32px;height:auto;border:0;" />
+              <p style="margin:10px 0 8px;font-family:${SERIF};font-size:12px;letter-spacing:4px;color:${MAROON};">AARNA</p>
+              <p style="margin:0;font-size:11px;color:${MUTE};line-height:1.9;">
+                Aarna Label · Giri Nagar, Bengaluru · GSTIN 29ACNFA3302J1ZD<br/>
+                Questions? Write to <a href="mailto:hello@shopaarna.in" style="color:${GOLD_SOFT};text-decoration:none;">hello@shopaarna.in</a>
               </p>
             </td>
           </tr>
@@ -116,23 +133,40 @@ function shell({ preheader, bodyHtml }: ShellOptions): string {
 </html>`;
 }
 
+// Serif heading with a short gold accent rule beneath it.
+function heading(title: string): string {
+  return `<h1 style="margin:0;font-family:${SERIF};font-size:24px;font-weight:400;color:${MAROON};letter-spacing:0.3px;">${title}</h1>
+    <div style="width:40px;height:2px;background:${GOLD};margin:14px 0 22px;line-height:2px;font-size:0;">&nbsp;</div>`;
+}
+
+function lead(text: string): string {
+  return `<p style="margin:0 0 22px;font-size:15px;color:#6B635D;line-height:1.7;">${text}</p>`;
+}
+
 function primaryButton(label: string, href: string): string {
-  return `<table cellpadding="0" cellspacing="0" style="margin:24px 0;">
+  return `<table align="center" cellpadding="0" cellspacing="0" style="margin:28px auto;">
     <tr>
-      <td style="background:#4B1323;">
-        <a href="${href}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#FAF7F2;text-decoration:none;">${label}</a>
+      <td style="background:${MAROON};border:1px solid ${GOLD};">
+        <a href="${href}" style="display:inline-block;padding:15px 40px;font-size:12px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:#F3E7D3;text-decoration:none;">${label}</a>
       </td>
     </tr>
   </table>`;
 }
 
+function detailsTable(rows: string): string {
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${HAIRLINE};background:#FCFAF7;margin-bottom:26px;">${rows}</table>`;
+}
+
 function detailRow(label: string, value: string, accent = false): string {
+  const cell = accent
+    ? `border-top:2px solid ${GOLD};`
+    : `border-bottom:1px solid ${HAIRLINE};`;
   const valueStyle = accent
-    ? "font-size:12px;font-weight:600;text-align:right;color:#4B1323;"
-    : "font-size:12px;font-weight:600;text-align:right;";
+    ? `font-size:15px;font-weight:700;text-align:right;color:${MAROON};font-family:${SERIF};`
+    : `font-size:13px;font-weight:600;text-align:right;color:${INK};`;
   return `<tr>
-    <td style="padding:12px 16px;border-bottom:1px solid #E0D0C6;font-size:12px;color:#9D948E;letter-spacing:1px;">${label.toUpperCase()}</td>
-    <td style="padding:12px 16px;border-bottom:1px solid #E0D0C6;${valueStyle}">${value}</td>
+    <td style="padding:13px 18px;${cell}font-size:11px;color:${MUTE};letter-spacing:1.5px;">${label.toUpperCase()}</td>
+    <td style="padding:13px 18px;${cell}${valueStyle}">${value}</td>
   </tr>`;
 }
 
@@ -146,23 +180,21 @@ function orderReceiptHtml(data: Record<string, unknown>): string {
   const orderNumber = order?.orderNumber ?? "";
   const total = order?.total ? INR(order.total) : "";
 
-  const detailsTable = `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E0D0C6;margin-bottom:24px;">
+  const table = detailsTable(`
     ${detailRow("Order Number", orderNumber)}
     ${invoiceNumber ? detailRow("Invoice", invoiceNumber) : ""}
     ${detailRow("Total Paid", total, true)}
-  </table>`;
+  `);
 
   return shell({
     preheader: `Order ${orderNumber} confirmed — your invoice is attached.`,
     bodyHtml: `
-      <p style="margin:0 0 8px;font-size:20px;font-weight:400;color:#111111;">Thank you for your order.</p>
-      <p style="margin:0 0 24px;font-size:14px;color:#9D948E;line-height:1.6;">
-        Your order has been confirmed and is being prepared with care.
-      </p>
-      ${detailsTable}
-      <p style="margin:0 0 8px;font-size:13px;color:#555;line-height:1.7;">
-        Your tax invoice is attached to this email as a PDF. You can also find your order details in your account at
-        <a href="https://shopaarna.in/account" style="color:#4B1323;">shopaarna.in/account</a>.
+      ${heading("Thank you for your order")}
+      ${lead("Your order is confirmed and being prepared with care. We'll let you know the moment it's on its way.")}
+      ${table}
+      <p style="margin:0;font-size:13px;color:#6B635D;line-height:1.7;">
+        Your tax invoice is attached as a PDF. You can view your order anytime at
+        <a href="https://shopaarna.in/account" style="color:${GOLD_SOFT};text-decoration:none;">shopaarna.in/account</a>.
       </p>
     `,
   });
@@ -177,16 +209,14 @@ function verifyEmailHtml(data: Record<string, unknown>): string {
   return shell({
     preheader: "Confirm your email to start shopping at Aarna.",
     bodyHtml: `
-      <p style="margin:0 0 8px;font-size:20px;font-weight:400;color:#111111;">Welcome, ${escapeHtml(name)}.</p>
-      <p style="margin:0 0 16px;font-size:14px;color:#555;line-height:1.7;">
-        Confirm your email to finish setting up your account. The link is valid for the next 24 hours.
-      </p>
+      ${heading(`Welcome, ${escapeHtml(name)}`)}
+      ${lead("Confirm your email to finish setting up your account. This link is valid for the next 24 hours.")}
       ${primaryButton("Confirm Email", verifyUrl)}
-      <p style="margin:24px 0 0;font-size:12px;color:#9D948E;line-height:1.6;">
+      <p style="margin:24px 0 0;font-size:12px;color:${MUTE};line-height:1.6;">
         If the button doesn't work, copy and paste this link into your browser:<br/>
-        <a href="${verifyUrl}" style="color:#4B1323;word-break:break-all;">${verifyUrl}</a>
+        <a href="${verifyUrl}" style="color:${GOLD_SOFT};word-break:break-all;text-decoration:none;">${verifyUrl}</a>
       </p>
-      <p style="margin:16px 0 0;font-size:12px;color:#9D948E;line-height:1.6;">
+      <p style="margin:16px 0 0;font-size:12px;color:${MUTE};line-height:1.6;">
         If you didn't sign up for an account, you can safely ignore this email.
       </p>
     `,
@@ -201,17 +231,15 @@ function passwordResetHtml(data: Record<string, unknown>): string {
   return shell({
     preheader: "Reset your Aarna account password.",
     bodyHtml: `
-      <p style="margin:0 0 8px;font-size:20px;font-weight:400;color:#111111;">Reset your password.</p>
-      <p style="margin:0 0 16px;font-size:14px;color:#555;line-height:1.7;">
-        We received a request to reset the password for your Aarna account. Click below to choose a new one — the link is valid for the next hour.
-      </p>
+      ${heading("Reset your password")}
+      ${lead("We received a request to reset the password for your Aarna account. Choose a new one below — this link is valid for the next hour.")}
       ${primaryButton("Reset Password", resetUrl)}
-      <p style="margin:24px 0 0;font-size:12px;color:#9D948E;line-height:1.6;">
+      <p style="margin:24px 0 0;font-size:12px;color:${MUTE};line-height:1.6;">
         If the button doesn't work, copy and paste this link into your browser:<br/>
-        <a href="${resetUrl}" style="color:#4B1323;word-break:break-all;">${resetUrl}</a>
+        <a href="${resetUrl}" style="color:${GOLD_SOFT};word-break:break-all;text-decoration:none;">${resetUrl}</a>
       </p>
-      <p style="margin:16px 0 0;font-size:12px;color:#9D948E;line-height:1.6;">
-        If you didn't request a password reset, ignore this email — your password stays unchanged.
+      <p style="margin:16px 0 0;font-size:12px;color:${MUTE};line-height:1.6;">
+        If you didn't request this, ignore this email — your password stays unchanged.
       </p>
     `,
   });
@@ -228,23 +256,21 @@ function refundProcessedHtml(data: Record<string, unknown>): string {
     (data.paymentMethod as string | undefined) ?? "the original payment method";
   const expectedDays = (data.expectedDays as string | undefined) ?? "5–7 business days";
 
-  const detailsTable = `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E0D0C6;margin-bottom:24px;">
+  const table = detailsTable(`
     ${detailRow("Order Number", orderNumber)}
-    ${refundAmountStr ? detailRow("Refund Amount", refundAmountStr, true) : ""}
     ${detailRow("Refund Method", paymentMethod)}
     ${detailRow("Expected By", expectedDays)}
-  </table>`;
+    ${refundAmountStr ? detailRow("Refund Amount", refundAmountStr, true) : ""}
+  `);
 
   return shell({
     preheader: `Refund of ${refundAmountStr} processed for order ${orderNumber}.`,
     bodyHtml: `
-      <p style="margin:0 0 8px;font-size:20px;font-weight:400;color:#111111;">Your refund is on its way.</p>
-      <p style="margin:0 0 24px;font-size:14px;color:#9D948E;line-height:1.6;">
-        We've processed your refund. It should reflect in your account within ${escapeHtml(expectedDays)}.
-      </p>
-      ${detailsTable}
-      <p style="margin:0;font-size:13px;color:#555;line-height:1.7;">
-        If you don't see the refund after the expected window, reply to this email and we'll help you trace it.
+      ${heading("Your refund is on its way")}
+      ${lead(`We've processed your refund. It should reflect in your account within ${escapeHtml(expectedDays)}.`)}
+      ${table}
+      <p style="margin:0;font-size:13px;color:#6B635D;line-height:1.7;">
+        If you don't see the refund after the expected window, just reply to this email and we'll help you trace it.
       </p>
     `,
   });
