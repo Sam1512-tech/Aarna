@@ -5,12 +5,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatINR(amount: number): string {
+/**
+ * Format a paise value as INR with the Indian number system (lakhs/crores).
+ * Input is always paise — same convention as the rest of the codebase.
+ *   formatINR(249900) → "₹2,499"
+ *   formatINR(249950) → "₹2,499.50"
+ */
+export function formatINR(paise: number): string {
+  const rupees = paise / 100;
+  const hasDecimals = paise % 100 !== 0;
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(amount);
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(rupees);
 }
 
 export function slugify(input: string): string {
