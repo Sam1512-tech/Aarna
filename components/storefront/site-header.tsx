@@ -17,7 +17,6 @@ interface SiteHeaderProps {
 const primaryLinks = [
   { href: "/shop/new-arrivals", label: "new chapter" },
   { href: "/collections/slow-essentials", label: "slow essentials" },
-  { href: "/journal", label: "everyday rituals" },
 ];
 
 export function SiteHeader({ categories }: SiteHeaderProps) {

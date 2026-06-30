@@ -139,19 +139,6 @@ const rituals = [
   },
 ];
 
-const journalNotes = [
-  {
-    href: "/journal/styling-rituals",
-    title: "styling rituals",
-    copy: "A quiet space for wearing notes once the first collection is ready.",
-  },
-  {
-    href: "/journal/wearing-notes",
-    title: "wearing notes",
-    copy: "Notes on carrying Aarna into homes, gatherings, streets, and travel.",
-  },
-];
-
 export default async function HomePage() {
   const [categories, products] = await Promise.all([
     getCategories(),
@@ -283,29 +270,6 @@ export default async function HomePage() {
           </ScrollRail>
         </section>
 
-        <section className="reveal-up px-5 py-20">
-          <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            journal
-          </p>
-          <div className="mt-8 space-y-5">
-            {journalNotes.map((note) => (
-              <Link
-                key={note.href}
-                href={note.href}
-                className="reveal-up block rounded-[22px] border border-cocoa/12 bg-cocoa/10 p-5"
-              >
-                <div className="cloth-window h-40 rounded-[18px]" />
-                <h2 className="mt-5 font-display text-3xl lowercase text-maroon">
-                  {note.title}
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-charcoal/64">
-                  {note.copy}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-
       </div>
 
       <div className="hidden md:block">
@@ -329,12 +293,6 @@ export default async function HomePage() {
                 className="inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
               >
                 collections
-              </Link>
-              <Link
-                href="/journal"
-                className="inline-flex items-center justify-center border border-cocoa/30 px-7 py-4 text-[11px] font-medium lowercase tracking-[0.24em] text-cocoa transition duration-1000 hover:border-cocoa hover:bg-cocoa/10 hover:text-cocoa"
-              >
-                everyday rituals
               </Link>
             </div>
           </div>
@@ -497,34 +455,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="paper-grain reveal-up bg-cream px-6 py-16 text-charcoal md:py-24">
-        <div className="mx-auto grid max-w-7xl gap-12 md:grid-cols-[0.9fr_1.1fr] md:items-end">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-              journal
-            </p>
-            <h2 className="mt-4 max-w-lg font-display text-5xl lowercase leading-[1.08] text-maroon md:text-6xl">
-              notes for wearing slowly.
-            </h2>
-          </div>
-          <div className="grid gap-5 sm:grid-cols-2">
-            {journalNotes.map((note) => (
-              <Link
-                key={note.href}
-                href={note.href}
-                className="reveal-up border border-cocoa/14 bg-cocoa/10 p-6 text-charcoal shadow-[0_18px_55px_rgba(43,38,35,0.05)] transition duration-1000 hover:bg-cocoa/15 hover:text-cocoa"
-              >
-                <p className="font-display text-3xl lowercase leading-tight text-maroon">
-                  {note.title}
-                </p>
-                <p className="mt-5 text-base leading-7 text-current/72">
-                  {note.copy}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
       </div>
     </>
   );
