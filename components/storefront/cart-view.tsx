@@ -11,18 +11,11 @@ import {
 } from "@/lib/actions/cart";
 import { useWishlist } from "@/store/wishlist";
 import type { CartLine, CartState } from "@/lib/types";
+import { formatINR } from "@/lib/utils";
 
 const SHIPPING_NOTE = "calculated at checkout";
 const TAX_NOTE = "inclusive of taxes";
 const EXIT_MS = 320;
-
-function formatPrice(value: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 function recalc(lines: CartLine[]): CartState {
   return {
@@ -246,11 +239,11 @@ export function CartView({ initialCart }: CartViewProps) {
               ) : null}
 
               <dl className="mt-7 space-y-4 border-t border-maroon/10 pt-7 text-base text-charcoal/70">
-                <SummaryRow label="subtotal" value={formatPrice(cart.subtotal)} />
+                <SummaryRow label="subtotal" value={formatINR(cart.subtotal)} />
                 {discount > 0 ? (
                   <SummaryRow
                     label="discount"
-                    value={`−${formatPrice(discount)}`}
+                    value={`−${formatINR(discount)}`}
                     accent
                   />
                 ) : null}
@@ -263,7 +256,7 @@ export function CartView({ initialCart }: CartViewProps) {
                   total
                 </span>
                 <span className="font-display text-3xl lowercase text-maroon">
-                  {formatPrice(total)}
+                  {formatINR(total)}
                 </span>
               </div>
 
@@ -387,11 +380,11 @@ function CartItemCard({
                 key={line.quantity}
                 className="qty-pop text-lg text-charcoal"
               >
-                {formatPrice(line.unitPrice * line.quantity)}
+                {formatINR(line.unitPrice * line.quantity)}
               </p>
               {line.quantity > 1 ? (
                 <p className="mt-0.5 text-xs lowercase text-charcoal/45">
-                  {formatPrice(line.unitPrice)} each
+                  {formatINR(line.unitPrice)} each
                 </p>
               ) : null}
             </div>
