@@ -26,6 +26,21 @@ export interface CarouselBanner {
 
 interface HomepageCarouselProps {
   banners: CarouselBanner[];
+  /**
+   * "hero" — full-bleed top-of-page, clears the fixed header, overlays the
+   *          brand tagline + Collections CTA on a contrast scrim.
+   * "inline" — sits inside a content box (e.g. the "made to live in" section).
+   *           No header padding, rounded corners, no tagline/CTA overlay.
+   */
+  variant?: "hero" | "inline";
+  /** Tailwind class controlling height/aspect when variant="inline". */
+  inlineClassName?: string;
+  /**
+   * For variant="inline" only. When true, renders edge-to-edge with no
+   * rounded corners or shadow — for using the inline carousel as a full-bleed
+   * photo banner directly below the nav. Default: false (rounded box).
+   */
+  flush?: boolean;
 }
 
 const AUTOPLAY_MS = 6000;
@@ -33,20 +48,51 @@ const SWIPE_THRESHOLD_PX = 50;
 const TAGLINE = "clothing made to live softly";
 
 // Video detection: extension or Cloudinary "/video/upload/" path.
-function isVideo(url: string): boolean {
+// Exported so callers can filter a banner list to videos only.
+export function isVideo(url: string): boolean {
   return (
     /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) ||
     /\/video\/upload\//i.test(url)
   );
 }
 
-export function HomepageCarousel({ banners }: HomepageCarouselProps) {
+export function HomepageCarousel({
+  banners,
+  variant = "hero",
+  inlineClassName,
+  flush = false,
+}: HomepageCarouselProps) {
   // Empty state — graceful brand panel until the admin uploads banners.
-  if (banners.length === 0) return <CarouselEmpty />;
-  return <CarouselInner banners={banners} />;
+  if (banners.length === 0) {
+    return (
+      <CarouselEmpty
+        variant={variant}
+        inlineClassName={inlineClassName}
+        flush={flush}
+      />
+    );
+  }
+  return (
+    <CarouselInner
+      banners={banners}
+      variant={variant}
+      inlineClassName={inlineClassName}
+      flush={flush}
+    />
+  );
 }
 
-function CarouselInner({ banners }: { banners: CarouselBanner[] }) {
+function CarouselInner({
+  banners,
+  variant,
+  inlineClassName,
+  flush,
+}: {
+  banners: CarouselBanner[];
+  variant: "hero" | "inline";
+  inlineClassName?: string;
+  flush: boolean;
+}) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const indicatorId = useId();
@@ -54,6 +100,17 @@ function CarouselInner({ banners }: { banners: CarouselBanner[] }) {
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
 
   const count = banners.length;
+  const isHero = variant === "hero";
+  const inlineRound = flush
+    ? "relative isolate overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-cocoa/40"
+    : "relative isolate overflow-hidden rounded-[26px] shadow-[0_22px_60px_rgba(43,38,35,0.08)] outline-none focus-visible:ring-2 focus-visible:ring-cocoa/40";
+  const sectionClass = isHero
+    ? "paper-grain relative isolate overflow-hidden bg-cream pt-[128px] outline-none focus-visible:ring-2 focus-visible:ring-cocoa/40 md:pt-32"
+    : inlineRound;
+  const stageClass = isHero
+    ? "relative mx-auto aspect-[4/5] w-full select-none touch-pan-y overflow-hidden md:aspect-[12/5]"
+    : `relative mx-auto w-full select-none touch-pan-y overflow-hidden ${inlineClassName ?? "h-[260px] md:h-[420px]"}`;
+
   const go = useCallback(
     (next: number) => setActive(((next % count) + count) % count),
     [count],
@@ -129,7 +186,7 @@ function CarouselInner({ banners }: { banners: CarouselBanner[] }) {
       onBlurCapture={() => setPaused(false)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
-      className="paper-grain relative isolate overflow-hidden bg-cream pt-[112px] outline-none focus-visible:ring-2 focus-visible:ring-cocoa/40 md:pt-32"
+      className={sectionClass}
     >
       {/* Stage */}
       <div
@@ -139,7 +196,7 @@ function CarouselInner({ banners }: { banners: CarouselBanner[] }) {
           dragStart.current = null;
           setPaused(false);
         }}
-        className="relative mx-auto aspect-[4/5] w-full select-none touch-pan-y overflow-hidden md:aspect-[12/5]"
+        className={stageClass}
       >
         {banners.map((banner, i) => (
           <Slide
@@ -154,26 +211,28 @@ function CarouselInner({ banners }: { banners: CarouselBanner[] }) {
           />
         ))}
 
-        {/* Adaptive contrast scrim — keeps tagline + CTA readable on any media */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-charcoal/55 via-charcoal/10 to-transparent"
-        />
-
-        {/* Overlay: tagline + Collections CTA */}
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-end px-5 pb-16 md:items-center md:px-12 md:pb-0">
-          <div className="pointer-events-auto fade-rise max-w-2xl">
-            <h1 className="font-display text-[40px] lowercase leading-[0.98] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.45)] md:text-[64px] lg:text-[80px]">
-              {TAGLINE}
-            </h1>
-            <Link
-              href="/collections"
-              className="mt-7 inline-flex items-center justify-center border border-cream/60 bg-cream/95 px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(43,38,35,0.18)] transition duration-1000 hover:bg-cream"
-            >
-              <span className="text-cocoa">collections</span>
-            </Link>
-          </div>
-        </div>
+        {/* Hero variant only: contrast scrim + tagline + Collections CTA. */}
+        {isHero ? (
+          <>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-charcoal/55 via-charcoal/10 to-transparent"
+            />
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-end px-5 pb-16 md:items-center md:px-12 md:pb-0">
+              <div className="pointer-events-auto fade-rise max-w-2xl">
+                <h1 className="font-display text-[40px] lowercase leading-[0.98] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.45)] md:text-[64px] lg:text-[80px]">
+                  {TAGLINE}
+                </h1>
+                <Link
+                  href="/collections"
+                  className="mt-7 inline-flex items-center justify-center border border-cream/60 bg-cream/95 px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(43,38,35,0.18)] transition duration-1000 hover:bg-cream"
+                >
+                  <span className="text-cocoa">collections</span>
+                </Link>
+              </div>
+            </div>
+          </>
+        ) : null}
 
         {/* Prev / Next */}
         {count > 1 ? (
@@ -325,7 +384,26 @@ function Media({
   );
 }
 
-function CarouselEmpty() {
+function CarouselEmpty({
+  variant,
+  inlineClassName,
+  flush,
+}: {
+  variant: "hero" | "inline";
+  inlineClassName?: string;
+  flush: boolean;
+}) {
+  if (variant === "inline") {
+    const round = flush
+      ? ""
+      : "rounded-[26px] shadow-[0_22px_60px_rgba(43,38,35,0.08)]";
+    return (
+      <div
+        className={`cloth-window ${round} ${inlineClassName ?? "h-[260px] md:h-[420px]"}`}
+        aria-label="Showcase placeholder"
+      />
+    );
+  }
   return (
     <section className="paper-grain relative isolate overflow-hidden bg-cream pt-[128px] md:pt-32">
       <div className="relative mx-auto aspect-[4/5] w-full md:aspect-[12/5]">

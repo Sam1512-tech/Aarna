@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { HomepageCarousel } from "@/components/storefront/homepage-carousel";
+import { HomepageCarousel, isVideo } from "@/components/storefront/homepage-carousel";
 import { ScrollRail } from "@/components/storefront/scroll-rail";
 import { getActiveBanners } from "@/lib/actions/banners";
 import { getCategories, getNewArrivals } from "@/lib/actions/products";
@@ -170,12 +170,34 @@ export default async function HomePage() {
     ctaLabel: b.ctaLabel,
     ctaHref: b.ctaHref,
   }));
+  // Split by media type: photos drive the hero banner under the nav, videos
+  // drive the in-content carousel inside the "made to live in" section.
+  const photoBanners = carouselBanners.filter((b) => !isVideo(b.imageUrl));
+  const videoBanners = carouselBanners.filter((b) => isVideo(b.imageUrl));
 
   return (
     <>
-      <HomepageCarousel banners={carouselBanners} />
-
       <div className="md:hidden">
+        <section className="paper-grain bg-cream pt-[128px]">
+          <HomepageCarousel
+            banners={photoBanners}
+            variant="inline"
+            flush
+            inlineClassName="aspect-[4/5]"
+          />
+          <div className="reveal-up px-5 pb-14 pt-12 text-center">
+            <h1 className="font-display text-[52px] lowercase leading-[0.98] text-maroon">
+              clothing made to live softly
+            </h1>
+            <Link
+              href="/collections"
+              className="mt-8 inline-flex rounded-2xl border border-cocoa/24 bg-cream px-7 py-4 text-xs font-bold lowercase tracking-[0.2em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
+            >
+              collections
+            </Link>
+          </div>
+        </section>
+
         <section className="reveal-up bg-cocoa/10 px-5 py-20">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             wardrobe paths
@@ -205,7 +227,11 @@ export default async function HomePage() {
         </section>
 
         <section className="reveal-up px-5 py-24">
-          <div className="cloth-window h-[260px] rounded-[26px]" />
+          <HomepageCarousel
+            banners={videoBanners}
+            variant="inline"
+            inlineClassName="h-[260px]"
+          />
           <h2 className="mt-9 font-display text-[44px] lowercase leading-[1.05] text-maroon">
             made to live in.
           </h2>
@@ -292,6 +318,39 @@ export default async function HomePage() {
       </div>
 
       <div className="hidden md:block">
+      <section className="paper-grain bg-cream pt-32">
+        <HomepageCarousel
+          banners={photoBanners}
+          variant="inline"
+          flush
+          inlineClassName="aspect-[12/5]"
+        />
+        <div className="fade-rise mx-auto max-w-3xl px-6 pb-20 pt-16 text-center">
+          <h1 className="font-display text-[64px] lowercase leading-[1.02] text-maroon md:text-[80px]">
+            clothing made to live softly
+          </h1>
+          <Link
+            href="/collections"
+            className="mt-10 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-8 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
+          >
+            collections
+          </Link>
+        </div>
+      </section>
+
+      <section className="reveal-up bg-cream px-6 py-20 md:py-28">
+        <div className="mx-auto max-w-7xl">
+          <HomepageCarousel
+            banners={videoBanners}
+            variant="inline"
+            inlineClassName="h-[420px] md:h-[520px]"
+          />
+          <h2 className="mt-10 max-w-3xl font-display text-[56px] lowercase leading-[1.05] text-maroon md:text-[72px]">
+            made to live in.
+          </h2>
+        </div>
+      </section>
+
       <section className="reveal-up bg-cream px-6 py-16 md:py-24">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
