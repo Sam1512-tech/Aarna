@@ -1,0 +1,613 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  ChevronRight,
+  Heart,
+  Lock,
+  Minus,
+  Plus,
+  Truck,
+} from "lucide-react";
+import { useCallback, useMemo, useState, useTransition } from "react";
+import { addToCart } from "@/lib/actions/cart";
+import { addToWishlist } from "@/lib/actions/account";
+import type {
+  ProductImage as DbProductImage,
+  ProductWithVariants,
+} from "@/lib/types";
+import { formatINR } from "@/lib/utils";
+
+interface ProductDetailViewProps {
+  product: ProductWithVariants;
+}
+
+const LOW_STOCK_THRESHOLD = 3;
+
+export function ProductDetailView({ product }: ProductDetailViewProps) {
+  const router = useRouter();
+
+  // ── Variant resolution ─────────────────────────────────────────────────────
+  const activeVariants = useMemo(
+    () => product.variants.filter((v) => v.isActive),
+    [product.variants],
+  );
+  const sizes = useMemo(
+    () => uniqueOrdered(activeVariants.map((v) => v.size).filter(isString)),
+    [activeVariants],
+  );
+  const colors = useMemo(
+    () => uniqueOrdered(activeVariants.map((v) => v.color).filter(isString)),
+    [activeVariants],
+  );
+
+  // Default selection: first in-stock variant if any, else first variant.
+  const defaultVariant = useMemo(
+    () =>
+      activeVariants.find((v) => v.stock > 0) ?? activeVariants[0] ?? null,
+    [activeVariants],
+  );
+
+  const [selectedSize, setSelectedSize] = useState<string | null>(
+    defaultVariant?.size ?? null,
+  );
+  const [selectedColor, setSelectedColor] = useState<string | null>(
+    defaultVariant?.color ?? null,
+  );
+  const [quantity, setQuantity] = useState(1);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+
+  const resolvedVariant = useMemo(
+    () =>
+      activeVariants.find(
+        (v) =>
+          (selectedSize === null || v.size === selectedSize) &&
+          (selectedColor === null || v.color === selectedColor),
+      ) ?? null,
+    [activeVariants, selectedSize, selectedColor],
+  );
+
+  // Image filtering: when a color is picked and we have images tagged with
+  // that variantColor, show only those; otherwise show all.
+  const filteredImages = useMemo(() => {
+    const images = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder);
+    if (!selectedColor) return images;
+    const forColor = images.filter(
+      (i) => i.variantColor?.toLowerCase() === selectedColor.toLowerCase(),
+    );
+    return forColor.length > 0 ? forColor : images;
+  }, [product.images, selectedColor]);
+
+  // Clamp the active index so it stays valid when the filtered image list
+  // shrinks (e.g. picking a colour with fewer images). Resetting on actual
+  // colour change happens in the colour handler below — no useEffect needed.
+  const safeActiveIdx = Math.min(
+    activeImageIdx,
+    Math.max(0, filteredImages.length - 1),
+  );
+
+  function isSizeAvailable(size: string): boolean {
+    return activeVariants.some(
+      (v) =>
+        v.size === size &&
+        v.stock > 0 &&
+        (selectedColor === null || v.color === selectedColor),
+    );
+  }
+  function isColorAvailable(color: string): boolean {
+    return activeVariants.some(
+      (v) =>
+        v.color === color &&
+        v.stock > 0 &&
+        (selectedSize === null || v.size === selectedSize),
+    );
+  }
+
+  const variantSelected =
+    (sizes.length === 0 || selectedSize !== null) &&
+    (colors.length === 0 || selectedColor !== null) &&
+    resolvedVariant !== null;
+  const inStock = !!resolvedVariant && resolvedVariant.stock > 0;
+  const stockNote = !resolvedVariant
+    ? null
+    : !inStock
+      ? "sold out — try another size or colour"
+      : resolvedVariant.stock <= LOW_STOCK_THRESHOLD
+        ? `only ${resolvedVariant.stock} left`
+        : "in stock";
+
+  const onSale =
+    typeof product.mrp === "number" && product.mrp > product.basePrice;
+  const displayPrice = resolvedVariant?.price ?? product.basePrice;
+
+  // ── Add to bag / wishlist ──────────────────────────────────────────────────
+  const [isPending, startTransition] = useTransition();
+  const [bagFeedback, setBagFeedback] = useState<null | "added" | "error">(null);
+  const [wished, setWished] = useState(false);
+  const [wishError, setWishError] = useState<string | null>(null);
+
+  const handleAddToBag = useCallback(() => {
+    if (!resolvedVariant || !inStock || isPending) return;
+    setBagFeedback(null);
+    startTransition(async () => {
+      try {
+        await addToCart(resolvedVariant.id, quantity);
+        setBagFeedback("added");
+        window.setTimeout(() => setBagFeedback(null), 2200);
+      } catch {
+        setBagFeedback("error");
+        window.setTimeout(() => setBagFeedback(null), 2200);
+      }
+    });
+  }, [inStock, isPending, quantity, resolvedVariant]);
+
+  const handleWishlist = useCallback(() => {
+    if (!resolvedVariant) return;
+    setWishError(null);
+    setWished((w) => !w); // optimistic
+    startTransition(async () => {
+      try {
+        await addToWishlist(resolvedVariant.id);
+      } catch {
+        // Most likely "Unauthorized — please sign in".
+        setWished(false);
+        setWishError("sign in to save to wishlist");
+        router.push(
+          `/login/otp?next=${encodeURIComponent(`/product/${product.slug}`)}`,
+        );
+      }
+    });
+  }, [resolvedVariant, router, product.slug]);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <section className="paper-grain min-h-screen bg-cream px-5 pb-20 pt-[128px] md:px-6 md:pt-36">
+      <div className="mx-auto max-w-7xl">
+        <Breadcrumb product={product} />
+
+        <div className="mt-6 grid gap-10 md:mt-10 md:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+          {/* Gallery */}
+          <Gallery
+            images={filteredImages}
+            activeIdx={safeActiveIdx}
+            onSelect={setActiveImageIdx}
+            altFallback={product.title}
+          />
+
+          {/* Info */}
+          <div className="fade-rise-late md:sticky md:top-36 md:self-start">
+            <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
+              {product.category?.name.toLowerCase() ?? "wardrobe"}
+            </p>
+            <h1 className="mt-3 font-display text-[40px] lowercase leading-[1.04] text-maroon md:text-5xl">
+              {product.title.toLowerCase()}
+            </h1>
+
+            <div className="mt-5 flex items-baseline gap-3">
+              <span className="text-2xl text-charcoal">
+                {formatINR(displayPrice)}
+              </span>
+              {onSale ? (
+                <>
+                  <span className="text-base text-charcoal/45 line-through">
+                    {formatINR(product.mrp!)}
+                  </span>
+                  <span className="rounded-full bg-burnt-red/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-burnt-red">
+                    {Math.round(
+                      ((product.mrp! - product.basePrice) / product.mrp!) * 100,
+                    )}
+                    % off
+                  </span>
+                </>
+              ) : null}
+            </div>
+            <p className="mt-1 text-xs lowercase text-charcoal/50">
+              inclusive of all taxes
+            </p>
+
+            {/* Size picker */}
+            {sizes.length > 0 ? (
+              <fieldset className="mt-9">
+                <legend className="mb-3 flex items-center justify-between gap-4 text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
+                  <span>size</span>
+                  <Link
+                    href="/size-guide"
+                    className="soft-link text-[10px] tracking-[0.18em] text-cocoa"
+                  >
+                    size guide
+                  </Link>
+                </legend>
+                <div className="flex flex-wrap gap-2">
+                  {sizes.map((size) => {
+                    const available = isSizeAvailable(size);
+                    const selected = size === selectedSize;
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => setSelectedSize(size)}
+                        disabled={!available}
+                        aria-pressed={selected}
+                        className={`min-w-12 rounded-full border px-4 py-2 text-sm uppercase tracking-wide transition duration-500 ${
+                          selected
+                            ? "border-maroon bg-maroon text-cream"
+                            : available
+                              ? "border-cocoa/24 bg-cream text-charcoal hover:border-cocoa"
+                              : "cursor-not-allowed border-cocoa/12 bg-cocoa/5 text-charcoal/35 line-through"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ) : null}
+
+            {/* Colour picker */}
+            {colors.length > 0 ? (
+              <fieldset className="mt-7">
+                <legend className="mb-3 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
+                  <span>colour</span>
+                  {selectedColor ? (
+                    <span className="font-normal lowercase tracking-normal text-charcoal/55">
+                      · {selectedColor}
+                    </span>
+                  ) : null}
+                </legend>
+                <div className="flex flex-wrap gap-2">
+                  {colors.map((color) => {
+                    const available = isColorAvailable(color);
+                    const selected = color === selectedColor;
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => {
+                          setSelectedColor(color);
+                          setActiveImageIdx(0);
+                        }}
+                        disabled={!available}
+                        aria-pressed={selected}
+                        aria-label={`Colour: ${color}`}
+                        className={`relative h-10 w-10 rounded-full border transition duration-500 ${
+                          selected
+                            ? "border-maroon ring-2 ring-maroon/25 ring-offset-2 ring-offset-cream"
+                            : available
+                              ? "border-cocoa/22 hover:border-cocoa"
+                              : "cursor-not-allowed border-cocoa/12 opacity-50"
+                        }`}
+                        style={{ backgroundColor: colorToCss(color) }}
+                      />
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ) : null}
+
+            {/* Quantity + stock */}
+            <div className="mt-8 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
+                  quantity
+                </p>
+                <div className="mt-3 inline-flex items-center rounded-full border border-cocoa/22 bg-cream text-maroon shadow-[0_6px_18px_rgba(43,38,35,0.04)]">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    disabled={quantity <= 1}
+                    aria-label="Decrease quantity"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-l-full transition duration-300 hover:bg-cocoa/8 hover:text-cocoa disabled:opacity-30"
+                  >
+                    <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                  <span
+                    key={quantity}
+                    className="qty-pop min-w-9 text-center text-sm tabular-nums"
+                  >
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuantity((q) =>
+                        Math.min(resolvedVariant?.stock ?? 10, q + 1),
+                      )
+                    }
+                    disabled={
+                      !resolvedVariant ||
+                      quantity >= (resolvedVariant?.stock ?? 10)
+                    }
+                    aria-label="Increase quantity"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-r-full transition duration-300 hover:bg-cocoa/8 hover:text-cocoa disabled:opacity-30"
+                  >
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+              {stockNote ? (
+                <p
+                  className={`pb-3 text-[11px] font-medium uppercase tracking-[0.16em] ${
+                    !inStock
+                      ? "text-burnt-red"
+                      : (resolvedVariant?.stock ?? 0) <= LOW_STOCK_THRESHOLD
+                        ? "text-burnt-red"
+                        : "text-cocoa"
+                  }`}
+                >
+                  {stockNote}
+                </p>
+              ) : null}
+            </div>
+
+            {/* CTAs */}
+            <div className="mt-8 flex items-stretch gap-3">
+              <button
+                type="button"
+                onClick={handleAddToBag}
+                disabled={!variantSelected || !inStock || isPending}
+                className="group/cta flex min-h-[60px] flex-1 items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)] disabled:opacity-45 disabled:hover:bg-maroon disabled:hover:shadow-[0_18px_40px_rgba(74,31,31,0.22)]"
+              >
+                <span className="flex items-center gap-3 text-[12px] font-medium uppercase tracking-[0.24em] text-cream">
+                  {bagFeedback === "added"
+                    ? "added to bag ✓"
+                    : bagFeedback === "error"
+                      ? "try again"
+                      : !variantSelected
+                        ? "select size & colour"
+                        : !inStock
+                          ? "sold out"
+                          : isPending
+                            ? "adding…"
+                            : "add to bag"}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleWishlist}
+                disabled={!variantSelected}
+                aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}
+                aria-pressed={wished}
+                className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-2xl border border-cocoa/22 bg-cream text-maroon transition duration-500 hover:border-cocoa disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Heart
+                  className={`h-5 w-5 transition duration-500 ${
+                    wished ? "fill-burnt-red text-burnt-red" : ""
+                  }`}
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
+            {wishError ? (
+              <p className="mt-3 text-center text-xs lowercase text-burnt-red">
+                {wishError}
+              </p>
+            ) : null}
+
+            {/* Reassurance row */}
+            <div className="mt-8 grid grid-cols-1 gap-3 rounded-2xl border border-cocoa/12 bg-cream/60 px-5 py-4 text-[11px] uppercase tracking-[0.16em] text-charcoal/65 sm:grid-cols-2">
+              <div className="flex items-center gap-2">
+                <Truck className="h-4 w-4 text-cocoa" aria-hidden="true" />
+                <span>free shipping above ₹2999</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-cocoa" aria-hidden="true" />
+                <span>secure checkout</span>
+              </div>
+            </div>
+
+            {/* Details (fabric / care / description) */}
+            <div className="mt-10 space-y-px border-t border-cocoa/10">
+              {product.description ? (
+                <DetailRow label="about this piece">
+                  <p className="text-sm leading-7 text-charcoal/70">
+                    {product.description}
+                  </p>
+                </DetailRow>
+              ) : null}
+              {product.fabric ? (
+                <DetailRow label="fabric">
+                  <p className="text-sm leading-7 text-charcoal/70">
+                    {product.fabric}
+                  </p>
+                </DetailRow>
+              ) : null}
+              {product.washCare ? (
+                <DetailRow label="care">
+                  <p className="text-sm leading-7 text-charcoal/70">
+                    {product.washCare}
+                  </p>
+                </DetailRow>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Internal pieces ──────────────────────────────────────────────────────────
+
+function Breadcrumb({ product }: { product: ProductWithVariants }) {
+  return (
+    <nav
+      aria-label="Breadcrumb"
+      className="flex flex-wrap items-center gap-1 text-[11px] uppercase tracking-[0.18em] text-charcoal/55"
+    >
+      <Link href="/" className="soft-link hover:text-cocoa">
+        home
+      </Link>
+      <ChevronRight className="h-3 w-3 opacity-60" aria-hidden="true" />
+      <Link href="/shop" className="soft-link hover:text-cocoa">
+        shop
+      </Link>
+      {product.category ? (
+        <>
+          <ChevronRight className="h-3 w-3 opacity-60" aria-hidden="true" />
+          <Link
+            href={`/shop/${product.category.slug}`}
+            className="soft-link hover:text-cocoa"
+          >
+            {product.category.name.toLowerCase()}
+          </Link>
+        </>
+      ) : null}
+      <ChevronRight className="h-3 w-3 opacity-60" aria-hidden="true" />
+      <span className="text-charcoal/75">{product.title.toLowerCase()}</span>
+    </nav>
+  );
+}
+
+function Gallery({
+  images,
+  activeIdx,
+  onSelect,
+  altFallback,
+}: {
+  images: DbProductImage[];
+  activeIdx: number;
+  onSelect: (i: number) => void;
+  altFallback: string;
+}) {
+  if (images.length === 0) {
+    return (
+      <div className="fade-rise">
+        <div className="cloth-window aspect-[4/5] w-full rounded-[22px] shadow-[0_22px_60px_rgba(43,38,35,0.08)]" />
+      </div>
+    );
+  }
+
+  const active = images[Math.min(activeIdx, images.length - 1)] ?? images[0];
+
+  return (
+    <div className="fade-rise md:grid md:grid-cols-[80px_1fr] md:gap-4">
+      {/* Thumbnail strip — vertical on desktop, hidden on mobile (uses snap rail instead) */}
+      {images.length > 1 ? (
+        <div className="hidden h-fit flex-col gap-3 md:flex">
+          {images.map((img, i) => (
+            <button
+              key={img.id}
+              type="button"
+              onClick={() => onSelect(i)}
+              aria-label={`View image ${i + 1}`}
+              aria-current={i === activeIdx}
+              className={`relative aspect-[3/4] overflow-hidden rounded-xl border transition duration-500 ${
+                i === activeIdx
+                  ? "border-maroon"
+                  : "border-cocoa/14 hover:border-cocoa/40"
+              }`}
+            >
+              <Image
+                src={img.url}
+                alt={img.altText ?? altFallback}
+                fill
+                sizes="80px"
+                className="object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Main image — single on desktop, swipe rail on mobile */}
+      <div className="md:contents">
+        {/* Mobile: horizontal scroll-snap rail showing all images */}
+        <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+          {images.map((img) => (
+            <div
+              key={img.id}
+              className="relative aspect-[3/4] w-[88vw] shrink-0 snap-center overflow-hidden rounded-[20px] bg-cream shadow-[0_18px_55px_rgba(43,38,35,0.06)]"
+            >
+              <Image
+                src={img.url}
+                alt={img.altText ?? altFallback}
+                fill
+                sizes="88vw"
+                priority
+                className="object-cover"
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: single large active image */}
+        <div className="relative hidden aspect-[3/4] overflow-hidden rounded-[22px] bg-cream shadow-[0_22px_60px_rgba(43,38,35,0.08)] md:block">
+          <Image
+            src={active.url}
+            alt={active.altText ?? altFallback}
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            priority
+            className="object-cover"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group border-b border-cocoa/10 py-5 [&[open]>summary>span:last-child]:rotate-45">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
+        <span>{label}</span>
+        <span
+          aria-hidden="true"
+          className="inline-flex h-6 w-6 items-center justify-center text-cocoa transition-transform duration-500"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </span>
+      </summary>
+      <div className="pt-4">{children}</div>
+    </details>
+  );
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function isString(v: unknown): v is string {
+  return typeof v === "string" && v.length > 0;
+}
+function uniqueOrdered(arr: string[]): string[] {
+  return Array.from(new Set(arr));
+}
+
+/**
+ * Best-effort swatch colour from a colour name. Real brands keep a
+ * name→hex lookup; we map common neutrals and let CSS handle unknowns
+ * (browsers parse most CSS colour names natively).
+ */
+function colorToCss(name: string): string {
+  const key = name.trim().toLowerCase();
+  const map: Record<string, string> = {
+    sand: "#d9c7ad",
+    clay: "#b89274",
+    ivory: "#f1eadb",
+    cream: "#f6f1ea",
+    cocoa: "#8c6a5a",
+    charcoal: "#2b2623",
+    maroon: "#4a1f1f",
+    burgundy: "#5e2128",
+    black: "#1a1a1a",
+    white: "#fafafa",
+    ecru: "#e3d8c2",
+    sage: "#a8b59b",
+    olive: "#737d52",
+    rose: "#dcb6b1",
+    blush: "#e8c8c4",
+    rust: "#b75331",
+    terracotta: "#c87654",
+    indigo: "#2a3568",
+    navy: "#202945",
+  };
+  return map[key] ?? name;
+}

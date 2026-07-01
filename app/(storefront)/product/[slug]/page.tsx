@@ -1,0 +1,96 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ProductCard, toProductCardData } from "@/components/storefront/product-card";
+import { ProductDetailView } from "@/components/storefront/product-detail-view";
+import { getProductBySlug, getRelatedProducts } from "@/lib/actions/products";
+import { productMetadata } from "@/lib/seo/metadata";
+import { buildBreadcrumbLd, buildProductLd } from "@/lib/seo/schemas";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    const product = await getProductBySlug(slug);
+    if (!product) return { title: "product not found" };
+    return productMetadata(product);
+  } catch {
+    return { title: "product" };
+  }
+}
+
+export default async function ProductDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const product = await getProductBySlug(slug);
+  if (!product) notFound();
+
+  const related = await getRelatedProducts(product.id, 4);
+  const productLd = buildProductLd(product);
+  const breadcrumbLd = buildBreadcrumbLd([
+    { name: "home", url: "/" },
+    { name: "shop", url: "/shop" },
+    ...(product.category
+      ? [
+          {
+            name: product.category.name.toLowerCase(),
+            url: `/shop/${product.category.slug}`,
+          },
+        ]
+      : []),
+    { name: product.title.toLowerCase(), url: `/product/${product.slug}` },
+  ]);
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
+
+      <ProductDetailView product={product} />
+
+      {related.length > 0 ? (
+        <section className="bg-cream px-5 pb-24 md:px-6 md:pb-32">
+          <div className="mx-auto max-w-7xl">
+            <div className="flex items-end justify-between gap-5 border-t border-cocoa/12 pb-10 pt-14 md:pt-20">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
+                  you may also love
+                </p>
+                <h2 className="mt-3 font-display text-3xl lowercase leading-tight text-maroon md:text-5xl">
+                  pieces in the same chapter.
+                </h2>
+              </div>
+              <Link
+                href="/shop"
+                className="soft-link hidden text-[11px] font-bold uppercase tracking-[0.24em] text-maroon sm:inline-flex"
+              >
+                view all
+              </Link>
+            </div>
+            <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+              {related.map((p, i) => (
+                <ProductCard
+                  key={p.id}
+                  product={toProductCardData(p)}
+                  staggerIndex={i}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+    </>
+  );
+}
