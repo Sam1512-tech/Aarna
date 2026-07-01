@@ -13,22 +13,10 @@ import {
   type ClipboardEvent,
   type KeyboardEvent,
 } from "react";
-
-// ── UI shell only. Wire to real backend when email-OTP lands ─────────────────
-//
-// Aarna's current auth uses Supabase email/password. Supabase Auth also
-// supports email OTP natively (no SMS provider needed), so this is a small
-// backend addition for Sam:
-//   1. Add server actions e.g. sendEmailOtp(email) and verifyEmailOtp(email,
-//      code, name?) that wrap supabase.auth.signInWithOtp / verifyOtp.
-//   2. Configure the Supabase email template (Resend hook already exists).
-//
-// This view simulates the flow client-side so the UX can be reviewed today.
-// When the backend lands, swap the two TODO blocks to call the real actions.
+import { sendEmailOtp, verifyEmailOtp } from "@/lib/actions/auth";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OTP_LENGTH = 6;
-const SIMULATE_DELAY_MS = 700;
 
 type Step = "email" | "otp";
 
@@ -68,13 +56,15 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
     setError(null);
     setPending(true);
     try {
-      // TODO(backend): replace with `await sendEmailOtp(email)` — wraps
-      // supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
-      await new Promise((r) => setTimeout(r, SIMULATE_DELAY_MS));
-      // Treat emails starting with "new" as new users for the demo, so both
-      // flows are visible until backend account-lookup lands.
-      const isNew = email.toLowerCase().startsWith("new");
-      setNeedsName(isNew);
+      const result = await sendEmailOtp(email);
+      if (!result.ok) {
+        setError(result.message ?? "couldn't send code. please try again.");
+        return;
+      }
+      // We can't know from the server whether the email is a new account (to
+      // avoid leaking whether an email is registered). Ask for a name if the
+      // user is likely new — the server ignores it for existing accounts.
+      setNeedsName(true);
       setStep("otp");
       setResendCountdown(30);
     } catch {
@@ -90,10 +80,16 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
     setError(null);
     setPending(true);
     try {
-      // TODO(backend): replace with
-      //   await verifyEmailOtp(email, otpJoined, needsName ? name.trim() : undefined)
-      // which wraps supabase.auth.verifyOtp + customers row upsert.
-      await new Promise((r) => setTimeout(r, SIMULATE_DELAY_MS));
+      const result = await verifyEmailOtp({
+        email,
+        code: otpJoined,
+        fullName: needsName ? name.trim() : undefined,
+      });
+      if (!result.ok) {
+        setError(result.message ?? "that code didn't work. please try again.");
+        setPending(false);
+        return;
+      }
       // Preserve cart and continue directly to checkout (or wherever ?next=).
       router.push(nextPath);
     } catch {
@@ -107,8 +103,11 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
     setPending(true);
     setError(null);
     try {
-      // TODO(backend): replace with `await sendEmailOtp(email)`.
-      await new Promise((r) => setTimeout(r, SIMULATE_DELAY_MS));
+      const result = await sendEmailOtp(email);
+      if (!result.ok) {
+        setError(result.message ?? "couldn't send code. please try again.");
+        return;
+      }
       setResendCountdown(30);
     } finally {
       setPending(false);
