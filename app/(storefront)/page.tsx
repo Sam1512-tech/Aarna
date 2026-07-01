@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { HomepageCarousel, isVideo } from "@/components/storefront/homepage-carousel";
 import { ScrollRail } from "@/components/storefront/scroll-rail";
+import { getActiveBanners } from "@/lib/actions/banners";
 import { getCategories, getNewArrivals } from "@/lib/actions/products";
 import type { Product } from "@/lib/types";
 
@@ -124,43 +126,46 @@ const rituals = [
 ];
 
 export default async function HomePage() {
-  const [categories, products] = await Promise.all([
+  const [categories, products, banners] = await Promise.all([
     getCategories(),
     getNewArrivals(4),
+    getActiveBanners(),
   ]);
+
+  const carouselBanners = banners.map((b) => ({
+    id: b.id,
+    imageUrl: b.imageUrl,
+    mobileImageUrl: b.mobileImageUrl,
+    title: b.title,
+    subtitle: b.subtitle,
+    ctaLabel: b.ctaLabel,
+    ctaHref: b.ctaHref,
+  }));
+  // Split by media type: photos drive the hero banner under the nav, videos
+  // drive the in-content carousel inside the "made to live in" section.
+  const photoBanners = carouselBanners.filter((b) => !isVideo(b.imageUrl));
+  const videoBanners = carouselBanners.filter((b) => isVideo(b.imageUrl));
 
   return (
     <>
       <div className="md:hidden">
-        <section className="paper-grain min-h-[90vh] bg-cream pt-[128px]">
-          <div className="px-5">
-            <div className="cloth-window reveal-up flex h-[52vh] items-end rounded-[28px] p-5 shadow-[0_22px_60px_rgba(43,38,35,0.08)]">
-              <div className="relative z-10 max-w-[15rem] space-y-3">
-                <p className="w-fit rounded-full border border-cream/50 bg-cream/40 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-cocoa backdrop-blur-xl">
-                  coming soon
-                </p>
-                <p className="text-xs lowercase leading-6 text-charcoal/62">
-                  soft videos, quiet stills, fabric movement, and first
-                  collection details will arrive here.
-                </p>
-              </div>
-            </div>
-            <div className="reveal-up mt-8 pb-10">
-              <h1 className="font-display text-[58px] lowercase leading-[0.98] text-maroon">
-                clothing made to live softly
-              </h1>
-              <p className="mt-5 text-base leading-7 text-charcoal/68">
-                Aarna is a slow-made wardrobe for everyday rituals, quiet
-                gatherings, travel, layering, and the gentle crossover of soft
-                everyday dressing.
-              </p>
-              <Link
-                href="/collections"
-                className="mt-7 inline-flex rounded-2xl border border-cocoa/24 bg-cream px-6 py-3 text-xs font-bold lowercase tracking-[0.2em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
-              >
-                collections
-              </Link>
-            </div>
+        <section className="paper-grain bg-cream pt-[128px]">
+          <HomepageCarousel
+            banners={photoBanners}
+            variant="inline"
+            flush
+            inlineClassName="aspect-[4/5]"
+          />
+          <div className="reveal-up px-5 pb-14 pt-12 text-center">
+            <h1 className="font-display text-[52px] lowercase leading-[0.98] text-maroon">
+              clothing made to live softly
+            </h1>
+            <Link
+              href="/collections"
+              className="mt-8 inline-flex rounded-2xl border border-cocoa/24 bg-cream px-7 py-4 text-xs font-bold lowercase tracking-[0.2em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
+            >
+              collections
+            </Link>
           </div>
         </section>
 
@@ -193,7 +198,11 @@ export default async function HomePage() {
         </section>
 
         <section className="reveal-up px-5 py-24">
-          <div className="cloth-window h-[260px] rounded-[26px]" />
+          <HomepageCarousel
+            banners={videoBanners}
+            variant="inline"
+            inlineClassName="h-[260px]"
+          />
           <h2 className="mt-9 font-display text-[44px] lowercase leading-[1.05] text-maroon">
             made to live in.
           </h2>
@@ -257,63 +266,36 @@ export default async function HomePage() {
       </div>
 
       <div className="hidden md:block">
-      <section className="paper-grain min-h-screen bg-cream pt-28 md:pt-36">
-        <div className="mx-auto grid max-w-7xl gap-12 px-6 pb-14 md:grid-cols-[0.82fr_1.18fr] md:items-center md:pb-20">
-          <div className="fade-rise">
-            <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-              a soft archive of clothing
-            </p>
-            <h1 className="mt-6 max-w-3xl font-display text-[56px] lowercase leading-[1.02] text-maroon md:text-[72px]">
-              clothing made to live softly
-            </h1>
-            <p className="mt-7 max-w-[32rem] text-lg leading-8 text-charcoal/68">
-              Aarna is a slow-made wardrobe for everyday rituals, quiet
-              gatherings, travel, layering, and the gentle crossover of soft
-              everyday dressing.
-            </p>
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-              <Link
-                href="/collections"
-                className="inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
-              >
-                collections
-              </Link>
-            </div>
-          </div>
+      <section className="paper-grain bg-cream pt-32">
+        <HomepageCarousel
+          banners={photoBanners}
+          variant="inline"
+          flush
+          inlineClassName="aspect-[12/5]"
+        />
+        <div className="fade-rise mx-auto max-w-3xl px-6 pb-20 pt-16 text-center">
+          <h1 className="font-display text-[64px] lowercase leading-[1.02] text-maroon md:text-[80px]">
+            clothing made to live softly
+          </h1>
+          <Link
+            href="/collections"
+            className="mt-10 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-8 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
+          >
+            collections
+          </Link>
+        </div>
+      </section>
 
-          <div className="fade-rise-late grid min-h-[500px] grid-cols-[0.68fr_1fr] gap-4 md:min-h-[620px]">
-            <div className="cloth-window mt-20 flex items-end p-5 shadow-[0_24px_70px_rgba(43,38,35,0.08)]">
-              <div className="relative z-10 max-w-[13rem] space-y-3">
-                <p className="w-fit rounded-full border border-cream/50 bg-cream/42 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-cocoa backdrop-blur-xl">
-                  coming soon
-                </p>
-                <p className="text-sm lowercase leading-6 text-charcoal/60">
-                  soft videos and moving fabric studies will live here.
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-rows-[1fr_0.34fr] gap-4">
-              <div className="cloth-window flex items-end p-6 shadow-[0_24px_70px_rgba(43,38,35,0.08)]">
-                <div className="relative z-10 max-w-[16rem] space-y-3">
-                  <p className="w-fit rounded-full border border-cream/50 bg-cream/42 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-cocoa backdrop-blur-xl">
-                    collection preview
-                  </p>
-                  <p className="text-sm lowercase leading-6 text-charcoal/60">
-                    quiet stills, close fabric details, and first looks are
-                    being prepared with care.
-                  </p>
-                </div>
-              </div>
-              <div className="border border-cocoa/16 bg-cocoa/10 px-5 py-5">
-                <p className="font-display text-3xl lowercase leading-tight text-maroon">
-                  collection in motion.
-                </p>
-                <p className="mt-2 text-sm leading-6 text-charcoal/62">
-                  a slow space for videos, pictures, and soft launch notes.
-                </p>
-              </div>
-            </div>
-          </div>
+      <section className="reveal-up bg-cream px-6 py-20 md:py-28">
+        <div className="mx-auto max-w-7xl">
+          <HomepageCarousel
+            banners={videoBanners}
+            variant="inline"
+            inlineClassName="h-[420px] md:h-[520px]"
+          />
+          <h2 className="mt-10 max-w-3xl font-display text-[56px] lowercase leading-[1.05] text-maroon md:text-[72px]">
+            made to live in.
+          </h2>
         </div>
       </section>
 
