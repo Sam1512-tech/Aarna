@@ -29,13 +29,16 @@ function productColor(product: Product) {
   return null;
 }
 
+// Minimal premium icon style: single-weight line drawings, same viewBox/stroke
+// so the existing .hand-doodle class still draws them in with the same feel.
 const rituals = [
   {
-    label: "everyday wear",
+    label: "everyday comfort",
     doodle: (
       <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
+        {/* a softly draped scarf / fabric U-curve */}
         <path
-          d="M24 21c4-5 8-7 12-7s8 2 12 7l10 7-8 10-5-4v20c0 2-1 3-3 3H30c-2 0-3-1-3-3V34l-5 4-8-10 10-7Z"
+          d="M16 18c4 18 14 30 20 30s16-12 20-30"
           fill="none"
           stroke="currentColor"
           strokeLinecap="round"
@@ -43,114 +46,82 @@ const rituals = [
           strokeWidth="2"
         />
         <path
-          d="M31 17c1 4 3 6 5 6s4-2 5-6M27 42c6 2 12 2 18 0"
+          d="M22 22c2 10 7 18 14 18s12-8 14-18"
           fill="none"
           stroke="currentColor"
           strokeLinecap="round"
-          strokeWidth="1.6"
-        />
-      </svg>
-    ),
-  },
-  {
-    label: "intimate gatherings",
-    doodle: (
-      <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
-        <path
-          d="M25 33c-5-1-9-5-9-10 0-6 5-10 10-8 3 1 5 4 6 8 1-4 4-7 8-8 6-1 11 4 10 10-1 8-10 15-18 22-3-3-6-5-9-8"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-        />
-        <path
-          d="M45 39c6-1 11 2 11 7 0 6-7 10-15 10s-15-4-15-10c0-3 2-5 5-6"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.6"
-        />
-        <path
-          d="M48 31c5 2 8 5 9 9"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.3"
-        />
-      </svg>
-    ),
-  },
-  {
-    label: "slow travel",
-    doodle: (
-      <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
-        <path
-          d="M25 25h22c4 0 7 3 7 7v18c0 4-3 7-7 7H25c-4 0-7-3-7-7V32c0-4 3-7 7-7Z"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-        />
-        <path
-          d="M29 25v-5c0-3 2-5 5-5h4c3 0 5 2 5 5v5M25 57v4M47 57v4M23 42c7 2 19 2 26-1"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.6"
-        />
-        <path
-          d="M12 19c5-3 10-3 15-1M52 16c4 1 7 3 9 7"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.3"
-        />
-      </svg>
-    ),
-  },
-  {
-    label: "layered evenings",
-    doodle: (
-      <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
-        <path
-          d="M18 42c8-6 18-9 36-9v16c-15 0-25 2-36 8V42Z"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-        />
-        <path
-          d="M18 33c9-6 20-9 36-9M18 25c8-5 18-8 31-8M27 50c8-3 16-4 25-4"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.6"
-        />
-        <path
-          d="M49 14c1 3 3 5 6 6-3 1-5 3-6 6-1-3-3-5-6-6 3-1 5-3 6-6Z"
-          fill="none"
-          stroke="currentColor"
-          strokeLinejoin="round"
           strokeWidth="1.4"
         />
       </svg>
     ),
   },
-];
-
-const journalNotes = [
   {
-    href: "/journal/styling-rituals",
-    title: "styling rituals",
-    copy: "A quiet space for wearing notes once the first collection is ready.",
+    label: "timeless design",
+    doodle: (
+      <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
+        {/* infinity — quiet, continuous */}
+        <path
+          d="M22 36c0-7 6-12 12-6l4 4 4-4c6-6 12-1 12 6s-6 12-12 6l-4-4-4 4c-6 6-12 1-12-6Z"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+        />
+      </svg>
+    ),
   },
   {
-    href: "/journal/wearing-notes",
-    title: "wearing notes",
-    copy: "Notes on carrying Aarna into homes, gatherings, streets, and travel.",
+    label: "premium fabrics",
+    doodle: (
+      <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
+        {/* three flowing fabric folds + a small sparkle accent */}
+        <path
+          d="M14 24c8 6 18 6 26 0s12 0 18 0M14 36c8 6 18 6 26 0s12 0 18 0M14 48c8 6 18 6 26 0s12 0 18 0"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="2"
+        />
+        <path
+          d="M52 14l1.6 3.4 3.4 1.6-3.4 1.6L52 24l-1.6-3.4L47 19l3.4-1.6Z"
+          fill="none"
+          stroke="currentColor"
+          strokeLinejoin="round"
+          strokeWidth="1.3"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "made to last",
+    doodle: (
+      <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
+        {/* a needle with thread looping behind */}
+        <path
+          d="M14 52L46 22"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="2"
+        />
+        <path
+          d="M46 22l8 4 2 8-6 6-8-2-4-8 8-8Z"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.6"
+        />
+        <path
+          d="M14 52c-3 0-5 1-5 3M52 30c2-2 4-4 7-3"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="1.3"
+        />
+      </svg>
+    ),
   },
 ];
 
@@ -237,17 +208,17 @@ export default async function HomePage() {
           </h2>
         </section>
 
-        <section className="reveal-up bg-cream px-5 py-20">
+        <section className="reveal-up bg-cream px-5 py-24 text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             versatility
           </p>
-          <div className="mt-6 flex snap-x gap-3 overflow-x-auto border-y border-cocoa/16 py-5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-12">
             {rituals.map((ritual) => (
               <div
                 key={ritual.label}
-                className="flex min-w-[168px] snap-center items-center gap-3 text-cocoa"
+                className="flex flex-col items-center gap-4 text-cocoa"
               >
-                <div className="hand-doodle shrink-0 text-cocoa/80 [&_svg]:h-9 [&_svg]:w-9">
+                <div className="hand-doodle text-cocoa/80 [&_svg]:h-12 [&_svg]:w-12">
                   {ritual.doodle}
                 </div>
                 <p className="font-display text-xl lowercase leading-tight text-cocoa">
@@ -292,29 +263,6 @@ export default async function HomePage() {
           </ScrollRail>
         </section>
 
-        <section className="reveal-up px-5 py-20">
-          <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            journal
-          </p>
-          <div className="mt-8 space-y-5">
-            {journalNotes.map((note) => (
-              <Link
-                key={note.href}
-                href={note.href}
-                className="reveal-up block rounded-[22px] border border-cocoa/12 bg-cocoa/10 p-5"
-              >
-                <div className="cloth-window h-40 rounded-[18px]" />
-                <h2 className="mt-5 font-display text-3xl lowercase text-maroon">
-                  {note.title}
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-charcoal/64">
-                  {note.copy}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-
       </div>
 
       <div className="hidden md:block">
@@ -351,18 +299,18 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="reveal-up bg-cream px-6 py-16 md:py-24">
+      <section className="reveal-up bg-cream px-6 py-24 md:py-32">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             versatility
           </p>
-          <h2 className="mt-5 font-display text-[42px] lowercase leading-[1.1] text-maroon md:text-[58px]">
-            pieces that move through the day without asking to be noticed.
-          </h2>
-          <div className="mx-auto mt-9 grid max-w-3xl gap-4 border-y border-cocoa/16 py-7 sm:grid-cols-2 md:grid-cols-4">
+          <div className="mx-auto mt-16 grid max-w-4xl gap-x-8 gap-y-16 sm:grid-cols-2 md:grid-cols-4">
             {rituals.map((ritual) => (
-              <div key={ritual.label} className="flex flex-col items-center gap-3 text-cocoa">
-                <div className="hand-doodle text-cocoa/80">
+              <div
+                key={ritual.label}
+                className="flex flex-col items-center gap-5 text-cocoa"
+              >
+                <div className="hand-doodle text-cocoa/80 [&_svg]:h-14 [&_svg]:w-14">
                   {ritual.doodle}
                 </div>
                 <p className="font-display text-2xl lowercase leading-tight text-cocoa">
@@ -473,34 +421,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="paper-grain reveal-up bg-cream px-6 py-16 text-charcoal md:py-24">
-        <div className="mx-auto grid max-w-7xl gap-12 md:grid-cols-[0.9fr_1.1fr] md:items-end">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-              journal
-            </p>
-            <h2 className="mt-4 max-w-lg font-display text-5xl lowercase leading-[1.08] text-maroon md:text-6xl">
-              notes for wearing slowly.
-            </h2>
-          </div>
-          <div className="grid gap-5 sm:grid-cols-2">
-            {journalNotes.map((note) => (
-              <Link
-                key={note.href}
-                href={note.href}
-                className="reveal-up border border-cocoa/14 bg-cocoa/10 p-6 text-charcoal shadow-[0_18px_55px_rgba(43,38,35,0.05)] transition duration-1000 hover:bg-cocoa/15 hover:text-cocoa"
-              >
-                <p className="font-display text-3xl lowercase leading-tight text-maroon">
-                  {note.title}
-                </p>
-                <p className="mt-5 text-base leading-7 text-current/72">
-                  {note.copy}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
       </div>
     </>
   );
