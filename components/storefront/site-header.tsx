@@ -17,7 +17,6 @@ interface SiteHeaderProps {
 const primaryLinks = [
   { href: "/shop/new-arrivals", label: "new chapter" },
   { href: "/collections/slow-essentials", label: "slow essentials" },
-  { href: "/journal", label: "everyday rituals" },
 ];
 
 export function SiteHeader({ categories }: SiteHeaderProps) {
@@ -194,14 +193,14 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
       </header>
 
       <div
-        className={`paper-grain fixed inset-0 z-[100] bg-cream transition duration-1000 md:hidden ${
+        className={`fixed inset-0 z-[100] bg-cream transition duration-1000 md:hidden ${
           menuOpen
             ? "pointer-events-auto opacity-100"
             : "pointer-events-none opacity-0"
         }`}
         aria-hidden={!menuOpen}
       >
-        <div className="flex h-full flex-col px-6 py-5">
+        <div className="paper-grain flex h-full flex-col px-6 py-5">
           <div className="flex items-center justify-between">
             <Image
               src="/brand/aarna-header-logo-transparent.png"
