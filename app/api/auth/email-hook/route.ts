@@ -14,7 +14,8 @@ export const dynamic = "force-dynamic";
 interface EmailHookPayload {
   user: { email: string; user_metadata?: { full_name?: string | null } };
   email_data: {
-    token_hash: string;
+    token: string; // 6-digit OTP code the user types into the login form
+    token_hash: string; // hash used by /auth/v1/verify link flow
     email_action_type: string; // signup | recovery | magiclink | email | email_change | invite
     redirect_to: string;
     site_url: string;
@@ -92,9 +93,12 @@ export async function POST(req: Request): Promise<Response> {
     case "email":
     case "magiclink":
     default:
+      // "email" / "magiclink" fire from supabase.auth.signInWithOtp — the user
+      // types the 6-digit token into the login form. Include both the code and
+      // the fallback link so the same email works either way.
       templateKey = "verify_email";
-      subject = "Confirm your email — Aarna";
-      data = { name, verifyUrl: actionUrl };
+      subject = `Your Aarna login code: ${email_data.token}`;
+      data = { name, verifyUrl: actionUrl, code: email_data.token };
       break;
   }
 

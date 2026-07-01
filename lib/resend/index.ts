@@ -205,11 +205,25 @@ function orderReceiptHtml(data: Record<string, unknown>): string {
 function verifyEmailHtml(data: Record<string, unknown>): string {
   const name = (data.name as string | undefined) ?? "there";
   const verifyUrl = (data.verifyUrl as string | undefined) ?? "https://shopaarna.in";
+  const code = data.code as string | undefined;
 
-  return shell({
-    preheader: "Confirm your email to start shopping at Aarna.",
-    bodyHtml: `
-      ${heading(`Welcome, ${escapeHtml(name)}`)}
+  // Big prominent code block — for the OTP login flow. Falls back to the link
+  // button below for signup confirmation flows that don't include a code.
+  const codeBlock = code
+    ? `
+      ${lead(`Hi ${escapeHtml(name)}, use this code to sign in to Aarna. It expires in 60 minutes.`)}
+      <table align="center" cellpadding="0" cellspacing="0" style="margin:28px auto;">
+        <tr>
+          <td style="padding:22px 32px;border:1px solid ${GOLD};background:${CREAM};">
+            <p style="margin:0;font-family:${SERIF};font-size:34px;font-weight:400;letter-spacing:10px;color:${MAROON};text-align:center;">${escapeHtml(code)}</p>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:20px 0 0;font-size:12px;color:${MUTE};line-height:1.7;text-align:center;">
+        If you didn't try to sign in, you can safely ignore this email.
+      </p>
+    `
+    : `
       ${lead("Confirm your email to finish setting up your account. This link is valid for the next 24 hours.")}
       ${primaryButton("Confirm Email", verifyUrl)}
       <p style="margin:24px 0 0;font-size:12px;color:${MUTE};line-height:1.6;">
@@ -219,6 +233,15 @@ function verifyEmailHtml(data: Record<string, unknown>): string {
       <p style="margin:16px 0 0;font-size:12px;color:${MUTE};line-height:1.6;">
         If you didn't sign up for an account, you can safely ignore this email.
       </p>
+    `;
+
+  return shell({
+    preheader: code
+      ? `Your Aarna sign-in code: ${code}`
+      : "Confirm your email to start shopping at Aarna.",
+    bodyHtml: `
+      ${heading(code ? "Sign in to Aarna" : `Welcome, ${escapeHtml(name)}`)}
+      ${codeBlock}
     `,
   });
 }
