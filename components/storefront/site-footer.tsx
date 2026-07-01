@@ -19,7 +19,6 @@ const policyLinks = [
 ];
 
 const resourceLinks = [
-  { href: "/journal", label: "journal" },
   { href: "/fabric-care", label: "fabric care guide" },
   { href: "/about", label: "about" },
 ];
