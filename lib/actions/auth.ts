@@ -195,3 +195,91 @@ export async function requireAdmin() {
   if (!admin) throw new Error("Unauthorized — admin access required");
   return admin;
 }
+
+// ── Email OTP flow ───────────────────────────────────────────────────────────
+
+/**
+ * Sends a one-time login code to the given email. Uses Supabase Auth's OTP
+ * (magic-link with `otp` type — Supabase emails the 6-digit code, not a link,
+ * when configured in the dashboard).
+ *
+ * If the email doesn't have a customer record yet, `shouldCreateUser: true`
+ * ensures Supabase creates one — then the caller's `verifyEmailOtp` step
+ * mirrors the auth user into our customers table.
+ */
+export async function sendEmailOtp(email: string): Promise<AuthResult> {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return { ok: false, message: "Email is required" };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    return { ok: false, message: "Please enter a valid email" };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.signInWithOtp({
+    email: normalized,
+    options: {
+      shouldCreateUser: true,
+    },
+  });
+
+  if (error) {
+    console.error("[auth] sendEmailOtp error:", error.message);
+    // Generic response — don't leak whether the email is registered
+    return { ok: true, message: "Check your inbox — we've sent you a login code." };
+  }
+
+  return { ok: true, message: "Check your inbox — we've sent you a login code." };
+}
+
+export interface VerifyEmailOtpInput {
+  email: string;
+  code: string;
+  /** Optional — only used when creating a new customer on first-time verify */
+  fullName?: string;
+}
+
+/**
+ * Verifies the OTP code the user typed. On success:
+ *  - Supabase auth session is established (cookies set via SSR client)
+ *  - customer row is created if this is a first-time login
+ *  - guest cart is merged into the user's cart
+ */
+export async function verifyEmailOtp(input: VerifyEmailOtpInput): Promise<AuthResult> {
+  const email = normalizeEmail(input.email);
+  const code = input.code.trim();
+
+  if (!email || !code) {
+    return { ok: false, message: "Email and code are required" };
+  }
+  if (!/^\d{6}$/.test(code)) {
+    return { ok: false, message: "Enter the 6-digit code" };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token: code,
+    type: "email",
+  });
+
+  if (error || !data.user) {
+    return { ok: false, message: "Invalid or expired code" };
+  }
+
+  // Mirror the auth user into customers on first verify. onConflictDoNothing
+  // makes re-logins a no-op.
+  await db
+    .insert(customers)
+    .values({
+      id: data.user.id,
+      email,
+      fullName: input.fullName?.trim() || (data.user.user_metadata?.full_name as string) || "",
+      whatsappOptIn: false,
+    })
+    .onConflictDoNothing();
+
+  // Best-effort cart merge — don't block login on failure
+  await mergeGuestCartOnLogin().catch(() => undefined);
+
+  return { ok: true };
+}
