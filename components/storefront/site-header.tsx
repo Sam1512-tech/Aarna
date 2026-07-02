@@ -219,13 +219,16 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
             </button>
           </div>
 
-          <nav className="mt-16 flex flex-col gap-5" aria-label="Mobile">
+          {/* text-maroon on the parent — anchors inherit it because the
+              unlayered `a { color: inherit }` in globals.css beats Tailwind's
+              text-* utilities applied directly to a link. */}
+          <nav className="mt-16 flex flex-col gap-5 text-maroon" aria-label="Mobile">
             {primaryLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] text-maroon"
+                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em]"
               >
                 {link.label}
               </Link>
@@ -235,7 +238,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
                 key={category.slug}
                 href={`/shop/${category.slug}`}
                 onClick={() => setMenuOpen(false)}
-                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] text-maroon"
+                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em]"
               >
                 {category.name.toLowerCase()}
               </Link>
@@ -243,14 +246,14 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
             <Link
               href="/about"
               onClick={() => setMenuOpen(false)}
-              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] text-maroon"
+              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em]"
             >
               about
             </Link>
             <Link
               href="/account"
               onClick={() => setMenuOpen(false)}
-              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] text-maroon"
+              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em]"
             >
               your account
             </Link>
