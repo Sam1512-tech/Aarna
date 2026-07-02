@@ -225,7 +225,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="font-display text-[42px] lowercase leading-[1.1] text-maroon"
+                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] text-maroon"
               >
                 {link.label}
               </Link>
@@ -235,7 +235,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
                 key={category.slug}
                 href={`/shop/${category.slug}`}
                 onClick={() => setMenuOpen(false)}
-                className="font-display text-[42px] lowercase leading-[1.1] text-maroon"
+                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] text-maroon"
               >
                 {category.name.toLowerCase()}
               </Link>
@@ -243,14 +243,14 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
             <Link
               href="/about"
               onClick={() => setMenuOpen(false)}
-              className="font-display text-[42px] lowercase leading-[1.1] text-maroon"
+              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] text-maroon"
             >
               about
             </Link>
             <Link
               href="/account"
               onClick={() => setMenuOpen(false)}
-              className="font-display text-[42px] lowercase leading-[1.1] text-maroon"
+              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] text-maroon"
             >
               your account
             </Link>
