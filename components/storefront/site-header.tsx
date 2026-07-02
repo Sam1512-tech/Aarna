@@ -228,7 +228,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em]"
+                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
               >
                 {link.label}
               </Link>
@@ -238,7 +238,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
                 key={category.slug}
                 href={`/shop/${category.slug}`}
                 onClick={() => setMenuOpen(false)}
-                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em]"
+                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
               >
                 {category.name.toLowerCase()}
               </Link>
@@ -246,14 +246,14 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
             <Link
               href="/about"
               onClick={() => setMenuOpen(false)}
-              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em]"
+              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
             >
               about
             </Link>
             <Link
               href="/account"
               onClick={() => setMenuOpen(false)}
-              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em]"
+              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
             >
               your account
             </Link>
