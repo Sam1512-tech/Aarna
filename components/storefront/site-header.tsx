@@ -184,7 +184,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
             <Link
               href="/account"
               aria-label="Account"
-              className="hidden h-10 w-10 items-center justify-center transition duration-700 hover:-translate-y-0.5 hover:text-cocoa active:translate-y-0 md:inline-flex"
+              className="inline-flex h-10 w-10 items-center justify-center transition duration-700 hover:-translate-y-0.5 hover:text-cocoa active:translate-y-0"
             >
               <UserRound className="h-[18px] w-[18px]" aria-hidden="true" />
             </Link>
@@ -246,6 +246,13 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
               className="font-display text-[42px] lowercase leading-[1.1] text-maroon"
             >
               about
+            </Link>
+            <Link
+              href="/account"
+              onClick={() => setMenuOpen(false)}
+              className="font-display text-[42px] lowercase leading-[1.1] text-maroon"
+            >
+              your account
             </Link>
           </nav>
 
