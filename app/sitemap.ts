@@ -43,10 +43,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${APP_URL}/`, lastModified: now, changeFrequency: "daily", priority: 1.0 },
     { url: `${APP_URL}/shop`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${APP_URL}/collections`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${APP_URL}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${APP_URL}/privacy-policy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${APP_URL}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${APP_URL}/returns`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${APP_URL}/shipping`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${APP_URL}/return-policy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${APP_URL}/shipping-policy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${APP_URL}/fabric-care`, lastModified: now, changeFrequency: "yearly", priority: 0.4 },
+    { url: `${APP_URL}/contact`, lastModified: now, changeFrequency: "yearly", priority: 0.4 },
   ];
 
   const productPages: MetadataRoute.Sitemap = products.map((p) => ({
