@@ -284,12 +284,6 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
           secure sign-in · we never store your code
         </div>
 
-        <p className="mt-6 text-center text-xs lowercase text-charcoal/50">
-          prefer a password?{" "}
-          <Link href="/login" className="soft-link text-cocoa">
-            sign in with password
-          </Link>
-        </p>
       </div>
     </main>
   );

@@ -1,11 +1,24 @@
-export default function LoginPage() {
-  return (
-    <div className="paper-grain mx-auto min-h-screen max-w-md px-6 py-28">
-      <h1 className="font-display text-5xl lowercase text-maroon">sign in</h1>
-      <p className="mt-4 text-sm leading-6 text-charcoal/64">
-        Welcome back. {/* FE dev: build form using lib/actions/auth.ts#login */}
-      </p>
-      {/* TODO(frontend): RHF + Zod form, calls login() server action. */}
-    </div>
-  );
+import { redirect } from "next/navigation";
+
+/**
+ * The Aarna storefront uses passwordless email-OTP as the sole sign-in method.
+ * /login exists only to forward incoming links (from middleware, footer, etc.)
+ * to /login/otp, preserving whatever redirect target the caller passed.
+ *
+ * Accepts both ?redirect= (what middleware.ts sends) and ?next= (what the
+ * storefront tends to send) for flexibility.
+ */
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string; redirect?: string }>;
+}) {
+  const params = await searchParams;
+  const target = params.next ?? params.redirect;
+  // Only allow same-origin relative paths.
+  const safeNext =
+    target && target.startsWith("/") && !target.startsWith("//")
+      ? target
+      : "/account";
+  redirect(`/login/otp?next=${encodeURIComponent(safeNext)}`);
 }

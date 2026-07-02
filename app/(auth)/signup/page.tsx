@@ -1,13 +1,20 @@
-export default function SignupPage() {
-  return (
-    <div className="paper-grain mx-auto min-h-screen max-w-md px-6 py-28">
-      <h1 className="font-display text-5xl lowercase text-maroon">
-        create account
-      </h1>
-      <p className="mt-4 text-sm leading-6 text-charcoal/64">
-        {/* FE dev: build form using lib/actions/auth.ts#signup */}
-      </p>
-      {/* TODO(frontend): RHF + Zod form, calls signup() server action. */}
-    </div>
-  );
+import { redirect } from "next/navigation";
+
+/**
+ * There is no separate signup flow — the email-OTP flow at /login/otp creates
+ * an account automatically on first successful verification. /signup exists
+ * only to forward any lingering links (footer, external, etc.) into it.
+ */
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string; redirect?: string }>;
+}) {
+  const params = await searchParams;
+  const target = params.next ?? params.redirect;
+  const safeNext =
+    target && target.startsWith("/") && !target.startsWith("//")
+      ? target
+      : "/account";
+  redirect(`/login/otp?next=${encodeURIComponent(safeNext)}`);
 }
