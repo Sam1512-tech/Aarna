@@ -184,7 +184,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
             <Link
               href="/account"
               aria-label="Account"
-              className="hidden h-10 w-10 items-center justify-center transition duration-700 hover:-translate-y-0.5 hover:text-cocoa active:translate-y-0 md:inline-flex"
+              className="inline-flex h-10 w-10 items-center justify-center transition duration-700 hover:-translate-y-0.5 hover:text-cocoa active:translate-y-0"
             >
               <UserRound className="h-[18px] w-[18px]" aria-hidden="true" />
             </Link>
@@ -219,13 +219,16 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
             </button>
           </div>
 
-          <nav className="mt-16 flex flex-col gap-5" aria-label="Mobile">
+          {/* text-maroon on the parent — anchors inherit it because the
+              unlayered `a { color: inherit }` in globals.css beats Tailwind's
+              text-* utilities applied directly to a link. */}
+          <nav className="mt-16 flex flex-col gap-5 text-maroon" aria-label="Mobile">
             {primaryLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="font-display text-[42px] lowercase leading-[1.1] text-maroon"
+                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
               >
                 {link.label}
               </Link>
@@ -235,7 +238,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
                 key={category.slug}
                 href={`/shop/${category.slug}`}
                 onClick={() => setMenuOpen(false)}
-                className="font-display text-[42px] lowercase leading-[1.1] text-maroon"
+                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
               >
                 {category.name.toLowerCase()}
               </Link>
@@ -243,9 +246,16 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
             <Link
               href="/about"
               onClick={() => setMenuOpen(false)}
-              className="font-display text-[42px] lowercase leading-[1.1] text-maroon"
+              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
             >
               about
+            </Link>
+            <Link
+              href="/account"
+              onClick={() => setMenuOpen(false)}
+              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
+            >
+              your account
             </Link>
           </nav>
 
