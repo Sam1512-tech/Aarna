@@ -308,6 +308,102 @@ export async function attachAwbNumber(orderId: string, awbNumber: string) {
   return updated;
 }
 
+// ── Shipment creation (Delhivery) ────────────────────────────────────────────
+
+const FALLBACK_ITEM_WEIGHT_GRAMS = 450; // typical garment when variant has no weight
+
+/**
+ * Creates the Delhivery forward shipment for a paid order and attaches the
+ * AWB. This is the "Create shipment" button on the admin order detail page.
+ *
+ * Flow: allocate waybill → manifest shipment with the order's shipping
+ * address → save AWB on the order (auto-advances processing → shipped).
+ * Delhivery then owns pickup + all customer shipping notifications.
+ */
+export async function createDelhiveryShipment(orderId: string) {
+  await requireAdmin();
+
+  const order = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!order) throw new Error("Order not found");
+  if (order.paymentStatus !== "paid") {
+    throw new Error("Order is not paid — cannot create a shipment");
+  }
+  if (order.awbNumber) {
+    throw new Error(`Shipment already exists (AWB ${order.awbNumber})`);
+  }
+  if (
+    order.fulfillmentStatus !== "processing" &&
+    order.fulfillmentStatus !== "pending"
+  ) {
+    throw new Error(
+      `Cannot create a shipment for an order in "${order.fulfillmentStatus}" state`,
+    );
+  }
+
+  const shipping = order.shippingAddress as {
+    fullName: string;
+    phone: string;
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+
+  // Total parcel weight = sum of variant weights × quantities (fallback per item)
+  const items = await db
+    .select({
+      quantity: orderItems.quantity,
+      weightGrams: productVariants.weightGrams,
+    })
+    .from(orderItems)
+    .leftJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+    .where(eq(orderItems.orderId, order.id));
+
+  const weightGrams = items.reduce(
+    (sum, i) => sum + (i.weightGrams ?? FALLBACK_ITEM_WEIGHT_GRAMS) * i.quantity,
+    0,
+  );
+
+  const { fetchWaybill, createShipment } = await import("@/lib/delhivery");
+
+  const waybill = await fetchWaybill();
+
+  await createShipment({
+    orderNumber: order.orderNumber,
+    waybill,
+    name: shipping.fullName,
+    address: [shipping.line1, shipping.line2].filter(Boolean).join(", "),
+    pincode: shipping.pincode,
+    city: shipping.city,
+    state: shipping.state,
+    phone: shipping.phone,
+    totalAmount: Math.round(order.total / 100), // Delhivery expects rupees
+    weightGrams: Math.max(weightGrams, 100),
+  });
+
+  const [updated] = await db
+    .update(orders)
+    .set({
+      awbNumber: waybill,
+      fulfillmentStatus: "shipped",
+      updatedAt: new Date(),
+    })
+    .where(eq(orders.id, orderId))
+    .returning();
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${order.orderNumber}`);
+  revalidatePath("/account/orders");
+  return updated;
+}
+
 // ── Invoice ──────────────────────────────────────────────────────────────────
 
 /**
