@@ -10,7 +10,9 @@ if (!connectionString) {
 
 const client = postgres(connectionString, {
   prepare: false,
-  max: process.env.NODE_ENV === "production" ? 10 : 1,
+  max: process.env.NODE_ENV === "production" ? 10 : 5,
+  idle_timeout: 20,
+  connect_timeout: 10,
 });
 
 export const db = drizzle(client, { schema });
