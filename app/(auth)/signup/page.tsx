@@ -1,10 +1,10 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { SignupView } from "@/components/storefront/signup-view";
 
-/**
- * There is no separate signup flow — the email-OTP flow at /login/otp creates
- * an account automatically on first successful verification. /signup exists
- * only to forward any lingering links (footer, external, etc.) into it.
- */
+export const metadata: Metadata = {
+  title: "create account",
+};
+
 export default async function SignupPage({
   searchParams,
 }: {
@@ -16,5 +16,5 @@ export default async function SignupPage({
     target && target.startsWith("/") && !target.startsWith("//")
       ? target
       : "/account";
-  redirect(`/login/otp?next=${encodeURIComponent(safeNext)}`);
+  return <SignupView nextPath={safeNext} />;
 }
