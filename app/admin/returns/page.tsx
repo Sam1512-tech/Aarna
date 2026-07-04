@@ -76,7 +76,7 @@ export default async function AdminReturnsPage({
         </label>
         <button
           type="submit"
-          className="rounded-full bg-maroon px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-cream transition duration-500 hover:bg-maroon/90"
+          className="rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-cream transition duration-500 hover:bg-cocoa/90"
         >
           filter
         </button>
