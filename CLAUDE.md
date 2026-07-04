@@ -9,7 +9,8 @@ Do not delete it.
 
 Aarna by Arpitha Abhishek — a women's indo-western fashion e-commerce platform.
 Built by Solaris Studios. India-only, English, INR, online payments only (no COD).
-Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
+Fixed price: ₹1,30,000 (+₹18,000 hang-tag change request → ₹1,53,000 revised).
+**HARD DEADLINE: launch by July 20, 2026 — no slippage allowed (client mandate, ~Jul 4).**
 
 **Launch scope (confirmed by client):**
 - 16 products at launch
@@ -19,6 +20,45 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 **Critical architecture rule:** category names must always come from `getCategories()` — never hardcoded as strings anywhere in the codebase (not even as fallbacks). When the client adds a new category via admin, it must appear automatically wherever categories are displayed.
 
 **Frontend design direction is fully Vismaya's call** — palette, typography, brand voice, layout, copy, section structure. Client has approved her direction. The only frontend constraint is the dynamic-categories rule above.
+
+---
+
+## 🚨 CURRENT STATUS — July 4, 2026 (launch sprint to July 20)
+
+**Full-scope audit completed Jul 4** (27 checks vs. quotation + this file). State of the world:
+
+### Verified working (live-tested, not just compiling)
+Prod build clean (33 routes) · Code 128 barcode + 50×30mm hang-tag PDF + GST invoice PDF all generate correctly (live-tested) · homepage renders dynamic banners/arrivals/categories · guest checkout open · coupon UI · Razorpay modal flow → `/payment-processing` → `/order-confirmation` · all 3 Razorpay webhook events · Delhivery status webhook · all 4 WhatsApp triggers (opt-in gated, no-op until API key) · OTP code in branded email · PDP SEO (metadata + JSON-LD) · RLS on all 20 tables · admin RBAC gate.
+
+### Storefront (Vismaya) — ~all pages shipped
+Homepage, PLP (/shop + /shop/[category]), PDP, cart, checkout, payment-processing/failed, order-confirmation, search, full account section, legal pages (/privacy-policy, /return-policy, /shipping-policy, /terms, /contact, /fabric-care — note: NOT /privacy etc.), auth. **Auth = password + email-OTP + Google OAuth (all three; OTP-only was reverted by client-approved decision).** Google OAuth is enabled in Supabase (client ID 1095605963037-…) and verified working.
+
+### Admin
+All 8 list pages + shell + dashboard merged — **but read-only**. Vismaya is building all CRUD forms/actions now (product form first — MRP/fabric/care fields + Print Tags button + Cloudinary upload; order detail w/ "Create shipment" button + status + AWB + invoice download; inventory adjust w/ autofocused search for barcode scanner; coupons/banners/collections/reviews/returns actions). **ETA Jul 5.**
+One admin exists: Arpitha, `aarnabyarpithabhishek@gmail.com`, Supabase UID `5644c143-c259-4410-91df-51684db6bc9c`, role owner.
+
+### Known gaps / decisions pending (from audit)
+- **Broken links** in header/footer/cart/search: `/collections`, `/about`, `/shop/new-arrivals`, `/shop/bestsellers` → routes don't exist / no such categories. Vismaya deciding: build vs re-point.
+- **Quotation debt, not built:** customer reviews UI (no way to write/see reviews on storefront), product zoom on PDP, best-sellers ranking, rate limiting, Cloudflare CDN (DNS is Hostinger→Vercel direct), handover documentation. Decide build-vs-descope with client before launch.
+- **DB content: 0 products, 0 banners, 0 collections.** Blocked on admin forms + **product photography (status UNCONFIRMED — chase Arpitha).**
+- `requestReversePickup` stubbed (manual returns OK); WhatsApp read-receipts not persisted; search is client-side over 60 products (fine at launch scale).
+
+### External / accounts state
+- **Razorpay: LIVE keys approved + stored in `.env.local` as `RAZORPAY_LIVE_KEY_ID/SECRET` (production-only — active vars stay TEST until QA passes).** Live webhook secret still needs generating once prod URL exists. Test webhook secret also still pending (old dashboard outage).
+- **WhatsApp/Interakt: account live, number connected via Meta, FB Business Manager VERIFIED.** Blocked on API-key access ("connect your mobile number", 24h wait) — **handed to Vismaya** (support email drafted; she also submits the 4 templates from `docs/whatsapp-templates.md` to Meta).
+- **shopaarna.in is LIVE with a placeholder mini-site** (coming-soon + shop preview + about/contact + all policy pages w/ GSTIN) — repo `aarna-coming-soon` under Arpitha's GitHub (`aarnabyarpithabhishek-collab`, also repo collaborator), deployed on **her** Vercel (Hobby). Built to pass Razorpay/Meta/Delhivery site checks (it did).
+- **Supabase Send-Email hook configured** (secret in env, hook enabled, placeholder URL) — re-point URL to real app at deploy.
+- Delhivery fully configured (`Aarna Godown`/560085, prod base, webhook token). `DELHIVERY_CLIENT_NAME`/`DELHIVERY_MODE` env vars are unused leftovers — ignore.
+
+### Hardware (client purchase list)
+Xprinter XP-365B (~₹3.5K) + 4×6" and 50×30mm rolls; TVS BS-C101 Star 1D scanner (~₹2K). Scanner = keyboard wedge, zero integration; scans SKU into `/admin/inventory` search (matches on SKU).
+
+### DEPLOY PLAN — Jul 5, after Vismaya's admin PRs merge (first task of the day)
+1. Vercel under **Sam's** account (Sam1512-tech) — transfer to client at handover. Import repo, paste env vars (full list with test-Razorpay convention is in the Jul 4 session; `.env.example` documents it).
+2. Set `NEXT_PUBLIC_APP_URL` to the assigned `*.vercel.app` URL first (QA), redeploy.
+3. Post-deploy config: Razorpay TEST webhook → deployed URL (get `RAZORPAY_WEBHOOK_SECRET`); Supabase Auth hook URL + Site URL/redirect allowlist; Google OAuth authorized origins += vercel.app URL; Delhivery status webhook URL.
+4. Full QA with test keys (card 4111…, UPI success@razorpay), incl. real shipment creation via new `createDelhiveryShipment` admin action.
+5. Only after QA: flip Razorpay env to live keys, create LIVE webhook, load real products/banners, re-point shopaarna.in DNS from placeholder to real app, set `NEXT_PUBLIC_APP_URL=https://shopaarna.in`, create prod Supabase (+ `npm run db:rls`) or accept dev DB at launch (decide).
 
 ---
 
@@ -78,6 +118,8 @@ Fixed price: ₹1,30,000. Timeline: 10–12 weeks. Currently in Week 1.
 ---
 
 ## What Is In Progress / Not Done Yet
+
+> ⚠️ Historical detail — where this conflicts with the **🚨 CURRENT STATUS (July 4)** section above, the status section wins.
 
 - [ ] **Razorpay webhook secret** — Razorpay dashboard has a platform outage (2 days+); add `RAZORPAY_WEBHOOK_SECRET` once dashboard is back
 - [x] Delhivery — Delhivery One account live; API token + pickup (`Aarna Godown`, 560085) + generated `DELHIVERY_WEBHOOK_TOKEN` in `.env.local` (production base `track.delhivery.com`). **Live serviceability verified** (prepaid serviceable: Bengaluru/Delhi/Mumbai/Kolkata/Sikkim); checkout pincode check now hits the real API. **Remaining:** live shipment creation + AWB + status webhook — exercised at deploy/first real shipment (webhook needs the deployed URL). Pickup name must match the Delhivery One panel exactly.
@@ -180,18 +222,15 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 
 ---
 
-## Immediate Next Steps for Sam
+## Immediate Next Steps (launch sprint — see 🚨 CURRENT STATUS for full detail)
 
-1. Get mood board approval from client in writing → triggers ₹52K payment
-2. ~~Submit Razorpay KYC~~ — done, test keys live
-3. Add `RAZORPAY_WEBHOOK_SECRET` to `.env.local` once Razorpay dashboard outage is resolved
-4. ~~Start Delhivery KYC~~ — done; token live, serviceability verified. **Next:** wire live shipment creation + configure the status webhook at deploy
-5. WhatsApp BSP — waiting on client (Facebook BM + spare number). Scope locked + 4 templates drafted (`docs/whatsapp-templates.md`); submit to Meta once the Interakt account exists
-6. ~~Seed the DB~~ — already done (Dresses + Tops live in Supabase)
-7. ~~Wire Priority 1 server actions~~ — done (products, cart, checkout)
-8. ~~Build Priority 2~~ — auth, account, middleware/RBAC, RLS, **Supabase Auth → Resend hook** all done (hook activates at deploy via dashboard config)
-9. ~~Resend + `hello@shopaarna.in` mailbox + Supabase Auth → Resend~~ — all done; email + auth comms fully branded
-10. ~~Cloudinary~~ — done (account connected, keys in `.env.local`, verified live)
+1. **Jul 5:** review + merge Vismaya's admin CRUD PRs → then **deploy to Vercel** (step-by-step plan in the status section)
+2. Post-deploy config: Razorpay test webhook, Supabase auth hook URL + redirect allowlist, Google OAuth origins, Delhivery webhook
+3. **Chase Arpitha on product photography TODAY** — the single biggest launch risk; 0 products in DB until photos + admin form exist
+4. Vismaya: Interakt API key (support ticket) + submit 4 WhatsApp templates to Meta (1–7 day review — clock is running)
+5. Full QA on test keys → flip to live Razorpay keys + live webhook → load real content → DNS cutover from placeholder to real app
+6. Decide with client: reviews UI / product zoom / `/collections` page — build or descope from Jul 20 launch
+7. Pre-go-live: prod Supabase (or accept dev DB), `npm run db:rls` on prod, handover docs + Loom videos, transfer Vercel to client
 
 ---
 
@@ -283,9 +322,11 @@ Garment labels must show MRP, manufacturer details, fabric composition, size, an
 
 ---
 
-## Risks to Watch
+## Risks to Watch (July 20 deadline)
 
-- WhatsApp BSP onboarding + Meta template approval — start day 1, not week 4
-- Product photography — lock shoot date with client immediately
-- Razorpay activation delay — KYC submitted is not KYC approved
-- Staying ahead of Vismaya on server actions — she builds fast with AI
+- **Product photography — STATUS UNKNOWN as of Jul 4.** If the shoot hasn't happened, this alone can sink Jul 20. Chase daily.
+- **Meta template approval (1–7 days)** — templates not yet submitted; every day unsubmitted eats buffer
+- **Interakt API-key access blocked** ("connect mobile number", 24h wait) — with Vismaya + support ticket
+- Razorpay live webhook secret can only exist after deploy — deploy early, don't stack this to the last week
+- Admin CRUD is the content bottleneck — nothing can be entered until Vismaya's forms merge
+- Never run casual checkout tests once live Razorpay keys are active — real money moves
