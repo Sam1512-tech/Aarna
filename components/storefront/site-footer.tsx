@@ -85,8 +85,8 @@ export function SiteFooter({ categories }: SiteFooterProps) {
               shop
             </h3>
             <div className="mt-5 flex flex-col gap-3 text-lg lowercase leading-7 text-charcoal/72">
-              <Link href="/shop/new-arrivals" className="soft-link w-fit">
-                new chapter
+              <Link href="/shop" className="soft-link w-fit">
+                the wardrobe
               </Link>
               {categories.map((category) => (
                 <Link
@@ -97,9 +97,6 @@ export function SiteFooter({ categories }: SiteFooterProps) {
                   {category.name.toLowerCase()}
                 </Link>
               ))}
-              <Link href="/collections" className="soft-link w-fit">
-                collections
-              </Link>
             </div>
           </div>
 

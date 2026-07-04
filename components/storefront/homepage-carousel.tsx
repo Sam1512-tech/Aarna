@@ -224,10 +224,10 @@ function CarouselInner({
                   {TAGLINE}
                 </h1>
                 <Link
-                  href="/collections"
+                  href="/shop"
                   className="mt-7 inline-flex items-center justify-center border border-cream/60 bg-cream/95 px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(43,38,35,0.18)] transition duration-1000 hover:bg-cream"
                 >
-                  <span className="text-cocoa">collections</span>
+                  <span className="text-cocoa">shop the wardrobe</span>
                 </Link>
               </div>
             </div>
@@ -418,10 +418,10 @@ function CarouselEmpty({
               {TAGLINE}
             </h1>
             <Link
-              href="/collections"
+              href="/shop"
               className="mt-7 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
             >
-              <span className="text-cocoa">collections</span>
+              <span className="text-cocoa">shop the wardrobe</span>
             </Link>
           </div>
         </div>

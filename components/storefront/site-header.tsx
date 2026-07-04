@@ -14,10 +14,11 @@ interface SiteHeaderProps {
   categories: CategoryLink[];
 }
 
-const primaryLinks = [
-  { href: "/shop/new-arrivals", label: "new chapter" },
-  { href: "/collections/slow-essentials", label: "slow essentials" },
-];
+// primaryLinks intentionally empty for launch — /shop/new-arrivals and
+// /collections/slow-essentials weren't real routes and dropped 404s. The
+// dropdown "wardrobe" nav already covers browsing. Add curated links back
+// once /collections index + a real "new arrivals" filter exist.
+const primaryLinks: { href: string; label: string }[] = [];
 
 export function SiteHeader({ categories }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -243,13 +244,8 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
                 {category.name.toLowerCase()}
               </Link>
             ))}
-            <Link
-              href="/about"
-              onClick={() => setMenuOpen(false)}
-              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
-            >
-              about
-            </Link>
+            {/* /about link removed for launch — the page hasn't been designed
+                yet, don't want a dead nav link in production. */}
             <Link
               href="/account"
               onClick={() => setMenuOpen(false)}

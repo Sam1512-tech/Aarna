@@ -191,7 +191,7 @@ export function CartView({ initialCart }: CartViewProps) {
             </ul>
 
             <Link
-              href="/shop/bestsellers"
+              href="/shop"
               className="soft-link mt-3 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa"
             >
               <ArrowRight className="h-3.5 w-3.5 rotate-180" aria-hidden="true" />
