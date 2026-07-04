@@ -1,13 +1,10 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { LoginView } from "@/components/storefront/login-view";
 
-/**
- * The Aarna storefront uses passwordless email-OTP as the sole sign-in method.
- * /login exists only to forward incoming links (from middleware, footer, etc.)
- * to /login/otp, preserving whatever redirect target the caller passed.
- *
- * Accepts both ?redirect= (what middleware.ts sends) and ?next= (what the
- * storefront tends to send) for flexibility.
- */
+export const metadata: Metadata = {
+  title: "sign in",
+};
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -15,10 +12,9 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const target = params.next ?? params.redirect;
-  // Only allow same-origin relative paths.
   const safeNext =
     target && target.startsWith("/") && !target.startsWith("//")
       ? target
       : "/account";
-  redirect(`/login/otp?next=${encodeURIComponent(safeNext)}`);
+  return <LoginView nextPath={safeNext} />;
 }
