@@ -21,6 +21,7 @@ const policyLinks = [
 const resourceLinks = [
   { href: "/fabric-care", label: "fabric care guide" },
   { href: "/about", label: "about" },
+  { href: "/faq", label: "faq" },
 ];
 
 export function SiteFooter({ categories }: SiteFooterProps) {
