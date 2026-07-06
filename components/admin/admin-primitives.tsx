@@ -37,7 +37,7 @@ export function AdminPageHeader({
       {action ? (
         <Link
           href={action.href}
-          className="inline-flex items-center gap-2 self-start rounded-full bg-maroon px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream shadow-[0_10px_28px_rgba(74,31,31,0.16)] transition duration-500 hover:bg-maroon/90 sm:self-end"
+          className="inline-flex items-center gap-2 self-start rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream shadow-[0_10px_28px_rgba(140,106,90,0.22)] transition duration-500 hover:bg-cocoa/90 sm:self-end"
         >
           <Plus className="h-3.5 w-3.5" aria-hidden="true" />
           {action.label}
@@ -118,7 +118,7 @@ export function AdminEmpty({
       {cta ? (
         <Link
           href={cta.href}
-          className="mt-6 inline-flex items-center gap-2 rounded-full bg-maroon px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-maroon/90"
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90"
         >
           {cta.label}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
