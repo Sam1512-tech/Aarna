@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import {
   AdminEmpty,
   AdminPageHeader,
-  StatusPill,
-  tableClasses,
 } from "@/components/admin/admin-primitives";
 import { getInventory } from "@/lib/actions/admin/inventory";
+import { InventoryTable } from "./inventory-table";
 
 export const metadata: Metadata = { title: "admin · inventory" };
 
@@ -36,7 +35,6 @@ export default async function AdminInventoryPage({
     lowStockThreshold: LOW_STOCK_THRESHOLD,
   }).catch(() => ({ items: [], total: 0, page: 1, pageSize: 50 }));
 
-  const t = tableClasses();
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
 
   return (
@@ -97,58 +95,16 @@ export default async function AdminInventoryPage({
             description="try widening the filters or clearing the search."
           />
         ) : (
-          <div className={t.wrapper}>
-            <table className={t.table}>
-              <thead className={t.thead}>
-                <tr>
-                  <th className={t.th}>product</th>
-                  <th className={t.th}>variant</th>
-                  <th className={t.th}>sku</th>
-                  <th className={t.th}>stock</th>
-                  <th className={t.th}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.items.map((row) => {
-                  const low = row.stock <= LOW_STOCK_THRESHOLD;
-                  const out = row.stock === 0;
-                  return (
-                    <tr key={row.variantId} className={t.tr}>
-                      <td className={t.td}>
-                        <p className="text-charcoal">{row.productTitle}</p>
-                      </td>
-                      <td className={t.td}>
-                        {[row.size, row.color].filter(Boolean).join(" / ") || "—"}
-                      </td>
-                      <td className={`${t.td} font-mono text-xs`}>{row.sku}</td>
-                      <td className={t.td}>
-                        <span
-                          className={`font-medium tabular-nums ${
-                            out
-                              ? "text-burnt-red"
-                              : low
-                                ? "text-burnt-red"
-                                : "text-charcoal"
-                          }`}
-                        >
-                          {row.stock}
-                        </span>
-                      </td>
-                      <td className={t.td}>
-                        {out ? (
-                          <StatusPill label="out of stock" tone="bad" />
-                        ) : low ? (
-                          <StatusPill label="low" tone="warn" />
-                        ) : (
-                          <StatusPill label="ok" tone="ok" />
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <InventoryTable
+            items={result.items.map((r) => ({
+              variantId: r.variantId,
+              productTitle: r.productTitle,
+              size: r.size ?? null,
+              color: r.color ?? null,
+              sku: r.sku,
+              stock: r.stock,
+            }))}
+          />
         )}
       </div>
 
