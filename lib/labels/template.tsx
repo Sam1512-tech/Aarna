@@ -6,6 +6,17 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
+import path from "path";
+
+// Aarna monogram mark — 120px downscaled copy (the full-res brand PNG bloats
+// every tag page by ~150KB; at 10pt the small copy is visually identical).
+// Prints as solid black on thermal.
+const LOGO_MARK_PATH = path.join(
+  process.cwd(),
+  "public",
+  "brand",
+  "aarna-mark-tag.png",
+);
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +55,17 @@ const s = StyleSheet.create({
     flexDirection: "column",
     height: "100%",
     justifyContent: "space-between",
+  },
+  brandRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 3,
+  },
+  brandMark: {
+    width: 10,
+    height: 10,
+    objectFit: "contain",
   },
   brand: {
     fontSize: 9,
@@ -101,9 +123,13 @@ export function HangTagDocument({ tags }: { tags: HangTagData[] }) {
           style={s.page}
         >
           <View style={s.container}>
-            {/* Top: brand + product name */}
+            {/* Top: logo mark + brand + product name */}
             <View>
-              <Text style={s.brand}>AARNA</Text>
+              <View style={s.brandRow}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
+                <Image src={LOGO_MARK_PATH} style={s.brandMark} />
+                <Text style={s.brand}>AARNA</Text>
+              </View>
               <Text style={s.title}>{truncate(tag.productTitle, 40)}</Text>
             </View>
 
