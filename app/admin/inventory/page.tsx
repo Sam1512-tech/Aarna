@@ -52,10 +52,13 @@ export default async function AdminInventoryPage({
           <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
             search
           </span>
+          {/* autoFocus lets a USB barcode scanner type a SKU + Enter and submit
+              the form with zero clicks. */}
           <input
             name="search"
             defaultValue={search ?? ""}
             placeholder="sku or product title…"
+            autoFocus
             className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
           />
         </label>

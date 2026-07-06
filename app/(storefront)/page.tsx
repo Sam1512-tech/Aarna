@@ -161,10 +161,10 @@ export default async function HomePage() {
               clothing made to live softly
             </h1>
             <Link
-              href="/collections"
+              href="/shop"
               className="mt-8 inline-flex rounded-2xl border border-cocoa/24 bg-cream px-7 py-4 text-xs font-bold lowercase tracking-[0.2em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
             >
-              collections
+              shop the wardrobe
             </Link>
           </div>
         </section>
@@ -278,10 +278,10 @@ export default async function HomePage() {
             clothing made to live softly
           </h1>
           <Link
-            href="/collections"
+            href="/shop"
             className="mt-10 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-8 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
           >
-            collections
+            shop the wardrobe
           </Link>
         </div>
       </section>
