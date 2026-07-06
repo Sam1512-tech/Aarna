@@ -28,7 +28,7 @@ Fixed price: ₹1,30,000 (+₹18,000 hang-tag change request → ₹1,53,000 rev
 **Full-scope audit completed Jul 4** (27 checks vs. quotation + this file). State of the world:
 
 ### Verified working (live-tested, not just compiling)
-Prod build clean (43 routes incl. full admin CRUD + PDF routes) · Code 128 barcode + **30×50mm portrait** hang-tag PDF (ladder barcode down the 50mm side) + GST invoice PDF all generate correctly (visually verified; currency prints "Rs." — Helvetica has no ₹ glyph) · homepage renders dynamic banners/arrivals/categories · guest checkout open · coupon UI · Razorpay modal flow → `/payment-processing` → `/order-confirmation` · all 3 Razorpay webhook events · Delhivery status webhook · all 4 WhatsApp triggers (opt-in gated, no-op until API key) · OTP code in branded email · PDP SEO (metadata + JSON-LD) · RLS on all 20 tables · admin RBAC gate.
+Prod build clean (43 routes incl. full admin CRUD + PDF routes) · Code 128 barcode + **50×30mm landscape** hang-tag PDF (portrait was tried Jul 6 and reverted same day per client preference) + GST invoice PDF all generate correctly (visually verified; currency prints "Rs." — Helvetica has no ₹ glyph) · homepage renders dynamic banners/arrivals/categories · guest checkout open · coupon UI · Razorpay modal flow → `/payment-processing` → `/order-confirmation` · all 3 Razorpay webhook events · Delhivery status webhook · all 4 WhatsApp triggers (opt-in gated, no-op until API key) · OTP code in branded email · PDP SEO (metadata + JSON-LD) · RLS on all 20 tables · admin RBAC gate.
 
 ### Storefront (Vismaya) — ~all pages shipped
 Homepage, PLP (/shop + /shop/[category]), PDP, cart, checkout, payment-processing/failed, order-confirmation, search, full account section, legal pages (/privacy-policy, /return-policy, /shipping-policy, /terms, /contact, /fabric-care — note: NOT /privacy etc.), auth. **Auth = password + email-OTP + Google OAuth (all three; OTP-only was reverted by client-approved decision).** Google OAuth is enabled in Supabase (client ID 1095605963037-…) and verified working.
@@ -51,7 +51,7 @@ One admin exists: Arpitha, `aarnabyarpithabhishek@gmail.com`, Supabase UID `5644
 - Delhivery fully configured (`Aarna Godown`/560085, prod base, webhook token). `DELHIVERY_CLIENT_NAME`/`DELHIVERY_MODE` env vars are unused leftovers — ignore.
 
 ### Hardware (client purchase list)
-**Decided (Jul 4): helett H30CPro printer (~₹6–7K, Amazon ASIN B0FKZPDH66)** — prints Delhivery 4×6 labels AND the 30×50mm portrait hang tags (media range 26–116mm verified). Buy 4×6 rolls + **30mm-wide × 50mm** label rolls. **Barcode scanner deliberately skipped at launch** (16 products / low volume — not worth ₹2.7K); buy a Helett HT20pro later when volume justifies. `/admin/inventory` search accepts scanned or typed SKUs either way.
+**Decided (Jul 4): helett H30CPro printer (~₹6–7K, Amazon ASIN B0FKZPDH66)** — prints Delhivery 4×6 labels AND the 50×30mm hang tags (media range 26–116mm verified). Buy 4×6 rolls + **50mm-wide × 30mm** label rolls. **Barcode scanner deliberately skipped at launch** (16 products / low volume — not worth ₹2.7K); buy a Helett HT20pro later when volume justifies. `/admin/inventory` search accepts scanned or typed SKUs either way.
 
 ### DEPLOY PLAN — Jul 5, after Vismaya's admin PRs merge (first task of the day)
 1. Vercel under **Sam's** account (Sam1512-tech) — transfer to client at handover. Import repo, paste env vars (full list with test-Razorpay convention is in the Jul 4 session; `.env.example` documents it).
@@ -291,7 +291,7 @@ The client uses pre-printed branded hang tags (design already done). For each pr
 1. Client adds product + variants in admin
 2. Admin has a **"Print Tags"** button per product (and bulk print for all variants)
 3. System generates a PDF label with all product details
-4. Client prints on the helett H30CPro using a **30mm-wide × 50mm portrait** label roll (tag layout is portrait; barcode runs vertically down the 50mm side)
+4. Client prints on the helett H30CPro using a **50mm-wide × 30mm** label roll (landscape layout; barcode runs horizontally across the 50mm width)
 
 **What Sam must build:**
 - PDF label generator in admin panel (per variant + bulk)
