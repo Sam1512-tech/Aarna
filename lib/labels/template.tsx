@@ -23,93 +23,69 @@ export interface HangTagData {
 }
 
 // "Rs." not "₹" — the built-in Helvetica PDF font has no rupee glyph (it
-// renders as "¹"). Registering a Unicode font isn't worth it on a 30mm label.
+// renders as "¹").
 const INR = (paise: number) =>
   `Rs.${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 0 })}`;
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
-// Portrait 30mm × 50mm at 72 DPI (1mm ≈ 2.8346pt).
-// The Code 128 barcode is rotated 90° ("ladder") to run down the 50mm side —
-// a horizontal barcode on a 30mm-wide label would be too cramped to scan
-// reliably at 203dpi for typical SKU lengths.
-const LABEL_WIDTH_PT = 85; // 30mm
-const LABEL_HEIGHT_PT = 141.7; // 50mm
-const PAGE_PADDING = 5;
-
-// Vertical barcode strip on the right edge. The Image is laid out as a wide,
-// short element and rotated 90° about its center; these numbers position the
-// rotated result as a strip: x ≈ [58, 78], y ≈ [12, 118].
-const BARCODE_LONG = 106; // bar length after rotation (runs down the tag)
-const BARCODE_THICK = 20; // bar height after rotation (strip width)
-const BARCODE_CENTER_X = 68;
-const BARCODE_CENTER_Y = 65;
+// 50mm × 30mm at 72 DPI
+const LABEL_WIDTH_PT = 141.7; // 50mm
+const LABEL_HEIGHT_PT = 85; // 30mm
 
 const s = StyleSheet.create({
   page: {
     fontFamily: "Helvetica",
     color: "#000000",
     backgroundColor: "#FFFFFF",
-    padding: PAGE_PADDING,
+    padding: 5,
   },
-  // Left column keeps clear of the barcode strip on the right.
-  content: {
+  container: {
     flexDirection: "column",
     height: "100%",
-    width: 50,
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
   },
   brand: {
-    fontSize: 8,
+    fontSize: 9,
     fontFamily: "Helvetica-Bold",
-    letterSpacing: 1.5,
+    letterSpacing: 2,
+    textAlign: "center",
   },
   title: {
-    fontSize: 6,
-    fontFamily: "Helvetica-Bold",
-    lineHeight: 1.15,
-    marginTop: 3,
-  },
-  size: {
     fontSize: 6.5,
     fontFamily: "Helvetica-Bold",
-    marginTop: 4,
+    textAlign: "center",
+    lineHeight: 1.1,
+  },
+  sizeMrpRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 1,
+  },
+  size: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
   },
   mrp: {
-    fontSize: 7.5,
+    fontSize: 8,
     fontFamily: "Helvetica-Bold",
-    marginTop: 1,
+    textAlign: "right",
   },
   micro: {
     fontSize: 4.5,
     color: "#333333",
-    lineHeight: 1.25,
-    marginTop: 1,
+    lineHeight: 1.2,
   },
-  microBlock: {
-    marginTop: 4,
-  },
-  // Rotated Code 128 strip (ladder orientation) down the right edge.
   barcode: {
-    position: "absolute",
-    left: BARCODE_CENTER_X - BARCODE_LONG / 2,
-    top: BARCODE_CENTER_Y - BARCODE_THICK / 2,
-    width: BARCODE_LONG,
-    height: BARCODE_THICK,
-    objectFit: "fill",
-    transform: "rotate(90deg)",
+    width: "100%",
+    height: 18,
+    objectFit: "contain",
   },
-  // SKU text along the bottom, under both columns. Anchored with an explicit
-  // top + width (not bottom/right) — react-pdf pushed a bottom-anchored
-  // absolute Text onto a second page.
   skuText: {
-    position: "absolute",
-    left: PAGE_PADDING,
-    top: LABEL_HEIGHT_PT - 11,
-    width: LABEL_WIDTH_PT - PAGE_PADDING * 2,
-    fontSize: 4.5,
+    fontSize: 5,
     textAlign: "center",
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
 });
 
@@ -124,34 +100,39 @@ export function HangTagDocument({ tags }: { tags: HangTagData[] }) {
           size={{ width: LABEL_WIDTH_PT, height: LABEL_HEIGHT_PT }}
           style={s.page}
         >
-          {/* Left column: brand → product → size/MRP → compliance micro-print */}
-          <View style={s.content}>
-            <Text style={s.brand}>AARNA</Text>
-            <Text style={s.title}>{truncate(tag.productTitle, 44)}</Text>
+          <View style={s.container}>
+            {/* Top: brand + product name */}
+            <View>
+              <Text style={s.brand}>AARNA</Text>
+              <Text style={s.title}>{truncate(tag.productTitle, 40)}</Text>
+            </View>
 
-            {tag.size ? <Text style={s.size}>Size: {tag.size}</Text> : null}
-            {tag.mrp !== null ? (
-              <Text style={s.mrp}>MRP {INR(tag.mrp)}</Text>
-            ) : null}
+            {/* Middle: size + MRP */}
+            <View style={s.sizeMrpRow}>
+              <Text style={s.size}>{tag.size ? `Size: ${tag.size}` : ""}</Text>
+              {tag.mrp !== null ? (
+                <Text style={s.mrp}>MRP {INR(tag.mrp)}</Text>
+              ) : null}
+            </View>
 
-            <View style={s.microBlock}>
+            {/* Micro-print: fabric + care + HSN */}
+            <View>
               {tag.fabric ? (
-                <Text style={s.micro}>{truncate(tag.fabric, 44)}</Text>
+                <Text style={s.micro}>{truncate(tag.fabric, 50)}</Text>
               ) : null}
               {tag.careInstructions ? (
-                <Text style={s.micro}>{truncate(tag.careInstructions, 44)}</Text>
+                <Text style={s.micro}>{truncate(tag.careInstructions, 50)}</Text>
               ) : null}
-              <Text style={s.micro}>HSN: 6211</Text>
-              <Text style={s.micro}>Incl. of all taxes</Text>
+              <Text style={s.micro}>HSN: 6211 · Inclusive of all taxes</Text>
+            </View>
+
+            {/* Bottom: Code 128 barcode + SKU text */}
+            <View>
+              {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not html img */}
+              <Image src={tag.barcodePng} style={s.barcode} />
+              <Text style={s.skuText}>{tag.sku}</Text>
             </View>
           </View>
-
-          {/* Right edge: Code 128, rotated 90° to run down the 50mm side */}
-          {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not html img */}
-          <Image src={tag.barcodePng} style={s.barcode} />
-
-          {/* Bottom: human-readable SKU */}
-          <Text style={s.skuText}>{tag.sku}</Text>
         </Page>
       ))}
     </Document>
