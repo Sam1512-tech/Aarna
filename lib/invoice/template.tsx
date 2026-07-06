@@ -62,8 +62,10 @@ const SELLER = {
 
 const LOGO_PATH = path.join(process.cwd(), "public", "logo.png");
 
+// "Rs." not "₹" — the built-in Helvetica PDF font has no rupee glyph (it
+// renders as "¹"), and this is a legal tax document.
 const INR = (paise: number) =>
-  `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+  `Rs.${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
