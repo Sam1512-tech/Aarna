@@ -46,7 +46,10 @@ const SELLER_LD = {
 
 // ── Product ──────────────────────────────────────────────────────────────────
 
-export function buildProductLd(product: ProductWithVariants) {
+export function buildProductLd(
+  product: ProductWithVariants,
+  reviewSummary?: { average: number; count: number },
+) {
   const url = `${APP_URL}/product/${product.slug}`;
   const images = product.images
     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -98,6 +101,14 @@ export function buildProductLd(product: ProductWithVariants) {
     category: product.category?.name ?? undefined,
     url,
     offers,
+    aggregateRating:
+      reviewSummary && reviewSummary.count > 0
+        ? {
+            "@type": "AggregateRating",
+            ratingValue: reviewSummary.average.toFixed(1),
+            reviewCount: reviewSummary.count,
+          }
+        : undefined,
   };
 }
 

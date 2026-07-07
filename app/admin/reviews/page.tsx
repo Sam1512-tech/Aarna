@@ -3,10 +3,10 @@ import { Star } from "lucide-react";
 import {
   AdminEmpty,
   AdminPageHeader,
-  StatusPill,
   tableClasses,
 } from "@/components/admin/admin-primitives";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { ReviewStatusSelect } from "@/components/admin/review-status-select";
 import { deleteReview, getAdminReviews } from "@/lib/actions/admin/reviews";
 
 export const metadata: Metadata = { title: "admin · reviews" };
@@ -119,16 +119,7 @@ export default async function AdminReviewsPage({
                     </td>
                     <td className={t.td}>{fmtDate(r.createdAt)}</td>
                     <td className={t.td}>
-                      <StatusPill
-                        label={r.status}
-                        tone={
-                          r.status === "approved"
-                            ? "ok"
-                            : r.status === "rejected"
-                              ? "bad"
-                              : "muted"
-                        }
-                      />
+                      <ReviewStatusSelect reviewId={r.id} status={r.status} />
                     </td>
                     <td className={t.td}>
                       <div className="flex justify-end">
