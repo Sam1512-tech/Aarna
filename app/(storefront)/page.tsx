@@ -4,14 +4,7 @@ import { ScrollRail } from "@/components/storefront/scroll-rail";
 import { getActiveBanners } from "@/lib/actions/banners";
 import { getCategories, getNewArrivals } from "@/lib/actions/products";
 import type { Product } from "@/lib/types";
-
-function formatPrice(value: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+import { formatINR } from "@/lib/utils";
 
 function productColor(product: Product) {
   if (
@@ -253,7 +246,7 @@ export default async function HomePage() {
                     </p>
                     {product ? (
                       <p className="mt-1 text-sm text-charcoal/70">
-                        {formatPrice(product.basePrice)}
+                        {formatINR(product.basePrice)}
                       </p>
                     ) : null}
                   </div>
@@ -395,7 +388,7 @@ export default async function HomePage() {
                         <h3 className="font-sans text-base font-normal">
                           {product.title}
                         </h3>
-                        <p>{formatPrice(product.basePrice)}</p>
+                        <p>{formatINR(product.basePrice)}</p>
                       </div>
                       {product.fabric ? <p>{product.fabric}</p> : null}
                       {color ? <p>{color}</p> : null}
