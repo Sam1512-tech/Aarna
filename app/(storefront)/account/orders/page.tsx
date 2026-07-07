@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, PackageOpen } from "lucide-react";
+import { RateProductButton } from "@/components/storefront/rate-product-button";
 import { getMyOrders } from "@/lib/actions/account";
+import { getReviewableItems } from "@/lib/actions/reviews";
 import { formatINR } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -36,11 +38,18 @@ function fmtDate(d: Date | string | null) {
 }
 
 export default async function AccountOrdersPage() {
-  const orders = await getMyOrders().catch(() => []);
+  const [orders, reviewableItems] = await Promise.all([
+    getMyOrders().catch(() => []),
+    getReviewableItems().catch(() => []),
+  ]);
 
   if (orders.length === 0) {
     return <OrdersEmpty />;
   }
+
+  const reviewableByItemId = new Map(
+    reviewableItems.map((r) => [r.orderItemId, r]),
+  );
 
   return (
     <div>
@@ -95,31 +104,43 @@ export default async function AccountOrdersPage() {
               </div>
 
               <ul className="divide-y divide-cocoa/8 px-5 py-1">
-                {order.items.slice(0, 3).map((it) => (
-                  <li
-                    key={it.id}
-                    className="flex items-center justify-between gap-4 py-3 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-display text-base lowercase text-maroon">
-                        {it.productTitleSnapshot.toLowerCase()}
-                      </p>
-                      {it.variantLabelSnapshot ? (
-                        <p className="text-xs lowercase text-charcoal/55">
-                          {it.variantLabelSnapshot.toLowerCase()} · qty{" "}
-                          {it.quantity}
+                {order.items.slice(0, 3).map((it) => {
+                  const reviewable = reviewableByItemId.get(it.id);
+                  return (
+                    <li
+                      key={it.id}
+                      className="flex items-center justify-between gap-4 py-3 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-display text-base lowercase text-maroon">
+                          {it.productTitleSnapshot.toLowerCase()}
                         </p>
-                      ) : (
-                        <p className="text-xs lowercase text-charcoal/55">
-                          qty {it.quantity}
+                        {it.variantLabelSnapshot ? (
+                          <p className="text-xs lowercase text-charcoal/55">
+                            {it.variantLabelSnapshot.toLowerCase()} · qty{" "}
+                            {it.quantity}
+                          </p>
+                        ) : (
+                          <p className="text-xs lowercase text-charcoal/55">
+                            qty {it.quantity}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-4">
+                        {reviewable ? (
+                          <RateProductButton
+                            orderItemId={reviewable.orderItemId}
+                            productTitle={reviewable.productTitle}
+                            existingReview={reviewable.existingReview}
+                          />
+                        ) : null}
+                        <p className="text-charcoal">
+                          {formatINR(it.lineTotal)}
                         </p>
-                      )}
-                    </div>
-                    <p className="shrink-0 text-charcoal">
-                      {formatINR(it.lineTotal)}
-                    </p>
-                  </li>
-                ))}
+                      </div>
+                    </li>
+                  );
+                })}
                 {order.items.length > 3 ? (
                   <li className="py-2 text-xs lowercase text-charcoal/50">
                     + {order.items.length - 3} more
