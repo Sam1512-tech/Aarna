@@ -23,25 +23,33 @@ Fixed price: ₹1,30,000 (+₹18,000 hang-tag change request → ₹1,53,000 rev
 
 ---
 
-## 🚨 CURRENT STATUS — July 4, 2026 (launch sprint to July 20)
+## 🚨 CURRENT STATUS — July 7, 2026 (launch sprint to July 20)
 
-**Full-scope audit completed Jul 4** (27 checks vs. quotation + this file). State of the world:
+**Full-scope audit completed Jul 4** (27 checks vs. quotation + this file); **admin CRUD + reviews loop closed out Jul 7** (see below). State of the world:
 
 ### Verified working (live-tested, not just compiling)
-Prod build clean (43 routes incl. full admin CRUD + PDF routes) · Code 128 barcode + **50×30mm landscape** hang-tag PDF (portrait was tried Jul 6 and reverted same day per client preference) + GST invoice PDF all generate correctly (visually verified; currency prints "Rs." — Helvetica has no ₹ glyph) · homepage renders dynamic banners/arrivals/categories · guest checkout open · coupon UI · Razorpay modal flow → `/payment-processing` → `/order-confirmation` · all 3 Razorpay webhook events · Delhivery status webhook · all 4 WhatsApp triggers (opt-in gated, no-op until API key) · OTP code in branded email · PDP SEO (metadata + JSON-LD) · RLS on all 20 tables · admin RBAC gate.
+Prod build clean · Code 128 barcode + **50×30mm landscape** hang-tag PDF (redesigned Jul 7 to match the client's reference template — barcode+SKU on top, two-column MRP/size vs. fabric/care, vertical HSN code on the right edge, black logo mark, rounded border) + GST invoice PDF all generate correctly (currency prints "Rs." — Helvetica has no ₹ glyph) · homepage renders dynamic banners/arrivals/categories · guest checkout open · coupon UI · Razorpay modal flow → `/payment-processing` → `/order-confirmation` · all 3 Razorpay webhook events · Delhivery status webhook · all 4 WhatsApp triggers (opt-in gated, no-op until API key) · OTP code in branded email · PDP SEO (metadata + JSON-LD, now incl. `aggregateRating`) · RLS on all 20 tables · admin RBAC gate.
 
 ### Storefront (Vismaya) — ~all pages shipped
-Homepage, PLP (/shop + /shop/[category]), PDP, cart, checkout, payment-processing/failed, order-confirmation, search, full account section, legal pages (/privacy-policy, /return-policy, /shipping-policy, /terms, /contact, /fabric-care — note: NOT /privacy etc.), auth. **Auth = password + email-OTP + Google OAuth (all three; OTP-only was reverted by client-approved decision).** Google OAuth is enabled in Supabase (client ID 1095605963037-…) and verified working.
+Homepage, PLP (/shop + /shop/[category]), PDP (now with star rating + reviews section), cart, checkout, payment-processing/failed, order-confirmation, search, full account section (orders page now has a "rate this" / "edit review" button per delivered item), legal pages (/privacy-policy, /return-policy, /shipping-policy, /terms, /contact, /fabric-care — note: NOT /privacy etc.), auth. **Auth = password + email-OTP + Google OAuth (all three; OTP-only was reverted by client-approved decision).** Google OAuth is enabled in Supabase (client ID 1095605963037-…) and verified working.
 
-### Admin
-All 8 list pages + shell + dashboard merged — **but read-only**. Vismaya is building all CRUD forms/actions now (product form first — MRP/fabric/care fields + Print Tags button + Cloudinary upload; order detail w/ "Create shipment" button + status + AWB + invoice download; inventory adjust w/ autofocused search for barcode scanner; coupons/banners/collections/reviews/returns actions). **ETA Jul 5.**
+### Admin — no longer read-only
+Full CRUD is live across **every** resource: products, **categories** (list/create/edit/delete — built from scratch Jul 7, previously had backend actions but zero UI, so "Dresses"/"Tops" only existed via seed script), inventory, orders, returns, coupons, banners, collections, reviews. Delete buttons added to all list pages Jul 7 (products/banners/collections/coupons/reviews — the actions already existed, just weren't wired to anything). Admin create/edit forms also had a real bug fixed Jul 7: submit buttons didn't visually disable on invalid input, so clicking submit with a missing field silently did nothing — now they properly disable.
 One admin exists: Arpitha, `aarnabyarpithabhishek@gmail.com`, Supabase UID `5644c143-c259-4410-91df-51684db6bc9c`, role owner.
 
-### Known gaps / decisions pending (from audit)
+### Reviews — full loop built Jul 7 (was pure plumbing before)
+Customers can submit a review from `/account/orders` (delivered items only, one review per product — resubmitting edits it and resets to `pending`). Admin moderates via a live status dropdown on `/admin/reviews` (was a static, non-interactive pill before). Approved reviews now display on the PDP (star rating + count under the title, full review list section below) and feed `aggregateRating` in the Product JSON-LD. **No real reviews exist yet** — this closes the "no way to write/see reviews" gap from the Jul 4 audit, but it's unexercised by real customers until real orders exist.
+
+### Known gaps / decisions pending
 - **Broken links** in header/footer/cart/search: `/collections`, `/about`, `/shop/new-arrivals`, `/shop/bestsellers` → routes don't exist / no such categories. Vismaya deciding: build vs re-point.
-- **Quotation debt, not built:** customer reviews UI (no way to write/see reviews on storefront), product zoom on PDP, best-sellers ranking, rate limiting, Cloudflare CDN (DNS is Hostinger→Vercel direct), handover documentation. Decide build-vs-descope with client before launch.
-- **DB content: 0 products, 0 banners, 0 collections.** Blocked on admin forms + **product photography (status UNCONFIRMED — chase Arpitha).**
+- **Quotation debt, still not built:** product zoom on PDP, best-sellers ranking, rate limiting, Cloudflare CDN (DNS is Hostinger→Vercel direct), handover documentation. (Customer reviews UI — previously listed here — was built Jul 7, see above.) Decide build-vs-descope with client before launch.
+- **DB content:** no longer literally zero — a handful of test products/variants/a test collection/coupon exist from dev testing, but **no real launch content** (16 real products with real photography, real banners, real collections). Still blocked on **product photography (status UNCONFIRMED — chase Arpitha).**
 - `requestReversePickup` stubbed (manual returns OK); WhatsApp read-receipts not persisted; search is client-side over 60 products (fine at launch scale).
+
+### Dev environment gotchas (learned Jul 7 — worth knowing before your next session)
+- **Git worktrees don't inherit `.env.local`** (it's gitignored). If you spin up a new worktree, copy it over manually from the main checkout before `npm run dev` — otherwise every request 500s in `middleware.ts` with a Supabase "URL and Key required" error.
+- **Supabase's connection pooler intermittently cancels every query** (`aws-1-ap-south-1.pooler.supabase.com:6543`, statement timeout in ~180ms even on `select 1`) while the direct connection (`db.<ref>.supabase.co:5432`) works fine. If the dev server suddenly hangs on every page (8–20s+ per request), this is almost certainly it — check the Supabase dashboard for pooler health, and `DATABASE_URL` can be pointed at the direct-connection string as a local-only workaround (never ship that swap to production — the pooler exists for connection-limit reasons that matter at scale).
+- **`@react-pdf/renderer` caches decoded images in memory by file path.** If you edit an image asset used in a PDF (e.g. the hang-tag logo) while the dev server is running, you must restart the server — it'll keep serving the old image from its in-memory cache otherwise, even though the file on disk is correct.
 
 ### External / accounts state
 - **Razorpay: LIVE keys approved + stored in `.env.local` as `RAZORPAY_LIVE_KEY_ID/SECRET` (production-only — active vars stay TEST until QA passes).** Live webhook secret still needs generating once prod URL exists. Test webhook secret also still pending (old dashboard outage).
@@ -229,7 +237,7 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 3. **Chase Arpitha on product photography TODAY** — the single biggest launch risk; 0 products in DB until photos + admin form exist
 4. Vismaya: Interakt API key (support ticket) + submit 4 WhatsApp templates to Meta (1–7 day review — clock is running)
 5. Full QA on test keys → flip to live Razorpay keys + live webhook → load real content → DNS cutover from placeholder to real app
-6. Decide with client: reviews UI / product zoom / `/collections` page — build or descope from Jul 20 launch
+6. Decide with client: product zoom / `/collections` page — build or descope from Jul 20 launch (reviews UI is now built, see CURRENT STATUS)
 7. Pre-go-live: prod Supabase (or accept dev DB), `npm run db:rls` on prod, handover docs + Loom videos, transfer Vercel to client
 
 ---
@@ -254,7 +262,7 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
     - **Coupons:** `createCoupon()`, `updateCoupon()`, `deleteCoupon()`
     - **Banners:** `getBanners()`, `createBanner()`, `updateBanner()`, `deleteBanner()`
     - **Collections:** `createCollection()`, `updateCollection()`, `addProductToCollection()`
-    - **Reviews:** `getAdminReviews()`, `updateReviewStatus(id, status)`
+    - **Reviews:** `getAdminReviews()`, `updateReviewStatus(id, status)`, `deleteReview(id)` (admin) + `getReviewableItems()`, `submitReview()`, `getApprovedReviews(productId)` (customer-facing, `lib/actions/reviews.ts`, added Jul 7)
 
 ---
 
