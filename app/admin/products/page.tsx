@@ -6,7 +6,8 @@ import {
   StatusPill,
   tableClasses,
 } from "@/components/admin/admin-primitives";
-import { getAdminProducts } from "@/lib/actions/admin/products";
+import { DeleteButton } from "@/components/admin/delete-button";
+import { deleteProduct, getAdminProducts } from "@/lib/actions/admin/products";
 import { formatINR } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "admin · products" };
@@ -133,12 +134,20 @@ export default async function AdminProductsPage({
                         />
                       </td>
                       <td className={t.td}>
-                        <Link
-                          href={`/admin/products/${p.id}`}
-                          className="soft-link text-[11px] font-bold uppercase tracking-[0.16em] text-cocoa"
-                        >
-                          edit
-                        </Link>
+                        <div className="flex items-center justify-end gap-3">
+                          <Link
+                            href={`/admin/products/${p.id}`}
+                            className="soft-link text-[11px] font-bold uppercase tracking-[0.16em] text-cocoa"
+                          >
+                            edit
+                          </Link>
+                          <DeleteButton
+                            action={deleteProduct}
+                            id={p.id}
+                            label={`delete ${p.title}`}
+                            confirmMessage={`Delete "${p.title}"? This removes all its variants and images too — this cannot be undone.`}
+                          />
+                        </div>
                       </td>
                     </tr>
                   ))}

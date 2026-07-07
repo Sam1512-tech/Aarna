@@ -1,12 +1,42 @@
 "use server";
 
-import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import type { Product, ProductWithVariants } from "@/lib/types";
 
-const { products, productVariants, productImages, categories } = schema;
+const {
+  products,
+  productVariants,
+  productImages,
+  categories,
+  cartItems,
+  orderItems,
+} = schema;
+
+/**
+ * Throws a friendly error if any variant has been ordered — order_items has
+ * no cascade on variantId (by design, preserves order history), so a hard
+ * delete would otherwise surface as a raw FK-violation error. Stale cart_items
+ * referencing these variants are cleared here too: unlike orders, a cart is
+ * not a historical record, so it shouldn't block deleting a variant/product.
+ */
+async function clearCartsAndGuardOrders(variantIds: string[]): Promise<void> {
+  if (variantIds.length === 0) return;
+
+  const ordered = await db
+    .select({ variantId: orderItems.variantId })
+    .from(orderItems)
+    .where(inArray(orderItems.variantId, variantIds));
+  if (ordered.length > 0) {
+    throw new Error(
+      "Can't delete — this has already been ordered by a customer. Archive it instead to hide it from the storefront while keeping order history intact.",
+    );
+  }
+
+  await db.delete(cartItems).where(inArray(cartItems.variantId, variantIds));
+}
 
 type ProductStatus = "draft" | "active" | "archived";
 
@@ -280,6 +310,12 @@ export async function deleteProduct(id: string): Promise<{ ok: true }> {
     .limit(1);
   if (!existing[0]) throw new Error("Product not found");
 
+  const variants = await db
+    .select({ id: productVariants.id })
+    .from(productVariants)
+    .where(eq(productVariants.productId, id));
+  await clearCartsAndGuardOrders(variants.map((v) => v.id));
+
   // Variants + images cascade-delete via FK ON DELETE CASCADE in schema
   await db.delete(products).where(eq(products.id, id));
 
@@ -409,6 +445,8 @@ export async function deleteVariant(variantId: string): Promise<{ ok: true }> {
     .where(eq(productVariants.id, variantId))
     .limit(1);
   if (!existing[0]) throw new Error("Variant not found");
+
+  await clearCartsAndGuardOrders([variantId]);
 
   await db.delete(productVariants).where(eq(productVariants.id, variantId));
 

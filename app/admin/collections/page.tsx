@@ -5,7 +5,11 @@ import {
   StatusPill,
   tableClasses,
 } from "@/components/admin/admin-primitives";
-import { getAdminCollections } from "@/lib/actions/admin/collections";
+import { DeleteButton } from "@/components/admin/delete-button";
+import {
+  deleteCollection,
+  getAdminCollections,
+} from "@/lib/actions/admin/collections";
 
 export const metadata: Metadata = { title: "admin · collections" };
 
@@ -42,6 +46,7 @@ export default async function AdminCollectionsPage() {
                   <th className={t.th}>slug</th>
                   <th className={t.th}>products</th>
                   <th className={t.th}>status</th>
+                  <th className={t.th}></th>
                 </tr>
               </thead>
               <tbody>
@@ -64,6 +69,16 @@ export default async function AdminCollectionsPage() {
                         label={c.isActive ? "active" : "inactive"}
                         tone={c.isActive ? "ok" : "muted"}
                       />
+                    </td>
+                    <td className={t.td}>
+                      <div className="flex justify-end">
+                        <DeleteButton
+                          action={deleteCollection}
+                          id={c.id}
+                          label={`delete ${c.name}`}
+                          confirmMessage={`Delete "${c.name}"? This cannot be undone.`}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
