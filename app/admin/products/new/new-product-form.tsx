@@ -199,6 +199,7 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
         pending={pending}
         label="create product"
         error={error}
+        disabled={!canSubmit}
       />
     </FormShell>
   );

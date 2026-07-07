@@ -128,6 +128,7 @@ export function NewCollectionForm() {
         pending={pending}
         label="create collection"
         error={error}
+        disabled={!canSubmit}
       />
     </FormShell>
   );

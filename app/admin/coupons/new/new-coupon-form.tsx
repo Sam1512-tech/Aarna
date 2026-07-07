@@ -179,6 +179,7 @@ export function NewCouponForm() {
         pending={pending}
         label="create coupon"
         error={error}
+        disabled={!canSubmit}
       />
     </FormShell>
   );
