@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   BarChart3,
   Boxes,
+  FolderTree,
   Image as ImageIcon,
   Layers,
   LogOut,
@@ -27,6 +28,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: "/admin", label: "dashboard", Icon: BarChart3, exact: true },
+  { href: "/admin/categories", label: "categories", Icon: FolderTree },
   { href: "/admin/products", label: "products", Icon: Package },
   { href: "/admin/inventory", label: "inventory", Icon: Boxes },
   { href: "/admin/orders", label: "orders", Icon: ShoppingBag },
