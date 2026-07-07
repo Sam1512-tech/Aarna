@@ -52,6 +52,16 @@ export async function getAdminCategories(): Promise<Category[]> {
   return db.select().from(categories).orderBy(asc(categories.sortOrder));
 }
 
+export async function getAdminCategory(id: string): Promise<Category | null> {
+  await requireAdmin();
+  const rows = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export interface CreateCategoryInput {
   name: string;
   slug: string;
