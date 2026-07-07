@@ -49,65 +49,99 @@ const s = StyleSheet.create({
     fontFamily: "Helvetica",
     color: "#000000",
     backgroundColor: "#FFFFFF",
-    padding: 5,
+    padding: 4,
   },
-  container: {
-    flexDirection: "column",
+  border: {
+    position: "relative",
     height: "100%",
+    width: "100%",
+    borderWidth: 1.2,
+    borderColor: "#000000",
+    borderRadius: 5,
+    paddingVertical: 4,
+    paddingLeft: 5,
+    paddingRight: 14,
+  },
+  main: {
+    height: "100%",
+    flexDirection: "column",
     justifyContent: "space-between",
-  },
-  brandRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 3,
-  },
-  brandMark: {
-    width: 10,
-    height: 10,
-    objectFit: "contain",
-  },
-  brand: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    letterSpacing: 2,
-    textAlign: "center",
-  },
-  title: {
-    fontSize: 6.5,
-    fontFamily: "Helvetica-Bold",
-    textAlign: "center",
-    lineHeight: 1.1,
-  },
-  sizeMrpRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 1,
-  },
-  size: {
-    fontSize: 7,
-    fontFamily: "Helvetica-Bold",
-  },
-  mrp: {
-    fontSize: 8,
-    fontFamily: "Helvetica-Bold",
-    textAlign: "right",
-  },
-  micro: {
-    fontSize: 4.5,
-    color: "#333333",
-    lineHeight: 1.2,
   },
   barcode: {
     width: "100%",
-    height: 18,
+    height: 20,
     objectFit: "contain",
   },
   skuText: {
     fontSize: 5,
     textAlign: "center",
     letterSpacing: 0.5,
+    marginTop: 1,
+  },
+  title: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    textAlign: "center",
+    lineHeight: 1.1,
+    marginTop: 1,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 1,
+  },
+  infoCol: {
+    flexDirection: "column",
+  },
+  mrp: {
+    fontSize: 6.5,
+    fontFamily: "Helvetica-Bold",
+  },
+  size: {
+    fontSize: 6.5,
+    fontFamily: "Helvetica-Bold",
+    marginTop: 2,
+  },
+  micro: {
+    fontSize: 6,
+    color: "#1a1a1a",
+    lineHeight: 1.35,
+    textAlign: "right",
+  },
+  brandRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 1,
+  },
+  brandMark: {
+    width: 12,
+    height: 12,
+    objectFit: "contain",
+  },
+  brand: {
+    fontSize: 12,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 1.5,
+    textAlign: "center",
+  },
+  hsnWrap: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  hsn: {
+    width: 65,
+    fontSize: 6,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 0.3,
+    textAlign: "center",
+    transform: "rotate(-90deg)",
   },
 });
 
@@ -122,41 +156,53 @@ export function HangTagDocument({ tags }: { tags: HangTagData[] }) {
           size={{ width: LABEL_WIDTH_PT, height: LABEL_HEIGHT_PT }}
           style={s.page}
         >
-          <View style={s.container}>
-            {/* Top: logo mark + brand + product name */}
-            <View>
+          <View style={s.border}>
+            <View style={s.main}>
+              {/* Top: Code 128 barcode + SKU text */}
+              <View>
+                {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not html img */}
+                <Image src={tag.barcodePng} style={s.barcode} />
+                <Text style={s.skuText}>{tag.sku}</Text>
+              </View>
+
+              {/* Product name */}
+              <Text style={s.title}>{truncate(tag.productTitle, 32)}</Text>
+
+              {/* MRP + size (left) vs. fabric + care (right) — each row is
+                  always rendered (blank if the data is missing) so the two
+                  columns stay aligned instead of collapsing upward. */}
+              <View style={s.infoRow}>
+                <View style={s.infoCol}>
+                  <Text style={s.mrp}>
+                    {tag.mrp !== null ? `M.R.P : ${INR(tag.mrp)}-/` : " "}
+                  </Text>
+                  <Text style={s.size}>
+                    {tag.size ? `Size : ${tag.size}` : " "}
+                  </Text>
+                </View>
+                <View style={s.infoCol}>
+                  <Text style={s.micro}>
+                    {tag.fabric ? truncate(tag.fabric, 30) : " "}
+                  </Text>
+                  <Text style={s.micro}>
+                    {tag.careInstructions
+                      ? truncate(tag.careInstructions, 30)
+                      : " "}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Bottom: logo mark + wordmark */}
               <View style={s.brandRow}>
                 {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
                 <Image src={LOGO_MARK_PATH} style={s.brandMark} />
                 <Text style={s.brand}>AARNA</Text>
               </View>
-              <Text style={s.title}>{truncate(tag.productTitle, 40)}</Text>
             </View>
 
-            {/* Middle: size + MRP */}
-            <View style={s.sizeMrpRow}>
-              <Text style={s.size}>{tag.size ? `Size: ${tag.size}` : ""}</Text>
-              {tag.mrp !== null ? (
-                <Text style={s.mrp}>MRP {INR(tag.mrp)}</Text>
-              ) : null}
-            </View>
-
-            {/* Micro-print: fabric + care + HSN */}
-            <View>
-              {tag.fabric ? (
-                <Text style={s.micro}>{truncate(tag.fabric, 50)}</Text>
-              ) : null}
-              {tag.careInstructions ? (
-                <Text style={s.micro}>{truncate(tag.careInstructions, 50)}</Text>
-              ) : null}
-              <Text style={s.micro}>HSN: 6211 · Inclusive of all taxes</Text>
-            </View>
-
-            {/* Bottom: Code 128 barcode + SKU text */}
-            <View>
-              {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not html img */}
-              <Image src={tag.barcodePng} style={s.barcode} />
-              <Text style={s.skuText}>{tag.sku}</Text>
+            {/* Right edge: vertical HSN code (Legal Metrology requirement) */}
+            <View style={s.hsnWrap}>
+              <Text style={s.hsn}>HSN: 6211</Text>
             </View>
           </View>
         </Page>
