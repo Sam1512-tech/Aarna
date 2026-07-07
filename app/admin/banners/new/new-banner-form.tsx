@@ -164,6 +164,7 @@ export function NewBannerForm() {
         pending={pending}
         label="create banner"
         error={error}
+        disabled={!canSubmit}
       />
     </FormShell>
   );

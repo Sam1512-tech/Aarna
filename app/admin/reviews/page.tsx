@@ -6,7 +6,8 @@ import {
   StatusPill,
   tableClasses,
 } from "@/components/admin/admin-primitives";
-import { getAdminReviews } from "@/lib/actions/admin/reviews";
+import { DeleteButton } from "@/components/admin/delete-button";
+import { deleteReview, getAdminReviews } from "@/lib/actions/admin/reviews";
 
 export const metadata: Metadata = { title: "admin · reviews" };
 
@@ -91,6 +92,7 @@ export default async function AdminReviewsPage({
                   <th className={t.th}>review</th>
                   <th className={t.th}>submitted</th>
                   <th className={t.th}>status</th>
+                  <th className={t.th}></th>
                 </tr>
               </thead>
               <tbody>
@@ -127,6 +129,16 @@ export default async function AdminReviewsPage({
                               : "muted"
                         }
                       />
+                    </td>
+                    <td className={t.td}>
+                      <div className="flex justify-end">
+                        <DeleteButton
+                          action={deleteReview}
+                          id={r.id}
+                          label={`delete review by ${r.customerName ?? "customer"}`}
+                          confirmMessage="Delete this review? This cannot be undone."
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

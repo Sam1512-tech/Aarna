@@ -228,6 +228,7 @@ function BasicsForm({
         pending={pending}
         label="save changes"
         error={error}
+        disabled={!canSubmit}
       />
     </FormShell>
   );

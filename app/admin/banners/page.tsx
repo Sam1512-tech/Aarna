@@ -5,7 +5,8 @@ import {
   StatusPill,
   tableClasses,
 } from "@/components/admin/admin-primitives";
-import { getAdminBanners } from "@/lib/actions/admin/banners";
+import { DeleteButton } from "@/components/admin/delete-button";
+import { deleteBanner, getAdminBanners } from "@/lib/actions/admin/banners";
 
 export const metadata: Metadata = { title: "admin · banners" };
 
@@ -49,6 +50,7 @@ export default async function AdminBannersPage() {
                   <th className={t.th}>image</th>
                   <th className={t.th}>schedule</th>
                   <th className={t.th}>status</th>
+                  <th className={t.th}></th>
                 </tr>
               </thead>
               <tbody>
@@ -78,6 +80,16 @@ export default async function AdminBannersPage() {
                         label={b.isActive ? "active" : "inactive"}
                         tone={b.isActive ? "ok" : "muted"}
                       />
+                    </td>
+                    <td className={t.td}>
+                      <div className="flex justify-end">
+                        <DeleteButton
+                          action={deleteBanner}
+                          id={b.id}
+                          label={`delete ${b.title ?? "banner"}`}
+                          confirmMessage={`Delete "${b.title ?? "this banner"}"? This cannot be undone.`}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

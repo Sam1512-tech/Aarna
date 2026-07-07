@@ -5,7 +5,8 @@ import {
   StatusPill,
   tableClasses,
 } from "@/components/admin/admin-primitives";
-import { getAdminCoupons } from "@/lib/actions/admin/coupons";
+import { DeleteButton } from "@/components/admin/delete-button";
+import { deleteCoupon, getAdminCoupons } from "@/lib/actions/admin/coupons";
 import { formatINR } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "admin · coupons" };
@@ -105,6 +106,7 @@ export default async function AdminCouponsPage({
                   <th className={t.th}>used</th>
                   <th className={t.th}>expires</th>
                   <th className={t.th}>status</th>
+                  <th className={t.th}></th>
                 </tr>
               </thead>
               <tbody>
@@ -140,6 +142,16 @@ export default async function AdminCouponsPage({
                         ) : (
                           <StatusPill label="active" tone="ok" />
                         )}
+                      </td>
+                      <td className={t.td}>
+                        <div className="flex justify-end">
+                          <DeleteButton
+                            action={deleteCoupon}
+                            id={c.id}
+                            label={`delete ${c.code}`}
+                            confirmMessage={`Delete coupon "${c.code}"? This cannot be undone.`}
+                          />
+                        </div>
                       </td>
                     </tr>
                   );
