@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ProductCard, toProductCardData } from "@/components/storefront/product-card";
 import { ProductDetailView } from "@/components/storefront/product-detail-view";
+import { ProductReviews } from "@/components/storefront/product-reviews";
 import { getProductBySlug, getRelatedProducts } from "@/lib/actions/products";
+import { getApprovedReviews } from "@/lib/actions/reviews";
 import { productMetadata } from "@/lib/seo/metadata";
 import { buildBreadcrumbLd, buildProductLd } from "@/lib/seo/schemas";
 
@@ -31,8 +33,15 @@ export default async function ProductDetailPage({
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const related = await getRelatedProducts(product.id, 4);
-  const productLd = buildProductLd(product);
+  const [related, reviewSummary] = await Promise.all([
+    getRelatedProducts(product.id, 4),
+    getApprovedReviews(product.id).catch(() => ({
+      average: 0,
+      count: 0,
+      reviews: [],
+    })),
+  ]);
+  const productLd = buildProductLd(product, reviewSummary);
   const breadcrumbLd = buildBreadcrumbLd([
     { name: "home", url: "/" },
     { name: "shop", url: "/shop" },
@@ -58,7 +67,19 @@ export default async function ProductDetailPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
 
-      <ProductDetailView product={product} />
+      <ProductDetailView
+        product={product}
+        reviewSummary={{
+          average: reviewSummary.average,
+          count: reviewSummary.count,
+        }}
+      />
+
+      <ProductReviews
+        average={reviewSummary.average}
+        count={reviewSummary.count}
+        reviews={reviewSummary.reviews}
+      />
 
       {related.length > 0 ? (
         <section className="bg-cream px-5 pb-24 md:px-6 md:pb-32">

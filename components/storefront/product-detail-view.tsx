@@ -9,6 +9,7 @@ import {
   Lock,
   Minus,
   Plus,
+  Star,
   Truck,
 } from "lucide-react";
 import { useCallback, useMemo, useState, useTransition } from "react";
@@ -22,11 +23,15 @@ import { formatINR } from "@/lib/utils";
 
 interface ProductDetailViewProps {
   product: ProductWithVariants;
+  reviewSummary?: { average: number; count: number };
 }
 
 const LOW_STOCK_THRESHOLD = 3;
 
-export function ProductDetailView({ product }: ProductDetailViewProps) {
+export function ProductDetailView({
+  product,
+  reviewSummary,
+}: ProductDetailViewProps) {
   const router = useRouter();
 
   // ── Variant resolution ─────────────────────────────────────────────────────
@@ -184,6 +189,22 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
             <h1 className="mt-3 font-display text-[40px] lowercase leading-[1.04] text-maroon md:text-5xl">
               {product.title.toLowerCase()}
             </h1>
+
+            {reviewSummary && reviewSummary.count > 0 ? (
+              <a
+                href="#reviews"
+                className="soft-link mt-3 inline-flex items-center gap-1.5 text-sm text-charcoal/70"
+              >
+                <Star className="h-4 w-4 fill-cocoa text-cocoa" aria-hidden="true" />
+                <span className="font-medium text-charcoal">
+                  {reviewSummary.average.toFixed(1)}
+                </span>
+                <span className="text-charcoal/50">
+                  · {reviewSummary.count}{" "}
+                  {reviewSummary.count === 1 ? "review" : "reviews"}
+                </span>
+              </a>
+            ) : null}
 
             <div className="mt-5 flex items-baseline gap-3">
               <span className="text-2xl text-charcoal">
