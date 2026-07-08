@@ -58,8 +58,8 @@ export function ResetPasswordView() {
           />
         </Link>
 
-        <h1 className="mt-7 font-display text-[40px] lowercase leading-[1.06] text-maroon md:text-5xl">
-          {done ? "password updated" : "set a new password"}
+        <h1 className="mt-8 font-display text-[38px] uppercase leading-[1.06] tracking-[0.02em] text-maroon md:text-5xl">
+          {done ? "PASSWORD UPDATED" : "SET A NEW PASSWORD"}
         </h1>
         <p className="mt-3 max-w-xs text-center text-sm leading-6 text-charcoal/60">
           {done
