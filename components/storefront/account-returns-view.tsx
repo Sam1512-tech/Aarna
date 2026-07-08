@@ -38,10 +38,12 @@ const REASON_CATEGORIES = [
   { value: "changed_mind", label: "changed my mind" },
 ] as const;
 
+// Keys match the return_status pgEnum in lib/db/schema.ts
+// (requested / approved / rejected / picked / received / refunded).
 const STATUS_LABEL: Record<string, string> = {
   requested: "requested",
   approved: "approved",
-  in_transit: "in transit",
+  picked: "picked up",
   received: "received",
   refunded: "refunded",
   rejected: "rejected",
