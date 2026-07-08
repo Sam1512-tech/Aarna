@@ -235,6 +235,13 @@ function BasicsForm({
 }
 
 // ── Variants section ─────────────────────────────────────────────────────────
+//
+// Sizes are independent — clicking one only ever adds/removes that one size.
+// Each size owns its own list of tags (colors); adding, editing, or removing a
+// tag under one size never touches any other size's tags. A size only becomes
+// a real DB row once it has at least one tag (a variant needs a sku+price).
+
+const PRESET_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
 function VariantsSection({
   productId,
@@ -245,58 +252,142 @@ function VariantsSection({
   variants: Variant[];
   onChange: (v: Variant[]) => void;
 }) {
-  const [adding, setAdding] = useState(false);
+  // Sizes explicitly opened by the admin that have no tags (variants) yet —
+  // these exist only in local UI state until the first tag is added.
+  const [draftSizes, setDraftSizes] = useState<string[]>([]);
+  const [customSize, setCustomSize] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
 
-  function handleAdded(v: Variant) {
-    onChange([...variants, v]);
-    setAdding(false);
+  const sizeGroups = useMemo(() => {
+    const map = new Map<string, Variant[]>();
+    for (const v of variants) {
+      const key = v.size || "(no size)";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(v);
+    }
+    return map;
+  }, [variants]);
+
+  const activeSizes = useMemo(() => {
+    const fromVariants = [...sizeGroups.keys()];
+    return [...new Set([...fromVariants, ...draftSizes])];
+  }, [sizeGroups, draftSizes]);
+
+  function addSize(size: string) {
+    if (!size || activeSizes.includes(size)) return;
+    setDraftSizes((s) => [...s, size]);
   }
 
-  function handleUpdated(v: Variant) {
-    onChange(variants.map((x) => (x.id === v.id ? v : x)));
+  function removeSize(size: string) {
+    const existing = sizeGroups.get(size) ?? [];
+    if (existing.length === 0) {
+      setDraftSizes((s) => s.filter((x) => x !== size));
+      return;
+    }
+    if (
+      !confirm(
+        `Remove size "${size}"? This deletes all ${existing.length} tag(s) under it.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setRemoving(size);
+    startTransition(async () => {
+      try {
+        await Promise.all(existing.map((v) => deleteVariant(v.id)));
+        const ids = new Set(existing.map((v) => v.id));
+        onChange(variants.filter((v) => !ids.has(v.id)));
+        setDraftSizes((s) => s.filter((x) => x !== size));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "couldn't remove size.");
+      } finally {
+        setRemoving(null);
+      }
+    });
   }
 
-  function handleDeleted(id: string) {
-    onChange(variants.filter((v) => v.id !== id));
+  function handleAddCustomSize(e: React.FormEvent) {
+    e.preventDefault();
+    const s = customSize.trim();
+    if (!s) return;
+    addSize(s);
+    setCustomSize("");
   }
 
   return (
     <section className="rounded-2xl border border-cocoa/12 bg-cream p-5 shadow-[0_10px_28px_rgba(43,38,35,0.04)] md:p-6">
-      <div className="flex items-center justify-between border-b border-cocoa/10 pb-4">
-        <h2 className="font-display text-xl lowercase text-maroon">variants</h2>
-        <button
-          type="button"
-          onClick={() => setAdding((s) => !s)}
-          className="inline-flex items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream shadow-[0_10px_28px_rgba(140,106,90,0.22)] transition duration-500 hover:bg-cocoa/90"
-        >
-          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-          {adding ? "close" : "add variant"}
-        </button>
+      <div className="border-b border-cocoa/10 pb-4">
+        <h2 className="font-display text-xl lowercase text-maroon">sizes &amp; tags</h2>
+        <p className="mt-1 text-xs text-charcoal/55">
+          Click a size to add it on its own — nothing else gets added automatically.
+          Each size manages its own tags independently.
+        </p>
       </div>
 
-      {adding ? (
-        <AddVariantRow
-          productId={productId}
-          onAdded={handleAdded}
-          onCancel={() => setAdding(false)}
-        />
-      ) : null}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {PRESET_SIZES.map((s) => {
+          const active = activeSizes.includes(s);
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => (active ? removeSize(s) : addSize(s))}
+              disabled={removing === s}
+              className={`rounded-full border px-4 py-2 text-sm uppercase tracking-wide transition duration-300 disabled:opacity-50 ${
+                active
+                  ? "border-maroon bg-maroon text-cream"
+                  : "border-cocoa/25 bg-cream text-charcoal/70 hover:border-cocoa"
+              }`}
+            >
+              {s}
+            </button>
+          );
+        })}
+      </div>
 
-      {variants.length === 0 ? (
+      <form onSubmit={handleAddCustomSize} className="mt-3 flex gap-2">
+        <input
+          value={customSize}
+          onChange={(e) => setCustomSize(e.target.value)}
+          placeholder="custom size (e.g. Free Size, 34)"
+          className={`${variantInputClass} max-w-xs`}
+        />
+        <button
+          type="submit"
+          disabled={!customSize.trim()}
+          className="inline-flex items-center gap-2 rounded-full border border-cocoa/22 bg-cream px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa transition duration-500 hover:border-cocoa disabled:opacity-50"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          add size
+        </button>
+      </form>
+      {error ? <p className="mt-2 text-xs text-burnt-red">{error}</p> : null}
+
+      {activeSizes.length === 0 ? (
         <p className="mt-6 text-sm text-charcoal/55">
-          No variants yet. Add at least one so customers can buy this product.
+          No sizes added yet. Click a size above, then add tags under it so
+          customers can buy this product.
         </p>
       ) : (
-        <ul className="mt-4 divide-y divide-cocoa/10">
-          {variants.map((v) => (
-            <VariantRow
-              key={v.id}
-              variant={v}
-              onUpdated={handleUpdated}
-              onDeleted={handleDeleted}
+        <div className="mt-6 space-y-5">
+          {activeSizes.map((size) => (
+            <SizeGroup
+              key={size}
+              productId={productId}
+              size={size}
+              tags={sizeGroups.get(size) ?? []}
+              onRemoveSize={() => removeSize(size)}
+              onTagAdded={(v) => onChange([...variants, v])}
+              onTagUpdated={(v) =>
+                onChange(variants.map((x) => (x.id === v.id ? v : x)))
+              }
+              onTagDeleted={(id) => onChange(variants.filter((v) => v.id !== id))}
             />
           ))}
-        </ul>
+        </div>
       )}
     </section>
   );
@@ -305,16 +396,96 @@ function VariantsSection({
 const variantInputClass =
   "w-full rounded-lg border border-cocoa/20 bg-cream px-3 py-2 text-sm text-charcoal outline-none transition duration-300 focus:border-cocoa disabled:opacity-60";
 
-function AddVariantRow({
+function SizeGroup({
   productId,
+  size,
+  tags,
+  onRemoveSize,
+  onTagAdded,
+  onTagUpdated,
+  onTagDeleted,
+}: {
+  productId: string;
+  size: string;
+  tags: Variant[];
+  onRemoveSize: () => void;
+  onTagAdded: (v: Variant) => void;
+  onTagUpdated: (v: Variant) => void;
+  onTagDeleted: (id: string) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+
+  function handleAdded(v: Variant) {
+    onTagAdded(v);
+    setAdding(false);
+  }
+
+  return (
+    <div className="rounded-xl border border-cocoa/15 bg-cream/50 p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-cocoa">
+          size {size}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAdding((s) => !s)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-cocoa px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-cream transition duration-500 hover:bg-cocoa/90"
+          >
+            <Plus className="h-3 w-3" aria-hidden="true" />
+            {adding ? "close" : "add tag"}
+          </button>
+          <button
+            type="button"
+            onClick={onRemoveSize}
+            className="rounded-full border border-burnt-red/25 bg-cream p-1.5 text-burnt-red transition duration-500 hover:bg-burnt-red/10"
+            aria-label={`remove size ${size}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      {adding ? (
+        <AddTagRow
+          productId={productId}
+          size={size}
+          onAdded={handleAdded}
+          onCancel={() => setAdding(false)}
+        />
+      ) : null}
+
+      {tags.length === 0 ? (
+        <p className="mt-3 text-xs text-charcoal/50">
+          No tags yet for this size. Add one so it's purchasable.
+        </p>
+      ) : (
+        <ul className="mt-3 divide-y divide-cocoa/10">
+          {tags.map((v) => (
+            <TagRow
+              key={v.id}
+              variant={v}
+              onUpdated={onTagUpdated}
+              onDeleted={onTagDeleted}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function AddTagRow({
+  productId,
+  size,
   onAdded,
   onCancel,
 }: {
   productId: string;
+  size: string;
   onAdded: (v: Variant) => void;
   onCancel: () => void;
 }) {
-  const [size, setSize] = useState("");
   const [color, setColor] = useState("");
   const [sku, setSku] = useState("");
   const [priceRupees, setPriceRupees] = useState("");
@@ -332,7 +503,7 @@ function AddVariantRow({
     startTransition(async () => {
       try {
         const created = await createVariant(productId, {
-          size: size.trim() || undefined,
+          size,
           color: color.trim() || undefined,
           sku: sku.trim(),
           price: rupeesToPaise(priceRupees),
@@ -349,7 +520,7 @@ function AddVariantRow({
           isActive: created.isActive,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't add variant.");
+        setError(err instanceof Error ? err.message : "couldn't add tag.");
       }
     });
   }
@@ -357,12 +528,11 @@ function AddVariantRow({
   return (
     <form
       onSubmit={handleAdd}
-      className="mt-4 rounded-xl border border-cocoa/15 bg-cream/60 p-4"
+      className="mt-3 rounded-xl border border-cocoa/15 bg-cream/80 p-4"
       noValidate
     >
-      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1.4fr_1fr_1fr]">
-        <input placeholder="size" value={size} onChange={(e) => setSize(e.target.value)} className={variantInputClass} />
-        <input placeholder="color" value={color} onChange={(e) => setColor(e.target.value)} className={variantInputClass} />
+      <div className="grid gap-3 sm:grid-cols-[1.4fr_1.4fr_1fr_1fr]">
+        <input placeholder="tag (e.g. color) *" value={color} onChange={(e) => setColor(e.target.value)} className={variantInputClass} />
         <input placeholder="sku *" value={sku} onChange={(e) => setSku(e.target.value)} className={variantInputClass} />
         <input inputMode="decimal" placeholder="price (₹) *" value={priceRupees}
           onChange={(e) => setPriceRupees(e.target.value)} className={variantInputClass} />
@@ -377,14 +547,14 @@ function AddVariantRow({
         </button>
         <button type="submit" disabled={!canSubmit}
           className="inline-flex items-center rounded-full bg-cocoa px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90 disabled:opacity-50">
-          {pending ? "adding…" : "add"}
+          {pending ? "adding…" : "add tag"}
         </button>
       </div>
     </form>
   );
 }
 
-function VariantRow({
+function TagRow({
   variant: initial,
   onUpdated,
   onDeleted,
@@ -401,7 +571,6 @@ function VariantRow({
 
   const dirty = useMemo(() => {
     return (
-      v.size !== initial.size ||
       v.color !== initial.color ||
       v.sku !== initial.sku ||
       priceRupees !== paiseToRupees(initial.price) ||
@@ -422,7 +591,6 @@ function VariantRow({
     startTransition(async () => {
       try {
         const updated = await updateVariant(v.id, {
-          size: v.size || null,
           color: v.color || null,
           sku: v.sku,
           price,
@@ -450,7 +618,7 @@ function VariantRow({
   }
 
   function handleDelete() {
-    if (!confirm(`Delete variant ${v.sku}? This cannot be undone.`)) return;
+    if (!confirm(`Delete tag ${v.sku}? This cannot be undone.`)) return;
     startTransition(async () => {
       try {
         await deleteVariant(v.id);
@@ -463,11 +631,9 @@ function VariantRow({
 
   return (
     <li className="py-3">
-      <div className="grid items-center gap-3 sm:grid-cols-[1fr_1fr_1.4fr_1fr_1fr_auto]">
-        <input value={v.size} onChange={(e) => setV({ ...v, size: e.target.value })}
-          placeholder="size" className={variantInputClass} />
+      <div className="grid items-center gap-3 sm:grid-cols-[1.4fr_1.4fr_1fr_1fr_auto]">
         <input value={v.color} onChange={(e) => setV({ ...v, color: e.target.value })}
-          placeholder="color" className={variantInputClass} />
+          placeholder="tag (e.g. color)" className={variantInputClass} />
         <input value={v.sku} onChange={(e) => setV({ ...v, sku: e.target.value })}
           placeholder="sku" className={`${variantInputClass} font-mono`} />
         <input inputMode="decimal" value={priceRupees}
@@ -483,7 +649,7 @@ function VariantRow({
           </button>
           <button type="button" onClick={handleDelete} disabled={pending}
             className="rounded-full border border-burnt-red/25 bg-cream p-1.5 text-burnt-red transition duration-500 hover:bg-burnt-red/10"
-            aria-label={`delete variant ${v.sku}`}>
+            aria-label={`delete tag ${v.sku}`}>
             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
