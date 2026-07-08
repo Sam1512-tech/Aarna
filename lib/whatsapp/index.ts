@@ -65,7 +65,7 @@ export async function sendTemplate(
   const phone = normalizeIndianPhone(input.phone);
   if (!phone) return { ok: false, error: `invalid phone: ${input.phone}` };
 
-  const base = (process.env.WHATSAPP_API_BASE_URL ?? DEFAULT_BASE).replace(/\/$/, "");
+  const base = (process.env.WHATSAPP_API_BASE_URL || DEFAULT_BASE).replace(/\/$/, "");
 
   try {
     const res = await fetch(`${base}/message/`, {
