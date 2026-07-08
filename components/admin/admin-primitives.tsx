@@ -134,11 +134,14 @@ export function AdminEmpty({
  */
 export function tableClasses() {
   return {
+    // overflow-x-auto so 5-6 column tables scroll horizontally on phones
+    // instead of clipping or squishing columns; min-w-[720px] on the table
+    // itself keeps the layout readable and forces the parent to scroll.
     wrapper:
-      "overflow-hidden rounded-2xl border border-cocoa/12 bg-cream shadow-[0_10px_28px_rgba(43,38,35,0.04)]",
-    table: "w-full text-left text-sm",
+      "overflow-x-auto rounded-2xl border border-cocoa/12 bg-cream shadow-[0_10px_28px_rgba(43,38,35,0.04)]",
+    table: "w-full min-w-[720px] text-left text-sm",
     thead: "bg-cocoa/5 text-[10px] font-medium uppercase tracking-[0.16em] text-charcoal/60",
-    th: "px-4 py-3",
+    th: "whitespace-nowrap px-4 py-3",
     tr: "border-t border-cocoa/8",
     td: "px-4 py-3.5 align-middle text-charcoal/80",
   } as const;
