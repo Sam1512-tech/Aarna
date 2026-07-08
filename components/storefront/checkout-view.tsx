@@ -11,6 +11,8 @@ import {
   checkPincodeServiceability,
   initCheckout,
 } from "@/lib/actions/checkout";
+import { applyCoupon } from "@/lib/actions/cart";
+import { clearStoredCoupon, getStoredCoupon } from "@/lib/cart/coupon-storage";
 import type { CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
@@ -74,6 +76,28 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
   >(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [discount, setDiscount] = useState(0);
+
+  // Restore a coupon applied on /cart — re-validate rather than trust the
+  // stored discount, since stock/cart contents may have changed since.
+  useEffect(() => {
+    const saved = getStoredCoupon();
+    if (!saved) return;
+    let cancelled = false;
+    applyCoupon(saved).then((res) => {
+      if (cancelled) return;
+      if (res.ok) {
+        setCouponCode(saved);
+        setDiscount(res.discount);
+      } else {
+        clearStoredCoupon();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const {
     register,
@@ -157,14 +181,15 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
 
   // Estimated shipping fee for the summary preview. Backend re-computes the
   // authoritative number when initCheckout runs.
+  const discountedSubtotal = Math.max(0, cart.subtotal - discount);
   const estimatedShipping = useMemo(
-    () => (cart.subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 9900),
-    [cart.subtotal],
+    () => (discountedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 9900),
+    [discountedSubtotal],
   );
-  const previewTotal = cart.subtotal + estimatedShipping;
+  const previewTotal = discountedSubtotal + estimatedShipping;
   const remainingForFreeShipping = Math.max(
     0,
-    FREE_SHIPPING_THRESHOLD - cart.subtotal,
+    FREE_SHIPPING_THRESHOLD - discountedSubtotal,
   );
 
   const openRazorpay = useCallback(
@@ -208,6 +233,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
           } catch {
             // ignore
           }
+          clearStoredCoupon();
           router.push(`/payment-processing?order=${razorpay.orderNumber}`);
         },
         modal: {
@@ -241,6 +267,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
         },
         billingSameAsShipping: true,
         whatsappOptIn: data.whatsappOptIn,
+        couponCode: couponCode ?? undefined,
       });
       openRazorpay(razorpay, {
         name: data.fullName,
@@ -468,6 +495,12 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
 
               <dl className="mt-6 space-y-3 border-t border-maroon/10 pt-6 text-sm text-charcoal/70">
                 <Row label="subtotal" value={formatINR(cart.subtotal)} />
+                {discount > 0 ? (
+                  <Row
+                    label={`discount${couponCode ? ` (${couponCode})` : ""}`}
+                    value={`−${formatINR(discount)}`}
+                  />
+                ) : null}
                 <Row
                   label="shipping"
                   value={

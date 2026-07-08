@@ -3,12 +3,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Heart, Minus, Plus, X } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   applyCoupon,
   removeFromCart,
   updateCartItem,
 } from "@/lib/actions/cart";
+import {
+  clearStoredCoupon,
+  getStoredCoupon,
+  setStoredCoupon,
+} from "@/lib/cart/coupon-storage";
 import { useWishlist } from "@/store/wishlist";
 import type { CartLine, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -55,6 +60,23 @@ export function CartView({ initialCart }: CartViewProps) {
     window.setTimeout(() => setToast((t) => (t === message ? null : t)), 2200);
   }
 
+  // Re-apply a coupon saved from a previous visit (e.g. reload, or coming
+  // back from checkout) so the discount doesn't silently disappear.
+  useEffect(() => {
+    const saved = getStoredCoupon();
+    if (!saved) return;
+    startTransition(async () => {
+      const res = await applyCoupon(saved);
+      if (res.ok) {
+        setCouponCode(saved);
+        setDiscount(res.discount);
+      } else {
+        clearStoredCoupon();
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
   // Persist a removal through the server action. The server return is
   // authoritative in production; the `length > 0` guard keeps the page
   // interactive under the dev DB stub (no DATABASE_URL), which returns empty.
@@ -99,7 +121,9 @@ export function CartView({ initialCart }: CartViewProps) {
     animateOut(line.variantId, () => {
       setCart(optimistic);
       setDiscount(0);
+      setCouponCode("");
       setCouponMsg(null);
+      clearStoredCoupon();
       persistRemoval(line.variantId, optimistic);
     });
   }
@@ -119,7 +143,9 @@ export function CartView({ initialCart }: CartViewProps) {
     animateOut(line.variantId, () => {
       setCart(optimistic);
       setDiscount(0);
+      setCouponCode("");
       setCouponMsg(null);
+      clearStoredCoupon();
       persistRemoval(line.variantId, optimistic);
       flashToast("moved to wishlist");
     });
@@ -133,6 +159,11 @@ export function CartView({ initialCart }: CartViewProps) {
       const res = await applyCoupon(code);
       setCouponMsg({ ok: res.ok, text: res.message.toLowerCase() });
       setDiscount(res.ok ? res.discount : 0);
+      if (res.ok) {
+        setStoredCoupon(code);
+      } else {
+        clearStoredCoupon();
+      }
     });
   }
 
