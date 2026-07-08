@@ -5,6 +5,7 @@ import {
 } from "@/components/admin/admin-primitives";
 import { getInventory } from "@/lib/actions/admin/inventory";
 import { InventoryTable } from "./inventory-table";
+import { ReprintScanPanel } from "./reprint-scan-panel";
 
 export const metadata: Metadata = { title: "admin · inventory" };
 
@@ -44,6 +45,10 @@ export default async function AdminInventoryPage({
         title="inventory"
         intro={`Stock counts per variant. Rows at or below ${LOW_STOCK_THRESHOLD} units are highlighted.`}
       />
+
+      <div className="mt-6">
+        <ReprintScanPanel />
+      </div>
 
       <form method="get" className="mt-6 flex flex-wrap items-end gap-3">
         <label className="min-w-56 flex-1">

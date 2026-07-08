@@ -135,6 +135,45 @@ export async function getInventory(
   };
 }
 
+export interface VariantLookup {
+  variantId: string;
+  productId: string;
+  productTitle: string;
+  size: string | null;
+  color: string | null;
+  sku: string;
+  stock: number;
+}
+
+/**
+ * Exact-match SKU lookup for barcode-scan workflows (e.g. the reprint-tag
+ * queue) — a scanner types the exact SKU + Enter, so this doesn't need the
+ * fuzzy ilike matching getInventory's search does.
+ */
+export async function getVariantBySku(sku: string): Promise<VariantLookup | null> {
+  await requireAdmin();
+
+  const trimmed = sku.trim();
+  if (!trimmed) return null;
+
+  const rows = await db
+    .select({
+      variantId: productVariants.id,
+      productId: products.id,
+      productTitle: products.title,
+      size: productVariants.size,
+      color: productVariants.color,
+      sku: productVariants.sku,
+      stock: productVariants.stock,
+    })
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .where(eq(productVariants.sku, trimmed))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
 export async function getLowStockVariants(
   threshold: number = DEFAULT_LOW_STOCK_THRESHOLD,
 ): Promise<InventoryRow[]> {
