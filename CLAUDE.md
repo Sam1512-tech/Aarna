@@ -25,12 +25,14 @@ Fixed price: ₹1,30,000 (+₹18,000 hang-tag change request → ₹1,53,000 rev
 
 ## 🚨 CURRENT STATUS — July 8, 2026 (launch sprint to July 20)
 
-**Full-scope audit completed Jul 4** (27 checks vs. quotation + this file); **admin CRUD + reviews loop closed out Jul 7**; **checkout coupon bug + dead Razorpay test key fixed Jul 8** (see below). State of the world:
+**Full-scope audit completed Jul 4** (27 checks vs. quotation + this file); **admin CRUD + reviews loop closed out Jul 7**; **checkout coupon bug, dead Razorpay test key, admin variant UX, and tag printing all fixed/shipped Jul 8** (see below). **Product photography received Jul 8** and **Interakt credentials are now live** — the two biggest remaining launch blockers are both clearing. State of the world:
 
-### Bugs fixed Jul 8
+### Bugs fixed + features shipped Jul 8
 - **Coupon discount wasn't applied at checkout.** Root cause: the applied coupon (code + discount) only ever lived in `cart-view.tsx`'s local React state — `/checkout` is a separate component with no shared state, so it never knew a coupon was applied. Its total preview ignored the discount and `initCheckout()` was called without `couponCode`, so the customer was charged full price even after "successfully" applying a coupon on `/cart`. Fixed by persisting the applied code to `localStorage` (`lib/cart/coupon-storage.ts`) and having checkout re-validate it server-side (never trusting the stored discount) via the existing `applyCoupon` action, then actually passing `couponCode` into `initCheckout()`. Verified end-to-end with the `AARNA` coupon: cart and checkout both showed the same discount, and the resulting DB order row + Razorpay order amount matched the discounted total.
 - **Razorpay test key was dead (401 Authentication failed), independent of any app code.** Root cause: the test API key got silently regenerated when the Razorpay account's live activation completed on Jul 4 (live and test keys were regenerated together, 3 minutes apart, both tagged "New" in the dashboard) — the old test key in `.env.local` was never updated to match. Confirmed via direct `curl` with Basic Auth against `api.razorpay.com` (no app code involved) that the old key 401s and the live key 200s. Regenerated a fresh test key from the dashboard (Account menu → **Enable Test Mode** → Settings → API keys & integration → **Regenerate Key** → "Deactivate old key immediately", required a 2FA SMS OTP) and updated `.env.local`. Current active test key: `rzp_test_TAvw2poEhlUndZ`. Verified a full checkout end-to-end — Razorpay modal opened in Test Mode with the correct discounted amount, and the order got a real `razorpayOrderId`.
 - **Dashboard navigation note:** this Razorpay account's redesigned dashboard has no visible Test/Live toggle on the main API Keys page — it's tucked into the profile/account dropdown (top-right avatar) as **"Enable Test Mode"**. Test and Live keys are entirely separate lists, each only revealed once at generation time (no way to view an existing secret again — only regenerate).
+- **Admin product sizes/tags rebuilt** (`app/admin/products/[id]/product-edit-view.tsx`). Previously "size" was one free-text field per variant row. Now sizes are independent toggleable chips (presets + custom text) — clicking one adds only that size, never auto-populates the rest — and each size owns its own tags (color+sku+price+stock), addable/editable/removable without touching any other size's tags. No schema change — a "tag" is still just `product_variants.color`, grouped and labeled per size in the UI.
+- **Tag printing is now quantity-aware + selectable**, and there's a new **scan-to-reprint queue**. Per-product "hang tags" panel: checkbox + copy-count per tag (defaults to current stock, editable) instead of a single "print everything, one each" link. New scan-to-reprint panel on `/admin/inventory`: scan a damaged/missing tag's barcode (same autofocus-input pattern as the existing inventory search) to queue it for reprint; scanning the same SKU again bumps its copy count; one print generates the whole queue as one PDF, then clears. Not scoped to one product — a damaged tag can belong to any of the catalog's products. Backend: `generateHangTagsForVariants` now takes `{variantId, quantity}` pairs (clamped to 100 copies/tag); new `getVariantBySku` exact-match lookup; both flows share one POST route, `/api/admin/hang-tags/print` (existing per-product GET route untouched). All of the above verified live end-to-end, including error handling on an invalid scanned SKU.
 
 ### Verified working (live-tested, not just compiling)
 Prod build clean · Code 128 barcode + **50×30mm landscape** hang-tag PDF (redesigned Jul 7 to match the client's reference template — barcode+SKU on top, two-column MRP/size vs. fabric/care, vertical HSN code on the right edge, black logo mark, rounded border) + GST invoice PDF all generate correctly (currency prints "Rs." — Helvetica has no ₹ glyph) · homepage renders dynamic banners/arrivals/categories · guest checkout open · coupon UI · Razorpay modal flow → `/payment-processing` → `/order-confirmation` · all 3 Razorpay webhook events · Delhivery status webhook · all 4 WhatsApp triggers (opt-in gated, no-op until API key) · OTP code in branded email · PDP SEO (metadata + JSON-LD, now incl. `aggregateRating`) · RLS on all 20 tables · admin RBAC gate.
@@ -48,7 +50,7 @@ Customers can submit a review from `/account/orders` (delivered items only, one 
 ### Known gaps / decisions pending
 - **Broken links** in header/footer/cart/search: `/collections`, `/about`, `/shop/new-arrivals`, `/shop/bestsellers` → routes don't exist / no such categories. Vismaya deciding: build vs re-point.
 - **Quotation debt, still not built:** product zoom on PDP, best-sellers ranking, rate limiting, Cloudflare CDN (DNS is Hostinger→Vercel direct), handover documentation. (Customer reviews UI — previously listed here — was built Jul 7, see above.) Decide build-vs-descope with client before launch.
-- **DB content:** no longer literally zero — a handful of test products/variants/a test collection/coupon exist from dev testing, but **no real launch content** (16 real products with real photography, real banners, real collections). Still blocked on **product photography (status UNCONFIRMED — chase Arpitha).**
+- **DB content:** no longer literally zero — a handful of test products/variants/a test collection/coupon exist from dev testing, but **no real launch content** (16 real products with real photography, real banners, real collections). **Product photography RECEIVED Jul 8** — no longer blocked; next step is uploading to Cloudinary + entering all 16 products via the (now fully-built) admin product form.
 - `requestReversePickup` stubbed (manual returns OK); WhatsApp read-receipts not persisted; search is client-side over 60 products (fine at launch scale).
 
 ### Dev environment gotchas (learned Jul 7 — worth knowing before your next session)
@@ -58,7 +60,11 @@ Customers can submit a review from `/account/orders` (delivered items only, one 
 
 ### External / accounts state
 - **Razorpay: LIVE keys approved + stored in `.env.local` as `RAZORPAY_LIVE_KEY_ID/SECRET` (production-only — active vars stay TEST until QA passes).** Active test key rotated Jul 8 (`rzp_test_TAvw2poEhlUndZ` — see Bugs fixed Jul 8 above) and confirmed working end-to-end. Live webhook secret still needs generating once prod URL exists. Test webhook secret also still pending (old dashboard outage).
-- **WhatsApp/Interakt: account live, number connected via Meta, FB Business Manager VERIFIED.** Blocked on API-key access ("connect your mobile number", 24h wait) — **handed to Vismaya** (support email drafted; she also submits the 4 templates from `docs/whatsapp-templates.md` to Meta).
+- **WhatsApp/Interakt: credentials now LIVE as of Jul 8** (account live, number connected via Meta, FB Business Manager verified, API-key blocker cleared). Code side is fully built and waiting (`lib/whatsapp/index.ts` — `sendTemplate`, `verifyDeliveryWebhook`, all 4 trigger points already wired, currently a graceful no-op). **To actually activate, still need:**
+  1. `WHATSAPP_API_KEY` — Interakt's ready-to-use Basic-auth token (Interakt dashboard → API/Integration settings) → goes in `.env.local`.
+  2. `WHATSAPP_API_BASE_URL` — only needed if Interakt's base URL differs from the code's default (`https://api.interakt.ai/v1/public`); otherwise leave unset.
+  3. Confirm the **4 template names approved on Meta exactly match** the code's `WhatsappTemplateKey`s — `order_placed`, `delivered`, `return_received`, `refund_processed` (case-sensitive; the API call sends `template.name` = these literal strings). If Vismaya named them differently during Meta submission, either rename in Meta or update `WhatsappTemplateKey` to match.
+  4. `WHATSAPP_WEBHOOK_SECRET` (optional but recommended) — if Interakt issues a signing secret for delivery/read-receipt webhooks. The webhook URL to give Interakt is `https://<deployed-domain>/api/webhooks/whatsapp` (route already built) — this last piece needs the real deployed URL, so it's a post-deploy step, not blocked today.
 - **shopaarna.in is LIVE with a placeholder mini-site** (coming-soon + shop preview + about/contact + all policy pages w/ GSTIN) — repo `aarna-coming-soon` under Arpitha's GitHub (`aarnabyarpithabhishek-collab`, also repo collaborator), deployed on **her** Vercel (Hobby). Built to pass Razorpay/Meta/Delhivery site checks (it did).
 - **Supabase Send-Email hook configured** (secret in env, hook enabled, placeholder URL) — re-point URL to real app at deploy.
 - Delhivery fully configured (`Aarna Godown`/560085, prod base, webhook token). `DELHIVERY_CLIENT_NAME`/`DELHIVERY_MODE` env vars are unused leftovers — ignore.
@@ -237,13 +243,13 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 
 ## Immediate Next Steps (launch sprint — see 🚨 CURRENT STATUS for full detail)
 
-1. **Jul 5:** review + merge Vismaya's admin CRUD PRs → then **deploy to Vercel** (step-by-step plan in the status section)
-2. Post-deploy config: Razorpay test webhook, Supabase auth hook URL + redirect allowlist, Google OAuth origins, Delhivery webhook
-3. **Chase Arpitha on product photography TODAY** — the single biggest launch risk; 0 products in DB until photos + admin form exist
-4. Vismaya: Interakt API key (support ticket) + submit 4 WhatsApp templates to Meta (1–7 day review — clock is running)
-5. Full QA on test keys → flip to live Razorpay keys + live webhook → load real content → DNS cutover from placeholder to real app
-6. Decide with client: product zoom / `/collections` page — build or descope from Jul 20 launch (reviews UI is now built, see CURRENT STATUS)
-7. Pre-go-live: prod Supabase (or accept dev DB), `npm run db:rls` on prod, handover docs + Loom videos, transfer Vercel to client
+1. **Deploy to Vercel** (step-by-step plan in the status section) — admin CRUD is done, this is now the top blocker.
+2. Post-deploy config: Razorpay test webhook, Supabase auth hook URL + redirect allowlist, Google OAuth origins, Delhivery webhook, Interakt webhook URL (`/api/webhooks/whatsapp`).
+3. **Upload received product photography to Cloudinary + enter all 16 products** via the admin product form (photography is no longer the blocker — data entry is).
+4. Wire up Interakt now that credentials are live: add `WHATSAPP_API_KEY` to `.env.local`, confirm the 4 Meta-approved template names match the code exactly (see External/accounts state above).
+5. Full QA on test keys → flip to live Razorpay keys + live webhook → load real content → DNS cutover from placeholder to real app.
+6. Decide with client: product zoom / `/collections` page — build or descope from Jul 20 launch (reviews UI is now built, see CURRENT STATUS).
+7. Pre-go-live: prod Supabase (or accept dev DB), `npm run db:rls` on prod, handover docs + Loom videos, transfer Vercel to client.
 
 ---
 
@@ -337,9 +343,9 @@ Garment labels must show MRP, manufacturer details, fabric composition, size, an
 
 ## Risks to Watch (July 20 deadline)
 
-- **Product photography — STATUS UNKNOWN as of Jul 4.** If the shoot hasn't happened, this alone can sink Jul 20. Chase daily.
-- **Meta template approval (1–7 days)** — templates not yet submitted; every day unsubmitted eats buffer
-- **Interakt API-key access blocked** ("connect mobile number", 24h wait) — with Vismaya + support ticket
+- ~~Product photography — STATUS UNKNOWN as of Jul 4~~ **RECEIVED Jul 8.** Remaining work is upload + data entry, not waiting on the client.
+- **Meta template approval (1–7 days)** — confirm with Vismaya whether the 4 templates have been submitted yet; every day unsubmitted eats buffer. Interakt credentials are live as of Jul 8, so this can move now.
+- ~~Interakt API-key access blocked~~ **Cleared Jul 8** — credentials live; still need the actual `WHATSAPP_API_KEY` value put into `.env.local` (see External/accounts state).
 - Razorpay live webhook secret can only exist after deploy — deploy early, don't stack this to the last week
-- Admin CRUD is the content bottleneck — nothing can be entered until Vismaya's forms merge
+- Deploy to Vercel is now the top blocker — admin CRUD, photography, and Interakt are all unblocked, nothing else is waiting on the client
 - Never run casual checkout tests once live Razorpay keys are active — real money moves
