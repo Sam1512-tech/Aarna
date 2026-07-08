@@ -88,7 +88,7 @@ export function AdminShell({ displayName, children }: AdminShellProps) {
                 href={item.href}
                 className={`inline-flex shrink-0 snap-start items-center gap-2 rounded-full border px-3.5 py-2 text-[11px] font-medium uppercase tracking-[0.16em] transition duration-500 ${
                   active
-                    ? "border-maroon bg-maroon text-cream"
+                    ? "border-cocoa bg-cocoa text-cream"
                     : "border-cocoa/22 bg-cream text-charcoal/75 hover:border-cocoa"
                 }`}
               >
