@@ -6,6 +6,7 @@ import {
   Heart,
   LogOut,
   MapPin,
+  Repeat,
   RotateCcw,
   ShoppingBag,
   User,
@@ -25,6 +26,7 @@ const NAV: NavItem[] = [
   { href: "/account/orders", label: "orders", Icon: ShoppingBag },
   { href: "/account/wishlist", label: "wishlist", Icon: Heart },
   { href: "/account/addresses", label: "addresses", Icon: MapPin },
+  { href: "/account/exchanges", label: "exchanges", Icon: Repeat },
   { href: "/account/returns", label: "returns", Icon: RotateCcw },
 ];
 
