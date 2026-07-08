@@ -114,7 +114,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
           <Link
             href="/"
             aria-label="Aarna home"
-            className="col-start-2 flex h-12 w-12 items-center justify-center justify-self-center md:col-start-1 md:ml-1 md:h-12 md:w-12 md:self-center md:justify-self-start"
+            className="col-start-2 flex h-12 w-12 items-center justify-center justify-self-center md:col-start-1 md:h-10 md:w-10 md:justify-self-start"
           >
             <Image
               src="/brand/aarna-header-logo-transparent.png"
@@ -122,7 +122,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
               width={180}
               height={180}
               priority
-              className="logo-blend h-11 w-11 object-contain md:h-11 md:w-11"
+              className="logo-blend h-11 w-11 object-contain md:h-10 md:w-10"
             />
           </Link>
 
