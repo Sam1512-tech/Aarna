@@ -50,16 +50,27 @@ export async function generateHangTagsForProduct(productId: string): Promise<Buf
   return generateHangTagPdf(tags);
 }
 
+export interface HangTagPrintItem {
+  variantId: string;
+  /** How many copies of this one tag to print. Clamped to [1, 100]. */
+  quantity: number;
+}
+
+const MAX_COPIES_PER_TAG = 100;
+
 /**
- * Generates a PDF buffer with one hang tag per provided variant id. Use when
- * the admin selects specific variants (e.g., only restocked sizes) rather than
- * printing the whole product.
+ * Generates a PDF buffer with a caller-chosen number of copies per variant.
+ * Use when the admin selects specific variants and quantities — either from
+ * a product's own tag list, or from a cross-product barcode-scan reprint
+ * queue (a damaged tag can belong to any product, not just the one open).
  */
 export async function generateHangTagsForVariants(
-  variantIds: string[],
+  items: HangTagPrintItem[],
 ): Promise<Buffer> {
   await requireAdmin();
-  if (variantIds.length === 0) throw new Error("Pick at least one variant");
+  if (items.length === 0) throw new Error("Pick at least one variant");
+
+  const variantIds = items.map((i) => i.variantId);
 
   const variants = await db
     .select({
@@ -79,32 +90,33 @@ export async function generateHangTagsForVariants(
 
   if (variants.length === 0) throw new Error("No variants matched the provided ids");
 
-  // Preserve the order the caller passed in (drag-and-drop UIs care about this)
+  // Preserve the order the caller passed in
   const byId = new Map(variants.map((v) => [v.variantId, v]));
-  const ordered = variantIds
-    .map((id) => byId.get(id))
-    .filter((v): v is NonNullable<typeof v> => Boolean(v));
 
-  const tags = await Promise.all(
-    ordered.map<Promise<HangTagData>>(async (v) => ({
-      productTitle: v.productTitle,
-      size: v.size,
-      color: v.color,
-      sku: v.sku,
-      mrp: v.mrp,
-      fabric: v.fabric,
-      careInstructions: v.washCare,
-      barcodePng: await generateCode128Png(v.sku),
-    })),
-  );
+  const tags: HangTagData[] = [];
+  for (const item of items) {
+    const v = byId.get(item.variantId);
+    if (!v) continue;
+    const copies = Math.max(
+      1,
+      Math.min(MAX_COPIES_PER_TAG, Math.floor(item.quantity) || 1),
+    );
+    const barcodePng = await generateCode128Png(v.sku);
+    for (let i = 0; i < copies; i++) {
+      tags.push({
+        productTitle: v.productTitle,
+        size: v.size,
+        color: v.color,
+        sku: v.sku,
+        mrp: v.mrp,
+        fabric: v.fabric,
+        careInstructions: v.washCare,
+        barcodePng,
+      });
+    }
+  }
+
+  if (tags.length === 0) throw new Error("No matching variants to print");
 
   return generateHangTagPdf(tags);
-}
-
-/**
- * Generates a single hang tag for one variant. Convenience wrapper for
- * "Print this one tag" use cases.
- */
-export async function generateHangTagForVariant(variantId: string): Promise<Buffer> {
-  return generateHangTagsForVariants([variantId]);
 }

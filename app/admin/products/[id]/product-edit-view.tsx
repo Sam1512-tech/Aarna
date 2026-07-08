@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Image from "next/image";
-import { Printer, Trash2, Plus, ExternalLink } from "lucide-react";
+import { Printer, Trash2, Plus } from "lucide-react";
 import {
   Field,
   FormSection,
@@ -92,7 +92,7 @@ export function ProductEditView({
         images={product.images}
         onChange={(images) => setProduct((p) => ({ ...p, images }))}
       />
-      <PrintTagsCard productId={product.id} />
+      <PrintTagsCard variants={product.variants} />
     </div>
   );
 }
@@ -457,7 +457,7 @@ function SizeGroup({
 
       {tags.length === 0 ? (
         <p className="mt-3 text-xs text-charcoal/50">
-          No tags yet for this size. Add one so it's purchasable.
+          No tags yet for this size. Add one so it&rsquo;s purchasable.
         </p>
       ) : (
         <ul className="mt-3 divide-y divide-cocoa/10">
@@ -768,32 +768,160 @@ function ImagesSection({
 }
 
 // ── Print tags ───────────────────────────────────────────────────────────────
+//
+// Checkbox + quantity per tag, instead of a single "print everything, one
+// each" link — lets the admin print exactly the sizes/colors (and however
+// many copies) they actually need right now, e.g. just the 3 tags for a
+// newly-restocked color.
 
-function PrintTagsCard({ productId }: { productId: string }) {
+function PrintTagsCard({
+  variants,
+}: {
+  variants: Variant[];
+}) {
+  const sorted = useMemo(
+    () =>
+      [...variants].sort((a, b) =>
+        (a.size + a.color).localeCompare(b.size + b.color),
+      ),
+    [variants],
+  );
+
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [qty, setQty] = useState<Record<string, string>>({});
+  const [printing, setPrinting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function qtyFor(v: Variant) {
+    return qty[v.id] ?? String(Math.max(1, v.stock));
+  }
+
+  function toggle(id: string) {
+    setSelected((s) => ({ ...s, [id]: !s[id] }));
+  }
+
+  function selectAll() {
+    setSelected(Object.fromEntries(sorted.map((v) => [v.id, true])));
+  }
+
+  function selectNone() {
+    setSelected({});
+  }
+
+  async function handlePrint() {
+    const items = sorted
+      .filter((v) => selected[v.id])
+      .map((v) => ({
+        variantId: v.id,
+        quantity: Math.max(1, Number.parseInt(qtyFor(v), 10) || 1),
+      }));
+    if (items.length === 0) {
+      setError("select at least one tag");
+      return;
+    }
+    setError(null);
+    setPrinting(true);
+    try {
+      const res = await fetch("/api/admin/hang-tags/print", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? "couldn't generate tags");
+      }
+      const blob = await res.blob();
+      window.open(URL.createObjectURL(blob), "_blank");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "couldn't generate tags");
+    } finally {
+      setPrinting(false);
+    }
+  }
+
+  const selectedCount = Object.values(selected).filter(Boolean).length;
+
   return (
     <section className="rounded-2xl border border-cocoa/12 bg-cream p-5 shadow-[0_10px_28px_rgba(43,38,35,0.04)] md:p-6">
       <h2 className="border-b border-cocoa/10 pb-4 font-display text-xl lowercase text-maroon">
         hang tags
       </h2>
       <p className="mt-3 text-sm text-charcoal/60">
-        Generates a printable PDF with one tag per variant — size, MRP, fabric,
-        care, HSN 6211, and a Code 128 barcode from the SKU. Feed it into the
-        Xprinter with the small-label roll.
+        Pick which tags to print and how many copies of each — size, MRP,
+        fabric, care, HSN 6211, and a Code 128 barcode from the SKU. Quantity
+        defaults to current stock. Feed the PDF into the Xprinter with the
+        small-label roll.
       </p>
-      <a
-        href={`/api/admin/products/${productId}/hang-tags.pdf`}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-4 inline-flex items-center gap-2 rounded-full border border-cocoa/22 bg-cream px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa transition duration-500 hover:border-cocoa"
-      >
-        <Printer className="h-3.5 w-3.5" aria-hidden="true" />
-        print tags
-        <ExternalLink className="h-3 w-3" aria-hidden="true" />
-      </a>
-      <p className="mt-2 text-xs text-charcoal/50">
-        Needs a server-route wrapper (`app/api/admin/products/[id]/hang-tags.pdf`)
-        around <code>generateHangTagsForProduct</code>. Sam owns.
-      </p>
+
+      {sorted.length === 0 ? (
+        <p className="mt-4 text-sm text-charcoal/55">
+          No tags yet — add a size and a tag above first.
+        </p>
+      ) : (
+        <>
+          <div className="mt-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.16em] text-cocoa">
+            <button type="button" onClick={selectAll} className="soft-link">
+              select all
+            </button>
+            <span className="text-cocoa/30">·</span>
+            <button type="button" onClick={selectNone} className="soft-link">
+              select none
+            </button>
+          </div>
+
+          <ul className="mt-3 divide-y divide-cocoa/10">
+            {sorted.map((v) => (
+              <li key={v.id} className="flex items-center gap-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={Boolean(selected[v.id])}
+                  onChange={() => toggle(v.id)}
+                  className="h-4 w-4 accent-cocoa"
+                  aria-label={`select tag ${v.sku}`}
+                />
+                <div className="min-w-0 flex-1 text-sm">
+                  <span className="text-charcoal">
+                    {[v.size, v.color].filter(Boolean).join(" / ") || "—"}
+                  </span>
+                  <span className="ml-2 font-mono text-xs text-charcoal/50">
+                    {v.sku}
+                  </span>
+                </div>
+                <label className="flex items-center gap-1.5 text-xs text-charcoal/60">
+                  copies
+                  <input
+                    inputMode="numeric"
+                    value={qtyFor(v)}
+                    onChange={(e) =>
+                      setQty((q) => ({
+                        ...q,
+                        [v.id]: e.target.value.replace(/\D/g, ""),
+                      }))
+                    }
+                    className="w-14 rounded-lg border border-cocoa/20 bg-cream px-2 py-1 text-center text-sm text-charcoal outline-none focus:border-cocoa"
+                  />
+                </label>
+              </li>
+            ))}
+          </ul>
+
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={printing || selectedCount === 0}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-cocoa px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.18em] text-cream shadow-[0_10px_28px_rgba(140,106,90,0.22)] transition duration-500 hover:bg-cocoa/90 disabled:opacity-50"
+          >
+            <Printer className="h-3.5 w-3.5" aria-hidden="true" />
+            {printing
+              ? "generating…"
+              : `print ${selectedCount || ""} selected`.trim()}
+          </button>
+          {error ? (
+            <p className="mt-2 text-xs text-burnt-red">{error}</p>
+          ) : null}
+        </>
+      )}
     </section>
   );
 }
