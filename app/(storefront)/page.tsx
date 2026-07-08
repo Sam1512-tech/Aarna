@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Feather, Infinity, ShieldCheck, Sparkles } from "lucide-react";
 import { HomepageCarousel, isVideo } from "@/components/storefront/homepage-carousel";
 import { ScrollRail } from "@/components/storefront/scroll-rail";
 import { getActiveBanners } from "@/lib/actions/banners";
@@ -29,100 +30,12 @@ function productColor(product: Product) {
   return null;
 }
 
-// Minimal premium icon style: single-weight line drawings, same viewBox/stroke
-// so the existing .hand-doodle class still draws them in with the same feel.
+// Clean single-weight Lucide icons — no more hand-drawn doodles.
 const rituals = [
-  {
-    label: "everyday comfort",
-    doodle: (
-      <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
-        {/* a softly draped scarf / fabric U-curve */}
-        <path
-          d="M16 18c4 18 14 30 20 30s16-12 20-30"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-        />
-        <path
-          d="M22 22c2 10 7 18 14 18s12-8 14-18"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.4"
-        />
-      </svg>
-    ),
-  },
-  {
-    label: "timeless design",
-    doodle: (
-      <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
-        {/* infinity — quiet, continuous */}
-        <path
-          d="M22 36c0-7 6-12 12-6l4 4 4-4c6-6 12-1 12 6s-6 12-12 6l-4-4-4 4c-6 6-12 1-12-6Z"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-        />
-      </svg>
-    ),
-  },
-  {
-    label: "premium fabrics",
-    doodle: (
-      <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
-        {/* three flowing fabric folds + a small sparkle accent */}
-        <path
-          d="M14 24c8 6 18 6 26 0s12 0 18 0M14 36c8 6 18 6 26 0s12 0 18 0M14 48c8 6 18 6 26 0s12 0 18 0"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="2"
-        />
-        <path
-          d="M52 14l1.6 3.4 3.4 1.6-3.4 1.6L52 24l-1.6-3.4L47 19l3.4-1.6Z"
-          fill="none"
-          stroke="currentColor"
-          strokeLinejoin="round"
-          strokeWidth="1.3"
-        />
-      </svg>
-    ),
-  },
-  {
-    label: "made to last",
-    doodle: (
-      <svg viewBox="0 0 72 72" aria-hidden="true" className="h-14 w-14">
-        {/* a needle with thread looping behind */}
-        <path
-          d="M14 52L46 22"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="2"
-        />
-        <path
-          d="M46 22l8 4 2 8-6 6-8-2-4-8 8-8Z"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="1.6"
-        />
-        <path
-          d="M14 52c-3 0-5 1-5 3M52 30c2-2 4-4 7-3"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.3"
-        />
-      </svg>
-    ),
-  },
+  { label: "everyday comfort", Icon: Feather },
+  { label: "timeless design", Icon: Infinity },
+  { label: "premium fabrics", Icon: Sparkles },
+  { label: "made to last", Icon: ShieldCheck },
 ];
 
 export default async function HomePage() {
@@ -218,9 +131,11 @@ export default async function HomePage() {
                 key={ritual.label}
                 className="flex flex-col items-center gap-4 text-cocoa"
               >
-                <div className="hand-doodle text-cocoa/80 [&_svg]:h-12 [&_svg]:w-12">
-                  {ritual.doodle}
-                </div>
+                <ritual.Icon
+                  className="h-10 w-10 text-cocoa/80"
+                  strokeWidth={1.25}
+                  aria-hidden="true"
+                />
                 <p className="font-display text-xl lowercase leading-tight text-cocoa">
                   {ritual.label}
                 </p>
@@ -310,9 +225,11 @@ export default async function HomePage() {
                 key={ritual.label}
                 className="flex flex-col items-center gap-5 text-cocoa"
               >
-                <div className="hand-doodle text-cocoa/80 [&_svg]:h-14 [&_svg]:w-14">
-                  {ritual.doodle}
-                </div>
+                <ritual.Icon
+                  className="h-12 w-12 text-cocoa/80"
+                  strokeWidth={1.25}
+                  aria-hidden="true"
+                />
                 <p className="font-display text-2xl lowercase leading-tight text-cocoa">
                   {ritual.label}
                 </p>
