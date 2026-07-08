@@ -30,7 +30,6 @@ export function SignupView({ nextPath }: SignupViewProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -49,7 +48,6 @@ export function SignupView({ nextPath }: SignupViewProps) {
           email,
           password,
           fullName: fullName.trim(),
-          whatsappOptIn,
         });
         if (!result.ok) {
           setError(result.message ?? "couldn't create account. please try again.");
@@ -153,18 +151,6 @@ export function SignupView({ nextPath }: SignupViewProps) {
                 at least {MIN_PASSWORD} characters
               </p>
             </div>
-
-            <label className="mt-2 flex cursor-pointer items-start gap-3 pt-1">
-              <input
-                type="checkbox"
-                checked={whatsappOptIn}
-                onChange={(e) => setWhatsappOptIn(e.target.checked)}
-                className="mt-1 h-4 w-4 cursor-pointer accent-cocoa"
-              />
-              <span className="text-xs leading-6 lowercase text-charcoal/65">
-                send me order updates and quiet collection notes over whatsapp
-              </span>
-            </label>
 
             <SubmitButton
               disabled={!canSubmit}
