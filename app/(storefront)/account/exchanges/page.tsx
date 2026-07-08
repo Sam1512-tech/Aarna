@@ -1,38 +1,43 @@
 import type { Metadata } from "next";
-import { AccountReturnsView } from "@/components/storefront/account-returns-view";
+import { AccountExchangesView } from "@/components/storefront/account-exchanges-view";
 import { getMyOrders, getMyReturns } from "@/lib/actions/account";
 
 export const metadata: Metadata = {
-  title: "your returns",
+  title: "your exchanges",
 };
 
-const RETURN_WINDOW_DAYS = 14;
+// Same window the backend enforces on returns / exchanges — 14 days.
+const EXCHANGE_WINDOW_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-// Exchange requests piggyback on the returns pipeline with this reason prefix.
-// Filter them out here so exchanges show only on /account/exchanges and
-// refunds show only on /account/returns.
-const EXCHANGE_REASON_PREFIX = "Exchange requested.";
+// Reasons the user picked "size" or "changed my mind" often become exchange
+// requests. We piggyback on the existing `requestReturn` action for now, with
+// a marker prefix on the reason text so we can filter these back out here and
+// so Sam's team can see the exchange intent in the admin returns queue.
+export const EXCHANGE_REASON_PREFIX = "Exchange requested.";
 
-export default async function AccountReturnsPage() {
-  const [allReturns, orders] = await Promise.all([
+export default async function AccountExchangesPage() {
+  const [returns, orders] = await Promise.all([
     getMyReturns().catch(() => []),
     getMyOrders().catch(() => []),
   ]);
-  const returns = allReturns.filter(
-    (r) => !r.reason?.startsWith(EXCHANGE_REASON_PREFIX),
-  );
 
-  // Backend enforces (delivered + within 14 days + no duplicate). We pre-filter
-  // to the same set so the picker only shows genuinely-actionable items.
-  const alreadyReturnedIds = new Set(
-    returns.map((r) => `${r.orderNumber}|${r.productTitle}|${r.variantLabel}`),
+  const exchanges = returns.filter((r) =>
+    r.reason?.startsWith(EXCHANGE_REASON_PREFIX),
   );
 
   // Server component — Date.now() at request time is intentional and stable
   // for this render. The react-hooks/purity rule targets client hooks.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
+
+  // Prevent stacking multiple exchanges against the same delivered item.
+  const alreadyRequestedIds = new Set(
+    returns.map(
+      (r) => `${r.orderNumber}|${r.productTitle}|${r.variantLabel ?? ""}`,
+    ),
+  );
+
   const eligibleItems = orders
     .filter((o) => o.fulfillmentStatus === "delivered")
     .filter((o) => {
@@ -40,13 +45,13 @@ export default async function AccountReturnsPage() {
         typeof o.placedAt === "string"
           ? new Date(o.placedAt).getTime()
           : (o.placedAt?.getTime() ?? 0);
-      return (now - placed) / MS_PER_DAY <= RETURN_WINDOW_DAYS;
+      return (now - placed) / MS_PER_DAY <= EXCHANGE_WINDOW_DAYS;
     })
     .flatMap((o) =>
       o.items
         .filter(
           (it) =>
-            !alreadyReturnedIds.has(
+            !alreadyRequestedIds.has(
               `${o.orderNumber}|${it.productTitleSnapshot}|${it.variantLabelSnapshot ?? ""}`,
             ),
         )
@@ -61,16 +66,15 @@ export default async function AccountReturnsPage() {
     );
 
   return (
-    <AccountReturnsView
-      returns={returns.map((r) => ({
+    <AccountExchangesView
+      exchanges={exchanges.map((r) => ({
         id: r.returnId,
         orderNumber: r.orderNumber,
         productTitle: r.productTitle,
         variantLabel: r.variantLabel,
         quantity: r.quantity,
-        reason: r.reason,
+        reason: r.reason ?? "",
         status: r.status,
-        refundAmount: r.refundAmount,
         createdAt: r.createdAt,
       }))}
       eligibleItems={eligibleItems}
