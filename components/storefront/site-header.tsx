@@ -23,61 +23,45 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isTransparent, setIsTransparent] = useState(false);
   const lastScrollY = useRef(0);
-  const touchStartY = useRef(0);
 
+  // One scroll listener, rAF-throttled. The previous version stacked
+  // interval-polling + wheel + touchmove + scroll all racing to set the same
+  // state, which fired far more re-renders than any frame budget could absorb
+  // and made the blur+background transition tear on both mobile and desktop.
   useEffect(() => {
     function getScrollY() {
       return (
-        document.scrollingElement?.scrollTop ||
-        window.scrollY ||
-        window.pageYOffset ||
-        document.documentElement.scrollTop ||
-        document.body.scrollTop ||
+        document.scrollingElement?.scrollTop ??
+        window.scrollY ??
+        document.documentElement.scrollTop ??
         0
       );
     }
 
     lastScrollY.current = getScrollY();
+    let ticking = false;
 
-    function handleScroll() {
+    function update() {
       const currentY = getScrollY();
       const scrollingDown = currentY > lastScrollY.current;
-
-      setIsTransparent(scrollingDown && currentY > 80);
+      // 4-pixel deadband so tiny jitter (touch inertia, trackpad noise) doesn't
+      // flip state repeatedly. Only care about direction past a real threshold.
+      if (Math.abs(currentY - lastScrollY.current) > 4) {
+        setIsTransparent(scrollingDown && currentY > 80);
+      }
       lastScrollY.current = currentY;
+      ticking = false;
     }
 
-    const pollScroll = window.setInterval(handleScroll, 150);
-
-    function handleWheel(event: WheelEvent) {
-      const currentY = getScrollY();
-      setIsTransparent(event.deltaY > 0 && currentY > 80);
-    }
-
-    function handleTouchStart(event: TouchEvent) {
-      touchStartY.current = event.touches[0]?.clientY ?? 0;
-    }
-
-    function handleTouchMove(event: TouchEvent) {
-      const currentTouchY = event.touches[0]?.clientY ?? touchStartY.current;
-      const currentY = getScrollY();
-      setIsTransparent(currentTouchY < touchStartY.current && currentY > 80);
+    function handleScroll() {
+      if (!ticking) {
+        window.requestAnimationFrame(update);
+        ticking = true;
+      }
     }
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    document.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("wheel", handleWheel, { passive: true });
-    window.addEventListener("touchstart", handleTouchStart, { passive: true });
-    window.addEventListener("touchmove", handleTouchMove, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      document.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("wheel", handleWheel);
-      window.removeEventListener("touchstart", handleTouchStart);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.clearInterval(pollScroll);
-    };
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
@@ -93,10 +77,17 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
 
       <header className="fixed inset-x-0 top-9 z-40 px-3 pt-3 md:px-6 md:pt-4">
         <div
-          className={`mx-auto grid h-[76px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-3 transition-all duration-1000 md:h-16 md:px-5 ${
+          // Blur is kept constant across states — animating backdrop-filter
+          // between blur-2xl and blur-0 is what tore on scroll. Only cheap
+          // properties transition now (opacity / transform / bg / border /
+          // shadow), and only the properties listed — not `transition-all`.
+          // will-change hints the browser to promote the element for GPU
+          // compositing during the transition.
+          style={{ willChange: "opacity, transform" }}
+          className={`mx-auto grid h-[76px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-full px-3 backdrop-blur-xl transition-[opacity,transform,background-color,border-color,box-shadow] duration-500 ease-out md:h-16 md:px-5 ${
             isTransparent
-              ? "rounded-full border border-transparent bg-transparent shadow-none backdrop-blur-0 md:opacity-0 md:-translate-y-2"
-              : "rounded-full border border-maroon/8 bg-cream/52 shadow-[0_18px_70px_rgba(43,38,35,0.06)] backdrop-blur-2xl opacity-100 translate-y-0"
+              ? "border border-transparent bg-transparent shadow-none md:-translate-y-2 md:opacity-0"
+              : "border border-maroon/8 bg-cream/52 opacity-100 shadow-[0_18px_70px_rgba(43,38,35,0.06)] translate-y-0"
           }`}
         >
           <div className="flex items-center justify-start md:hidden">
