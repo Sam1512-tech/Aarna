@@ -78,17 +78,18 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
 
       <header className="fixed inset-x-0 top-9 z-40 px-3 pt-3 md:px-6 md:pt-4">
         <div
-          // Blur is kept constant across states — animating backdrop-filter
-          // between blur-2xl and blur-0 is what tore on scroll. Only cheap
-          // properties transition now (opacity / transform / bg / border /
-          // shadow), and only the properties listed — not `transition-all`.
-          // will-change hints the browser to promote the element for GPU
-          // compositing during the transition.
+          // No backdrop-filter — even held constant, compositing a blurred
+          // layer during a transitioning opacity/background/border/shadow was
+          // still glitching on lower-power devices. Swapped to a solid
+          // semi-opaque cream fill (bg-cream/88) so the pill has presence
+          // without any GPU blur cost. Only cheap properties transition
+          // (opacity / transform / bg / border / shadow) and only the ones
+          // listed — never transition-all. will-change hints GPU compositing.
           style={{ willChange: "opacity, transform" }}
-          className={`mx-auto grid h-[76px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-full px-3 backdrop-blur-xl transition-[opacity,transform,background-color,border-color,box-shadow] duration-500 ease-out md:h-16 md:px-5 ${
+          className={`mx-auto grid h-[76px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-full px-3 transition-[opacity,transform,background-color,border-color,box-shadow] duration-500 ease-out md:h-16 md:px-5 ${
             isTransparent
               ? "border border-transparent bg-transparent shadow-none md:-translate-y-2 md:opacity-0"
-              : "border border-maroon/8 bg-cream/52 opacity-100 shadow-[0_18px_70px_rgba(43,38,35,0.06)] translate-y-0"
+              : "border border-maroon/8 bg-cream/88 opacity-100 shadow-[0_18px_70px_rgba(43,38,35,0.06)] translate-y-0"
           }`}
         >
           <div className="flex items-center justify-start md:hidden">
