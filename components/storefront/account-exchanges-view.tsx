@@ -111,7 +111,7 @@ export function AccountExchangesView({
             no exchanges yet
           </h2>
           <p className="mt-2 max-w-sm text-sm text-charcoal/60">
-            swap a size or colour within 14 days of delivery.
+            swap a size or colour within 3 days of delivery.
             {eligibleItems.length === 0 ? " no eligible items right now." : ""}
           </p>
         </div>

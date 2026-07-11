@@ -73,7 +73,7 @@ We'd love to see how you style it — tag us @aarna_arpithabhishek 💛
 |---|---|---|
 | {{1}} | Customer first name | Priya |
 | {{2}} | Order number | AARNA-000123 |
-| {{3}} | Return window (days) | 7 |
+| {{3}} | Return window (days) | 3 |
 
 **Trigger:** Delhivery webhook, on `DELIVERED` status → `fulfillment_status = "delivered"`.
 

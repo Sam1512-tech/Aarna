@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "your returns",
 };
 
-const RETURN_WINDOW_DAYS = 14;
+const RETURN_WINDOW_DAYS = 3;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export default async function AccountReturnsPage() {
@@ -19,7 +19,7 @@ export default async function AccountReturnsPage() {
     (r) => !r.reason?.startsWith(EXCHANGE_REASON_PREFIX),
   );
 
-  // Backend enforces (delivered + within 14 days + no duplicate). We pre-filter
+  // Backend enforces (delivered + within 3 days + no duplicate). We pre-filter
   // to the same set so the picker only shows genuinely-actionable items.
   const alreadyReturnedIds = new Set(
     returns.map((r) => `${r.orderNumber}|${r.productTitle}|${r.variantLabel}`),
