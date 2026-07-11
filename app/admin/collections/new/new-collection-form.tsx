@@ -13,6 +13,7 @@ import {
   slugify,
 } from "@/components/admin/admin-form";
 import { createCollection } from "@/lib/actions/admin/collections";
+import { actionErrorMessage } from "@/lib/action-error";
 
 export function NewCollectionForm() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export function NewCollectionForm() {
         void collection;
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "couldn't create collection.",
+          actionErrorMessage(err, "couldn't create collection."),
         );
       }
     });

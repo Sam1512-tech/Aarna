@@ -15,6 +15,7 @@ import { applyCoupon } from "@/lib/actions/cart";
 import { clearStoredCoupon, getStoredCoupon } from "@/lib/cart/coupon-storage";
 import type { CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
+import { actionErrorMessage } from "@/lib/action-error";
 
 const FREE_SHIPPING_THRESHOLD = 299900; // ₹2,999 (matches backend)
 const FORM_DRAFT_KEY = "aarna-checkout-draft";
@@ -280,9 +281,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
       });
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "something went wrong. please try again.";
+        actionErrorMessage(err, "something went wrong. please try again.");
       setSubmitError(message.toLowerCase());
       setSubmitting(false);
     }

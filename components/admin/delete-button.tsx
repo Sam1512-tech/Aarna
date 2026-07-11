@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
+import { actionErrorMessage } from "@/lib/action-error";
 
 /**
  * Drop-in delete action for an admin table row. Calls the given server
@@ -32,7 +33,7 @@ export function DeleteButton({
         await action(id);
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't delete");
+        setError(actionErrorMessage(err, "couldn't delete"));
       }
     });
   }

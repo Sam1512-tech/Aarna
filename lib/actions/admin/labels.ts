@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { generateCode128Png } from "@/lib/labels/barcode";
 import { generateHangTagPdf, type HangTagData } from "@/lib/labels/generate";
+import { ActionError } from "@/lib/action-error";
 
 const { products, productVariants } = schema;
 
@@ -23,7 +24,7 @@ export async function generateHangTagsForProduct(productId: string): Promise<Buf
     .where(eq(products.id, productId))
     .limit(1)
     .then((rows) => rows[0] ?? null);
-  if (!product) throw new Error("Product not found");
+  if (!product) throw new ActionError("Product not found");
 
   const variants = await db
     .select()
@@ -31,7 +32,7 @@ export async function generateHangTagsForProduct(productId: string): Promise<Buf
     .where(eq(productVariants.productId, productId))
     .orderBy(asc(productVariants.size));
   if (variants.length === 0) {
-    throw new Error("This product has no variants — add at least one variant before printing tags.");
+    throw new ActionError("This product has no variants — add at least one variant before printing tags.");
   }
 
   const tags = await Promise.all(
@@ -68,7 +69,7 @@ export async function generateHangTagsForVariants(
   items: HangTagPrintItem[],
 ): Promise<Buffer> {
   await requireAdmin();
-  if (items.length === 0) throw new Error("Pick at least one variant");
+  if (items.length === 0) throw new ActionError("Pick at least one variant");
 
   const variantIds = items.map((i) => i.variantId);
 
@@ -88,7 +89,7 @@ export async function generateHangTagsForVariants(
     .innerJoin(products, eq(products.id, productVariants.productId))
     .where(inArray(productVariants.id, variantIds));
 
-  if (variants.length === 0) throw new Error("No variants matched the provided ids");
+  if (variants.length === 0) throw new ActionError("No variants matched the provided ids");
 
   // Preserve the order the caller passed in
   const byId = new Map(variants.map((v) => [v.variantId, v]));
@@ -116,7 +117,7 @@ export async function generateHangTagsForVariants(
     }
   }
 
-  if (tags.length === 0) throw new Error("No matching variants to print");
+  if (tags.length === 0) throw new ActionError("No matching variants to print");
 
   return generateHangTagPdf(tags);
 }

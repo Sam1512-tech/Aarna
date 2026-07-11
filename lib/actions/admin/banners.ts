@@ -4,6 +4,7 @@ import { asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
+import { ActionError } from "@/lib/action-error";
 
 const { banners } = schema;
 
@@ -11,11 +12,11 @@ export type Banner = typeof banners.$inferSelect;
 
 function validateUrl(input: string, label: string): string {
   const trimmed = input.trim();
-  if (!trimmed) throw new Error(`${label} is required`);
-  if (trimmed.length > 2000) throw new Error(`${label} is too long`);
+  if (!trimmed) throw new ActionError(`${label} is required`);
+  if (trimmed.length > 2000) throw new ActionError(`${label} is too long`);
   // Accept absolute URLs or app-relative paths (starting with /)
   if (!/^https?:\/\//.test(trimmed) && !trimmed.startsWith("/")) {
-    throw new Error(`${label} must be an absolute URL or start with /`);
+    throw new ActionError(`${label} must be an absolute URL or start with /`);
   }
   return trimmed;
 }
@@ -63,7 +64,7 @@ export async function createBanner(input: CreateBannerInput): Promise<Banner> {
   const ctaHref = input.ctaHref ? validateUrl(input.ctaHref, "CTA link") : null;
 
   if (input.startsAt && input.endsAt && input.endsAt <= input.startsAt) {
-    throw new Error("End date must be after start date");
+    throw new ActionError("End date must be after start date");
   }
 
   const nextSort =
@@ -118,7 +119,7 @@ export async function updateBanner(
     .from(banners)
     .where(eq(banners.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Banner not found");
+  if (!existing[0]) throw new ActionError("Banner not found");
 
   const patch: Partial<typeof banners.$inferInsert> = { updatedAt: new Date() };
 
@@ -144,7 +145,7 @@ export async function updateBanner(
   const finalStartsAt = patch.startsAt === undefined ? existing[0].startsAt : patch.startsAt;
   const finalEndsAt = patch.endsAt === undefined ? existing[0].endsAt : patch.endsAt;
   if (finalStartsAt && finalEndsAt && finalEndsAt <= finalStartsAt) {
-    throw new Error("End date must be after start date");
+    throw new ActionError("End date must be after start date");
   }
 
   const [updated] = await db
@@ -164,7 +165,7 @@ export async function toggleBannerActive(id: string): Promise<Banner> {
     .from(banners)
     .where(eq(banners.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Banner not found");
+  if (!existing[0]) throw new ActionError("Banner not found");
 
   const [updated] = await db
     .update(banners)
@@ -182,7 +183,7 @@ export async function deleteBanner(id: string): Promise<{ ok: true }> {
     .delete(banners)
     .where(eq(banners.id, id))
     .returning({ id: banners.id });
-  if (!result[0]) throw new Error("Banner not found");
+  if (!result[0]) throw new ActionError("Banner not found");
 
   revalidateBannerConsumers();
   return { ok: true };

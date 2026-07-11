@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import type { Product, ProductWithVariants } from "@/lib/types";
+import { ActionError } from "@/lib/action-error";
 
 const {
   products,
@@ -30,7 +31,7 @@ async function clearCartsAndGuardOrders(variantIds: string[]): Promise<void> {
     .from(orderItems)
     .where(inArray(orderItems.variantId, variantIds));
   if (ordered.length > 0) {
-    throw new Error(
+    throw new ActionError(
       "Can't delete — this has already been ordered by a customer. Archive it instead to hide it from the storefront while keeping order history intact.",
     );
   }
@@ -52,17 +53,17 @@ function normalizeSlug(input: string): string {
 
 function validateSlug(slug: string): string {
   const normalized = normalizeSlug(slug);
-  if (!normalized) throw new Error("Product slug is required");
+  if (!normalized) throw new ActionError("Product slug is required");
   if (!SLUG_PATTERN.test(normalized)) {
-    throw new Error("Slug must be lowercase letters, numbers, and hyphens only");
+    throw new ActionError("Slug must be lowercase letters, numbers, and hyphens only");
   }
-  if (normalized.length > 220) throw new Error("Slug is too long (max 220 chars)");
+  if (normalized.length > 220) throw new ActionError("Slug is too long (max 220 chars)");
   return normalized;
 }
 
 function validatePrice(value: number, label: string): number {
   if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${label} must be a non-negative integer in paise`);
+    throw new ActionError(`${label} must be a non-negative integer in paise`);
   }
   return value;
 }
@@ -179,14 +180,14 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
   await requireAdmin();
 
   const title = input.title.trim();
-  if (!title) throw new Error("Product title is required");
+  if (!title) throw new ActionError("Product title is required");
 
   const slug = validateSlug(input.slug);
   const basePrice = validatePrice(input.basePrice, "Selling price");
   const mrp = input.mrp !== undefined ? validatePrice(input.mrp, "MRP") : null;
 
   if (mrp !== null && mrp < basePrice) {
-    throw new Error("MRP cannot be lower than the selling price");
+    throw new ActionError("MRP cannot be lower than the selling price");
   }
 
   // Slug uniqueness
@@ -195,7 +196,7 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
     .from(products)
     .where(eq(products.slug, slug))
     .limit(1);
-  if (existing[0]) throw new Error(`Slug "${slug}" is already taken`);
+  if (existing[0]) throw new ActionError(`Slug "${slug}" is already taken`);
 
   const [created] = await db
     .insert(products)
@@ -239,13 +240,13 @@ export async function updateProduct(
     .from(products)
     .where(eq(products.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Product not found");
+  if (!existing[0]) throw new ActionError("Product not found");
 
   const patch: Partial<typeof products.$inferInsert> = { updatedAt: new Date() };
 
   if (input.title !== undefined) {
     const trimmed = input.title.trim();
-    if (!trimmed) throw new Error("Product title cannot be empty");
+    if (!trimmed) throw new ActionError("Product title cannot be empty");
     patch.title = trimmed;
   }
 
@@ -257,7 +258,7 @@ export async function updateProduct(
         .from(products)
         .where(eq(products.slug, newSlug))
         .limit(1);
-      if (collision[0]) throw new Error(`Slug "${newSlug}" is already taken`);
+      if (collision[0]) throw new ActionError(`Slug "${newSlug}" is already taken`);
     }
     patch.slug = newSlug;
   }
@@ -277,7 +278,7 @@ export async function updateProduct(
   const finalBase = patch.basePrice ?? existing[0].basePrice;
   const finalMrp = patch.mrp === undefined ? existing[0].mrp : patch.mrp;
   if (finalMrp !== null && finalMrp < finalBase) {
-    throw new Error("MRP cannot be lower than the selling price");
+    throw new ActionError("MRP cannot be lower than the selling price");
   }
 
   if (input.categoryId !== undefined) patch.categoryId = input.categoryId;
@@ -308,7 +309,7 @@ export async function deleteProduct(id: string): Promise<{ ok: true }> {
     .from(products)
     .where(eq(products.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Product not found");
+  if (!existing[0]) throw new ActionError("Product not found");
 
   const variants = await db
     .select({ id: productVariants.id })
@@ -341,7 +342,7 @@ export async function createVariant(
   await requireAdmin();
 
   const sku = input.sku.trim();
-  if (!sku) throw new Error("SKU is required");
+  if (!sku) throw new ActionError("SKU is required");
   const price = validatePrice(input.price, "Variant price");
 
   // Verify product exists
@@ -350,7 +351,7 @@ export async function createVariant(
     .from(products)
     .where(eq(products.id, productId))
     .limit(1);
-  if (!product[0]) throw new Error("Product not found");
+  if (!product[0]) throw new ActionError("Product not found");
 
   // SKU uniqueness
   const skuClash = await db
@@ -358,7 +359,7 @@ export async function createVariant(
     .from(productVariants)
     .where(eq(productVariants.sku, sku))
     .limit(1);
-  if (skuClash[0]) throw new Error(`SKU "${sku}" is already taken`);
+  if (skuClash[0]) throw new ActionError(`SKU "${sku}" is already taken`);
 
   const [created] = await db
     .insert(productVariants)
@@ -398,21 +399,21 @@ export async function updateVariant(
     .from(productVariants)
     .where(eq(productVariants.id, variantId))
     .limit(1);
-  if (!existing[0]) throw new Error("Variant not found");
+  if (!existing[0]) throw new ActionError("Variant not found");
 
   const patch: Partial<typeof productVariants.$inferInsert> = {};
   if (input.size !== undefined) patch.size = input.size;
   if (input.color !== undefined) patch.color = input.color;
   if (input.sku !== undefined) {
     const sku = input.sku.trim();
-    if (!sku) throw new Error("SKU cannot be empty");
+    if (!sku) throw new ActionError("SKU cannot be empty");
     if (sku !== existing[0].sku) {
       const skuClash = await db
         .select({ id: productVariants.id })
         .from(productVariants)
         .where(eq(productVariants.sku, sku))
         .limit(1);
-      if (skuClash[0]) throw new Error(`SKU "${sku}" is already taken`);
+      if (skuClash[0]) throw new ActionError(`SKU "${sku}" is already taken`);
     }
     patch.sku = sku;
   }
@@ -444,7 +445,7 @@ export async function deleteVariant(variantId: string): Promise<{ ok: true }> {
     .from(productVariants)
     .where(eq(productVariants.id, variantId))
     .limit(1);
-  if (!existing[0]) throw new Error("Variant not found");
+  if (!existing[0]) throw new ActionError("Variant not found");
 
   await clearCartsAndGuardOrders([variantId]);
 
@@ -474,14 +475,14 @@ export async function addProductImage(
 ) {
   await requireAdmin();
 
-  if (!input.url.trim()) throw new Error("Image URL is required");
+  if (!input.url.trim()) throw new ActionError("Image URL is required");
 
   const product = await db
     .select({ slug: products.slug })
     .from(products)
     .where(eq(products.id, productId))
     .limit(1);
-  if (!product[0]) throw new Error("Product not found");
+  if (!product[0]) throw new ActionError("Product not found");
 
   const nextSort =
     input.sortOrder ??
@@ -515,7 +516,7 @@ export async function removeProductImage(imageId: string): Promise<{ ok: true }>
     .from(productImages)
     .where(eq(productImages.id, imageId))
     .limit(1);
-  if (!existing[0]) throw new Error("Image not found");
+  if (!existing[0]) throw new ActionError("Image not found");
 
   await db.delete(productImages).where(eq(productImages.id, imageId));
 

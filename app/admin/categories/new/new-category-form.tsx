@@ -11,6 +11,7 @@ import {
   slugify,
 } from "@/components/admin/admin-form";
 import { createCategory } from "@/lib/actions/admin/categories";
+import { actionErrorMessage } from "@/lib/action-error";
 
 export function NewCategoryForm() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export function NewCategoryForm() {
         router.refresh();
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "couldn't create category.",
+          actionErrorMessage(err, "couldn't create category."),
         );
       }
     });

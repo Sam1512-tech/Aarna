@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { db, schema } from "@/lib/db";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { CartLine, CartState } from "@/lib/types";
+import { ActionError } from "@/lib/action-error";
 
 const {
   carts,
@@ -165,7 +166,7 @@ export async function addToCart(
   variantId: string,
   quantity: number,
 ): Promise<CartState> {
-  if (quantity <= 0) throw new Error("Quantity must be positive");
+  if (quantity <= 0) throw new ActionError("Quantity must be positive");
 
   // Verify variant exists and is active
   const variant = await db
@@ -174,11 +175,11 @@ export async function addToCart(
     .where(eq(productVariants.id, variantId))
     .limit(1);
   if (!variant[0] || !variant[0].isActive) {
-    throw new Error("Variant not available");
+    throw new ActionError("Variant not available");
   }
 
   const cartId = await resolveOrCreateCartId({ createIfMissing: true });
-  if (!cartId) throw new Error("Could not resolve cart");
+  if (!cartId) throw new ActionError("Could not resolve cart");
 
   // Upsert — if line exists, increment quantity; else insert
   await db
