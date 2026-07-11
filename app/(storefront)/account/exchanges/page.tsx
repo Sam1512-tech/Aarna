@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   title: "your exchanges",
 };
 
-// Same window the backend enforces on returns / exchanges — 14 days.
-const EXCHANGE_WINDOW_DAYS = 14;
+// Same window the backend enforces on returns / exchanges — 3 days (client decision Jul 11).
+const EXCHANGE_WINDOW_DAYS = 3;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export default async function AccountExchangesPage() {

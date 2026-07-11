@@ -16,7 +16,7 @@ const {
   returns,
 } = schema;
 
-const RETURN_WINDOW_DAYS = 14;
+const RETURN_WINDOW_DAYS = 3;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 async function requireCustomer() {

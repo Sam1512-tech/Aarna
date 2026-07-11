@@ -101,7 +101,7 @@ export function AccountReturnsView({
             no returns yet
           </h2>
           <p className="mt-2 max-w-sm text-sm text-charcoal/60">
-            you can request a return within 14 days of delivery.
+            you can request a return within 3 days of delivery.
             {eligibleItems.length === 0 ? " no eligible items right now." : ""}
           </p>
         </div>

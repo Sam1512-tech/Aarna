@@ -8,7 +8,7 @@ const { orders } = schema;
 
 // Days the customer has to request a return after delivery (shown in the
 // delivered WhatsApp). Keep in sync with the returns policy.
-const RETURN_WINDOW_DAYS = 7;
+const RETURN_WINDOW_DAYS = 3;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
