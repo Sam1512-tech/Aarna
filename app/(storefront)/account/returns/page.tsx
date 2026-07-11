@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AccountReturnsView } from "@/components/storefront/account-returns-view";
 import { getMyOrders, getMyReturns } from "@/lib/actions/account";
+import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
 
 export const metadata: Metadata = {
   title: "your returns",
@@ -8,11 +9,6 @@ export const metadata: Metadata = {
 
 const RETURN_WINDOW_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-// Exchange requests piggyback on the returns pipeline with this reason prefix.
-// Filter them out here so exchanges show only on /account/exchanges and
-// refunds show only on /account/returns.
-const EXCHANGE_REASON_PREFIX = "Exchange requested.";
 
 export default async function AccountReturnsPage() {
   const [allReturns, orders] = await Promise.all([

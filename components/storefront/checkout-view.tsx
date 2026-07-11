@@ -138,15 +138,19 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
     }
   }, [setValue]);
 
-  // Auto-save on change.
-  const values = watch();
+  // Auto-save on change. Subscription form instead of `watch()` at render:
+  // the render form subscribes the whole component to every field, forcing a
+  // full form re-render per keystroke just to write localStorage.
   useEffect(() => {
-    try {
-      window.localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(values));
-    } catch {
-      // private mode or quota — fine
-    }
-  }, [values]);
+    const sub = watch((values) => {
+      try {
+        window.localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(values));
+      } catch {
+        // private mode or quota — fine
+      }
+    });
+    return () => sub.unsubscribe();
+  }, [watch]);
 
   // Pincode serviceability — debounced check on change.
   const pincode = watch("pincode");

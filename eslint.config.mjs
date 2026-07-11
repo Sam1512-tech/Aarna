@@ -12,7 +12,19 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Code session worktrees — full repo copies, not project source.
+    ".claude/**",
   ]),
+  {
+    rules: {
+      // Allow intentionally-unused args/vars with the standard "_" prefix
+      // (e.g. stubbed function signatures kept for future wiring).
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
