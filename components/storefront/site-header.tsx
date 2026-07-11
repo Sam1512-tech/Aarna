@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 interface CategoryLink {
   name: string;
@@ -22,48 +22,6 @@ const primaryLinks: { href: string; label: string }[] = [];
 
 export function SiteHeader({ categories }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isTransparent, setIsTransparent] = useState(false);
-  const lastScrollY = useRef(0);
-
-  // One scroll listener, rAF-throttled. The previous version stacked
-  // interval-polling + wheel + touchmove + scroll all racing to set the same
-  // state, which fired far more re-renders than any frame budget could absorb
-  // and made the blur+background transition tear on both mobile and desktop.
-  useEffect(() => {
-    function getScrollY() {
-      return (
-        document.scrollingElement?.scrollTop ??
-        window.scrollY ??
-        document.documentElement.scrollTop ??
-        0
-      );
-    }
-
-    lastScrollY.current = getScrollY();
-    let ticking = false;
-
-    function update() {
-      const currentY = getScrollY();
-      const scrollingDown = currentY > lastScrollY.current;
-      // 4-pixel deadband so tiny jitter (touch inertia, trackpad noise) doesn't
-      // flip state repeatedly. Only care about direction past a real threshold.
-      if (Math.abs(currentY - lastScrollY.current) > 4) {
-        setIsTransparent(scrollingDown && currentY > 80);
-      }
-      lastScrollY.current = currentY;
-      ticking = false;
-    }
-
-    function handleScroll() {
-      if (!ticking) {
-        window.requestAnimationFrame(update);
-        ticking = true;
-      }
-    }
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   return (
     <>
@@ -78,19 +36,10 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
 
       <header className="fixed inset-x-0 top-9 z-40 px-3 pt-3 md:px-6 md:pt-4">
         <div
-          // No backdrop-filter — even held constant, compositing a blurred
-          // layer during a transitioning opacity/background/border/shadow was
-          // still glitching on lower-power devices. Swapped to a solid
-          // semi-opaque cream fill (bg-cream/88) so the pill has presence
-          // without any GPU blur cost. Only cheap properties transition
-          // (opacity / transform / bg / border / shadow) and only the ones
-          // listed — never transition-all. will-change hints GPU compositing.
-          style={{ willChange: "opacity, transform" }}
-          className={`mx-auto grid h-[76px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-full px-3 transition-[opacity,transform,background-color,border-color,box-shadow] duration-500 ease-out md:h-16 md:px-5 ${
-            isTransparent
-              ? "border border-transparent bg-transparent shadow-none md:-translate-y-2 md:opacity-0"
-              : "border border-maroon/8 bg-cream/88 opacity-100 shadow-[0_18px_70px_rgba(43,38,35,0.06)] translate-y-0"
-          }`}
+          // Header stays fully visible at all times — the scroll-driven
+          // fade-out has been removed. Solid semi-opaque cream fill, no
+          // backdrop-filter, no state, no scroll listener.
+          className="mx-auto grid h-[76px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-full border border-maroon/8 bg-cream/88 px-3 shadow-[0_18px_70px_rgba(43,38,35,0.06)] md:h-16 md:px-5"
         >
           <div className="flex items-center justify-start md:hidden">
             <button
