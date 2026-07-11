@@ -64,7 +64,7 @@ Hi {{1}}, your Aarna order *{{2}}* has been delivered. 🤍
 
 We truly hope you love it. If anything isn't quite right, you have {{3}} days to request a return.
 
-We'd love to see how you style it — tag us @aarna 💛
+We'd love to see how you style it — tag us @aarna_arpithabhishek 💛
 ```
 **Footer:** `Aarna by Arpitha Abhishek`
 **Button:** URL · `View my orders` → `https://shopaarna.in/account`
