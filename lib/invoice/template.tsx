@@ -1,6 +1,5 @@
 import {
   Document,
-  Font,
   Image,
   Page,
   StyleSheet,
@@ -175,6 +174,7 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
 
         {/* ── Header ── */}
         <View style={s.header}>
+          {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image, no alt concept in PDFs */}
           <Image src={LOGO_PATH} style={s.logo} />
           <View style={s.headerRight}>
             <Text style={s.invoiceTitle}>TAX INVOICE</Text>

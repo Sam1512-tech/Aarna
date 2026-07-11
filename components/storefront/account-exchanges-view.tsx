@@ -3,8 +3,7 @@
 import { ChevronDown, Plus, Repeat, X } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { requestReturn } from "@/lib/actions/account";
-
-const EXCHANGE_REASON_PREFIX = "Exchange requested.";
+import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
 
 export interface ExchangeRow {
   id: string;

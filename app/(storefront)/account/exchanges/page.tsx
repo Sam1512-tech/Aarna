@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AccountExchangesView } from "@/components/storefront/account-exchanges-view";
 import { getMyOrders, getMyReturns } from "@/lib/actions/account";
+import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
 
 export const metadata: Metadata = {
   title: "your exchanges",
@@ -9,12 +10,6 @@ export const metadata: Metadata = {
 // Same window the backend enforces on returns / exchanges — 14 days.
 const EXCHANGE_WINDOW_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-// Reasons the user picked "size" or "changed my mind" often become exchange
-// requests. We piggyback on the existing `requestReturn` action for now, with
-// a marker prefix on the reason text so we can filter these back out here and
-// so Sam's team can see the exchange intent in the admin returns queue.
-export const EXCHANGE_REASON_PREFIX = "Exchange requested.";
 
 export default async function AccountExchangesPage() {
   const [returns, orders] = await Promise.all([

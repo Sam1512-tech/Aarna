@@ -74,7 +74,6 @@ export function CartView({ initialCart }: CartViewProps) {
         clearStoredCoupon();
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
   // Persist a removal through the server action. The server return is

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { X } from "lucide-react";
 import { StatusPill, tableClasses } from "@/components/admin/admin-primitives";
 import { adjustStock } from "@/lib/actions/admin/inventory";
@@ -29,7 +29,13 @@ export function InventoryTable({ items: initial }: InventoryTableProps) {
   const t = tableClasses();
 
   // Keep local state in sync when the parent re-renders after filter/search.
-  useEffect(() => setRows(initial), [initial]);
+  // Setting state during render (not in an effect) lets React restart the
+  // render immediately instead of painting a stale frame first.
+  const [prevInitial, setPrevInitial] = useState(initial);
+  if (prevInitial !== initial) {
+    setPrevInitial(initial);
+    setRows(initial);
+  }
 
   function handleAdjusted(variantId: string, newStock: number) {
     setRows((prev) =>

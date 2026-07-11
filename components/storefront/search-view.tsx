@@ -37,12 +37,14 @@ interface SearchViewProps {
   initialQuery?: string;
 }
 
+// Static picks only — category picks are appended from the categories prop at
+// render (dynamic-categories rule: /shop/bestsellers and /shop/new-arrivals
+// aren't real categories and 404'd).
 const QUICK_PICKS = [
   { label: "continue shopping", href: "/shop", Icon: ShoppingBag },
   { label: "recently viewed", href: "/shop", Icon: Clock },
-  { label: "best sellers", href: "/shop/bestsellers", Icon: Star },
-  { label: "new arrivals", href: "/shop/new-arrivals", Icon: Sparkles },
 ];
+const CATEGORY_ICONS = [Star, Sparkles];
 
 export function SearchView({
   categories,
@@ -191,7 +193,14 @@ export function SearchView({
             <section className="fade-rise">
               <SectionLabel>quick picks</SectionLabel>
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {QUICK_PICKS.map(({ label, href, Icon }) => (
+                {[
+                  ...QUICK_PICKS,
+                  ...categories.slice(0, 2).map((c, i) => ({
+                    label: c.name.toLowerCase(),
+                    href: `/shop/${c.slug}`,
+                    Icon: CATEGORY_ICONS[i % CATEGORY_ICONS.length],
+                  })),
+                ].map(({ label, href, Icon }) => (
                   <Link
                     key={label}
                     href={href}

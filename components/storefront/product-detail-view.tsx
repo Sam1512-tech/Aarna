@@ -233,11 +233,13 @@ export function ProductDetailView({
               <fieldset className="mt-9">
                 <legend className="mb-3 flex items-center justify-between gap-4 text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
                   <span>size</span>
+                  {/* /size-guide doesn't exist yet — the FAQ covers sizing
+                      help. Re-point here when a dedicated guide ships. */}
                   <Link
-                    href="/size-guide"
+                    href="/faq"
                     className="soft-link text-[10px] tracking-[0.18em] text-cocoa"
                   >
-                    size guide
+                    size help
                   </Link>
                 </legend>
                 <div className="flex flex-wrap gap-2">
