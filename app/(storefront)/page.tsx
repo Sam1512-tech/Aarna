@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Feather, Infinity, ShieldCheck, Sparkles } from "lucide-react";
-import { HomepageCarousel, isVideo } from "@/components/storefront/homepage-carousel";
+import { HomepageCarousel } from "@/components/storefront/homepage-carousel";
 import { ScrollRail } from "@/components/storefront/scroll-rail";
 import { getActiveBanners } from "@/lib/actions/banners";
 import { getCategories, getNewArrivals } from "@/lib/actions/products";
-import { videoPosterUrl } from "@/lib/media";
+import { isVideoUrl, videoPosterUrl } from "@/lib/media";
 import type { Product } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
@@ -51,8 +51,8 @@ export default async function HomePage() {
   }));
   // Split by media type: photos drive the hero banner under the nav, videos
   // drive the in-content carousel inside the "made to live in" section.
-  const photoBanners = carouselBanners.filter((b) => !isVideo(b.imageUrl));
-  const videoBanners = carouselBanners.filter((b) => isVideo(b.imageUrl));
+  const photoBanners = carouselBanners.filter((b) => !isVideoUrl(b.imageUrl));
+  const videoBanners = carouselBanners.filter((b) => isVideoUrl(b.imageUrl));
 
   return (
     <>

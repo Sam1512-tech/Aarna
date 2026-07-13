@@ -11,6 +11,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { isVideoUrl } from "@/lib/media";
 
 // Minimal shape — keeps the component decoupled from the Drizzle Banner type
 // and easy to mock. The server page maps DB rows into this shape.
@@ -46,15 +47,6 @@ interface HomepageCarouselProps {
 const AUTOPLAY_MS = 6000;
 const SWIPE_THRESHOLD_PX = 50;
 const TAGLINE = "Clothing made to live softly";
-
-// Video detection: extension or Cloudinary "/video/upload/" path.
-// Exported so callers can filter a banner list to videos only.
-export function isVideo(url: string): boolean {
-  return (
-    /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) ||
-    /\/video\/upload\//i.test(url)
-  );
-}
 
 export function HomepageCarousel({
   banners,
@@ -123,9 +115,9 @@ function CarouselInner({
   useEffect(() => {
     if (count <= 1 || paused) return;
     const activeBanner = banners[active];
-    const desktopIsVideo = isVideo(activeBanner.imageUrl);
+    const desktopIsVideo = isVideoUrl(activeBanner.imageUrl);
     const mobileIsVideo = activeBanner.mobileImageUrl
-      ? isVideo(activeBanner.mobileImageUrl)
+      ? isVideoUrl(activeBanner.mobileImageUrl)
       : desktopIsVideo;
     if (desktopIsVideo || mobileIsVideo) return;
     const t = window.setTimeout(goNext, AUTOPLAY_MS);
@@ -353,7 +345,7 @@ function Media({
   registerVideo: (el: HTMLVideoElement | null) => void;
   onVideoEnded: () => void;
 }) {
-  if (isVideo(src)) {
+  if (isVideoUrl(src)) {
     return (
       <video
         ref={(el) => {
