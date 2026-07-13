@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <main className="paper-grain relative flex min-h-screen items-center justify-center overflow-hidden bg-cream px-6 py-24">
-      <div className="fade-rise mx-auto flex max-w-xl flex-col items-center text-center">
+      <div className="mx-auto flex max-w-xl flex-col items-center text-center">
         <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-cocoa">
           four · oh · four
         </p>

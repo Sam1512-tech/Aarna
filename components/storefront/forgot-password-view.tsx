@@ -63,7 +63,7 @@ export function ForgotPasswordView() {
         {!sent ? (
           <form
             onSubmit={handleSubmit}
-            className="fade-rise mt-9 w-full space-y-4"
+            className="mt-9 w-full space-y-4"
             noValidate
           >
             <label className="block">
@@ -110,7 +110,7 @@ export function ForgotPasswordView() {
             ) : null}
           </form>
         ) : (
-          <div className="fade-rise mt-9 w-full">
+          <div className="mt-9 w-full">
             <Link
               href="/login"
               className="flex min-h-[56px] w-full items-center justify-center rounded-2xl border border-cocoa/24 bg-cream px-6 transition duration-700 hover:bg-cocoa/8"

@@ -140,7 +140,7 @@ export function SearchView({
 
       <div className="mx-auto max-w-7xl px-5 pt-9 md:px-6 md:pt-12">
         {isSearching ? (
-          <div key={trimmed} className="fade-rise">
+          <div key={trimmed}>
             {matchedCategories.length > 0 ? (
               <section className="mb-12">
                 <SectionLabel>categories</SectionLabel>
@@ -190,7 +190,7 @@ export function SearchView({
         ) : (
           <div className="space-y-14 md:space-y-20">
             {/* Quick Picks */}
-            <section className="fade-rise">
+            <section>
               <SectionLabel>quick picks</SectionLabel>
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
@@ -220,7 +220,7 @@ export function SearchView({
 
             {/* Recent Searches */}
             {recent.length > 0 ? (
-              <section className="fade-rise">
+              <section>
                 <div className="flex items-center justify-between gap-4">
                   <SectionLabel>recent searches</SectionLabel>
                   <button
@@ -260,7 +260,7 @@ export function SearchView({
 
             {/* Trending Searches (existing categories) */}
             {categories.length > 0 ? (
-              <section className="fade-rise">
+              <section>
                 <SectionLabel>trending searches</SectionLabel>
                 <div className="mt-5 flex flex-wrap gap-2.5">
                   {categories.map((c) => (
@@ -279,7 +279,7 @@ export function SearchView({
 
             {/* Shop by Category */}
             {categories.length > 0 ? (
-              <section className="fade-rise">
+              <section>
                 <SectionLabel>shop by category</SectionLabel>
                 <div className="mt-7 flex flex-wrap justify-center gap-5 sm:gap-6">
                   {categories.map((c) => (
@@ -300,7 +300,7 @@ export function SearchView({
 
             {/* Recommended For You */}
             {recommended.length > 0 ? (
-              <section className="fade-rise">
+              <section>
                 <SectionLabel>recommended for you</SectionLabel>
                 <div className="mt-7 flex snap-x gap-5 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {recommended.map((product) => (
@@ -438,7 +438,7 @@ function EmptyResults({
   onPick: (name: string) => void;
 }) {
   return (
-    <div className="fade-rise flex flex-col items-center px-4 py-16 text-center md:py-24">
+    <div className="flex flex-col items-center px-4 py-16 text-center md:py-24">
       <span className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-cocoa/20 text-cocoa">
         <Search className="h-6 w-6" aria-hidden="true" />
       </span>

@@ -70,7 +70,7 @@ export function ResetPasswordView() {
         {!done ? (
           <form
             onSubmit={handleSubmit}
-            className="fade-rise mt-9 w-full space-y-4"
+            className="mt-9 w-full space-y-4"
             noValidate
           >
             <PasswordField
@@ -118,7 +118,7 @@ export function ResetPasswordView() {
             ) : null}
           </form>
         ) : (
-          <div className="fade-rise mt-10 flex h-14 w-14 items-center justify-center rounded-full bg-maroon shadow-[0_18px_40px_rgba(74,31,31,0.22)]">
+          <div className="mt-10 flex h-14 w-14 items-center justify-center rounded-full bg-maroon shadow-[0_18px_40px_rgba(74,31,31,0.22)]">
             <Check className="h-6 w-6 text-cream" strokeWidth={2.4} aria-hidden="true" />
           </div>
         )}

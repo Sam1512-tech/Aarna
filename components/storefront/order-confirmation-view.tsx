@@ -29,7 +29,7 @@ export function OrderConfirmationView({
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[128px] md:px-6 md:pt-36">
       <div className="mx-auto max-w-3xl">
-        <header className="fade-rise flex flex-col items-center text-center">
+        <header className="flex flex-col items-center text-center">
           <SuccessMark />
           <p className="mt-8 text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             {stillVerifying ? "almost there" : "thank you"}
@@ -46,7 +46,7 @@ export function OrderConfirmationView({
           </p>
         </header>
 
-        <div className="fade-rise-late mt-10 rounded-[28px] border border-cocoa/12 bg-cream/85 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:mt-12 md:p-9">
+        <div className="mt-10 rounded-[28px] border border-cocoa/12 bg-cream/85 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:mt-12 md:p-9">
           <DetailRow label="order id" value={orderNumber} mono />
 
           {shipping ? (
@@ -124,11 +124,11 @@ function SuccessMark() {
     <div className="relative flex h-24 w-24 items-center justify-center">
       <span
         aria-hidden="true"
-        className="absolute inset-0 rounded-full bg-cocoa/12 animate-[ping_2.6s_cubic-bezier(0,0,0.2,1)_infinite]"
+        className="absolute inset-0 rounded-full bg-cocoa/12"
       />
       <span
         aria-hidden="true"
-        className="absolute inset-3 rounded-full bg-cocoa/15 animate-[ping_2.6s_cubic-bezier(0,0,0.2,1)_infinite] [animation-delay:700ms]"
+        className="absolute inset-3 rounded-full bg-cocoa/15"
       />
       <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-maroon shadow-[0_18px_40px_rgba(74,31,31,0.22)]">
         <Check

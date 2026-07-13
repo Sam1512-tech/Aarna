@@ -17,8 +17,6 @@ export interface ProductCardData {
 
 interface ProductCardProps {
   product: ProductCardData;
-  /** Reveal-stagger index for entrance animation (0-2 cycles). Optional. */
-  staggerIndex?: number;
 }
 
 /**
@@ -32,7 +30,7 @@ interface ProductCardProps {
  * Title and meta come from real product data. All prices go through formatINR
  * (input is paise — Aarna's source-of-truth convention).
  */
-export function ProductCard({ product, staggerIndex = 0 }: ProductCardProps) {
+export function ProductCard({ product }: ProductCardProps) {
   const onSale =
     typeof product.mrp === "number" && product.mrp > product.basePrice;
   const discountPct = onSale
@@ -42,7 +40,7 @@ export function ProductCard({ product, staggerIndex = 0 }: ProductCardProps) {
   return (
     <Link
       href={`/product/${product.slug}`}
-      className={`reveal-up reveal-stagger-${(staggerIndex % 3) + 1} group block`}
+      className="group block"
       aria-label={product.title}
     >
       <div className="relative aspect-[3/4] overflow-hidden rounded-[18px] bg-cream shadow-[0_14px_40px_rgba(43,38,35,0.06)]">

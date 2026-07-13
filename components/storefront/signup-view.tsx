@@ -81,7 +81,7 @@ export function SignupView({ nextPath }: SignupViewProps) {
           welcome to aarna — a few details to get you started.
         </p>
 
-        <div className="fade-rise mt-10 w-full space-y-6">
+        <div className="mt-10 w-full space-y-6">
           <GoogleSignInButton
             nextPath={nextPath}
             label="sign up with google"

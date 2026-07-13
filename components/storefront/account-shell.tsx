@@ -53,7 +53,7 @@ export function AccountShell({ displayName, children }: AccountShellProps) {
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[128px] md:px-6 md:pt-36">
       <div className="mx-auto max-w-7xl">
-        <header className="fade-rise border-b border-cocoa/12 pb-8">
+        <header className="border-b border-cocoa/12 pb-8">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             your account
           </p>
@@ -136,7 +136,7 @@ export function AccountShell({ displayName, children }: AccountShellProps) {
           </aside>
 
           {/* Content */}
-          <div className="fade-rise">{children}</div>
+          <div>{children}</div>
         </div>
       </div>
     </section>

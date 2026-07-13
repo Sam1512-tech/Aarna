@@ -97,7 +97,7 @@ export function PlpView({
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[128px] md:px-6 md:pt-36">
       <div className="mx-auto max-w-7xl">
-        <header className="fade-rise border-b border-cocoa/12 pb-9">
+        <header className="border-b border-cocoa/12 pb-9">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             {eyebrow}
           </p>
@@ -139,11 +139,11 @@ export function PlpView({
           </aside>
 
           {/* Grid */}
-          <div className="fade-rise">
+          <div>
             {products.length > 0 ? (
               <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-                {products.map((p, i) => (
-                  <ProductCard key={p.id} product={p} staggerIndex={i} />
+                {products.map((p) => (
+                  <ProductCard key={p.id} product={p} />
                 ))}
               </div>
             ) : (

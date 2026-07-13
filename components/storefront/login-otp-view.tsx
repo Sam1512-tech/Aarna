@@ -168,7 +168,7 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
         </p>
 
         {step === "email" ? (
-          <div className="fade-rise mt-9 w-full">
+          <div className="mt-9 w-full">
             <button
               type="button"
               onClick={signInWithGoogle}
@@ -240,7 +240,7 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
         ) : (
           <form
             onSubmit={handleVerifyOtp}
-            className="fade-rise mt-9 w-full space-y-5"
+            className="mt-9 w-full space-y-5"
             noValidate
           >
             {needsName ? (

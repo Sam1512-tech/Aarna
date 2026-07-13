@@ -101,12 +101,8 @@ export default async function ProductDetailPage({
               </Link>
             </div>
             <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-              {related.map((p, i) => (
-                <ProductCard
-                  key={p.id}
-                  product={toProductCardData(p)}
-                  staggerIndex={i}
-                />
+              {related.map((p) => (
+                <ProductCard key={p.id} product={toProductCardData(p)} />
               ))}
             </div>
           </div>

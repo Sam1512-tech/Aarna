@@ -27,7 +27,7 @@ export default function ContactPage() {
           <span className="text-charcoal/75">contact</span>
         </nav>
 
-        <header className="fade-rise mt-8 border-b border-cocoa/12 pb-10">
+        <header className="mt-8 border-b border-cocoa/12 pb-10">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             get in touch
           </p>
@@ -41,7 +41,7 @@ export default function ContactPage() {
           </p>
         </header>
 
-        <div className="fade-rise-late mt-10 grid gap-4 sm:grid-cols-2">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2">
           <a
             href={`mailto:${EMAIL}`}
             className="group/tile flex items-start gap-4 rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_10px_28px_rgba(43,38,35,0.04)] transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/25 hover:shadow-[0_18px_40px_rgba(43,38,35,0.08)]"

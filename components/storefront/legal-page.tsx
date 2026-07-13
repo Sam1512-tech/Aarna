@@ -36,7 +36,7 @@ export function LegalPage({
           <span className="text-charcoal/75">{title.toLowerCase()}</span>
         </nav>
 
-        <header className="fade-rise mt-8 border-b border-cocoa/12 pb-10">
+        <header className="mt-8 border-b border-cocoa/12 pb-10">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             {eyebrow}
           </p>
@@ -55,7 +55,7 @@ export function LegalPage({
           ) : null}
         </header>
 
-        <div className="fade-rise-late mt-10 space-y-10 pb-16">{children}</div>
+        <div className="mt-10 space-y-10 pb-16">{children}</div>
       </div>
     </section>
   );

@@ -182,7 +182,7 @@ export function ProductDetailView({
           />
 
           {/* Info */}
-          <div className="fade-rise-late md:sticky md:top-36 md:self-start">
+          <div className="md:sticky md:top-36 md:self-start">
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
               {product.category?.name.toLowerCase() ?? "wardrobe"}
             </p>
@@ -328,7 +328,7 @@ export function ProductDetailView({
                   </button>
                   <span
                     key={quantity}
-                    className="qty-pop min-w-9 text-center text-sm tabular-nums"
+                    className="min-w-9 text-center text-sm tabular-nums"
                   >
                     {quantity}
                   </span>
@@ -497,7 +497,7 @@ function Gallery({
 }) {
   if (images.length === 0) {
     return (
-      <div className="fade-rise">
+      <div>
         <div className="cloth-window aspect-[4/5] w-full rounded-[22px] shadow-[0_22px_60px_rgba(43,38,35,0.08)]" />
       </div>
     );
@@ -506,7 +506,7 @@ function Gallery({
   const active = images[Math.min(activeIdx, images.length - 1)] ?? images[0];
 
   return (
-    <div className="fade-rise md:grid md:grid-cols-[80px_1fr] md:gap-4">
+    <div className="md:grid md:grid-cols-[80px_1fr] md:gap-4">
       {/* Thumbnail strip — vertical on desktop, hidden on mobile (uses snap rail instead) */}
       {images.length > 1 ? (
         <div className="hidden h-fit flex-col gap-3 md:flex">
