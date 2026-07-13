@@ -30,9 +30,9 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
           fit on desktop. */}
       <div className="fixed inset-x-0 top-0 z-50 h-9 overflow-hidden bg-maroon text-cream">
         <div className="flex h-full items-center justify-center gap-10 whitespace-nowrap px-4 text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]">
-          <span>slow-made pieces for everyday rituals</span>
-          <span className="hidden md:inline">handcrafted in small batches</span>
-          <span className="hidden md:inline">made to live in slowly</span>
+          <span>Slow-made pieces for everyday rituals</span>
+          <span className="hidden md:inline">Handcrafted in small batches</span>
+          <span className="hidden md:inline">Made to live in slowly</span>
         </div>
       </div>
 
@@ -88,7 +88,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
                 href="/shop"
                 className="soft-link py-2 transition duration-700 hover:text-cocoa"
               >
-                wardrobe
+                Wardrobe
               </Link>
               <div className="pointer-events-none absolute left-1/2 top-full w-64 -translate-x-1/2 translate-y-3 border border-maroon/10 bg-cream p-3 opacity-0 shadow-[0_24px_70px_rgba(43,38,35,0.12)] transition duration-700 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100">
                 {categories.length > 0 ? (
@@ -103,7 +103,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
                   ))
                 ) : (
                   <span className="block px-4 py-3 text-[11px] font-medium uppercase tracking-[0.2em] text-charcoal/42">
-                    wardrobe opening soon
+                    Wardrobe opening soon
                   </span>
                 )}
               </div>
@@ -184,7 +184,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
                 onClick={() => setMenuOpen(false)}
                 className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
               >
-                {category.name.toLowerCase()}
+                {category.name}
               </Link>
             ))}
             {/* /about link removed for launch — the page hasn't been designed
@@ -194,12 +194,12 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
               onClick={() => setMenuOpen(false)}
               className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
             >
-              your account
+              Your account
             </Link>
           </nav>
 
           <div className="mt-auto border-t border-maroon/14 pt-6 text-base leading-7 text-cocoa">
-            <p>made to live in, shared softly, worn your way.</p>
+            <p>Made to live in, shared softly, worn your way.</p>
           </div>
         </div>
       </div>

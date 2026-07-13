@@ -4,7 +4,7 @@ import { LegalPage } from "@/components/storefront/legal-page";
 import { FaqItem, FaqList } from "@/components/storefront/faq-list";
 
 export const metadata: Metadata = {
-  title: "frequently asked questions",
+  title: "Frequently asked questions",
   description:
     "Answers to common questions about Aarna — sizing, fabric care, shipping across India, returns, and payment.",
 };
@@ -43,7 +43,7 @@ export default function FaqPage() {
             you receive with your order. As a rule: gentle washes, dry in
             shade, iron on low. Our{" "}
             <Link href="/fabric-care" className="soft-link text-cocoa">
-              fabric care guide
+              Fabric care guide
             </Link>{" "}
             walks through each fabric family in detail.
           </p>
@@ -71,7 +71,7 @@ export default function FaqPage() {
           <p>
             All Indian cards, UPI, netbanking, and popular wallets — processed
             securely through Razorpay. We do{" "}
-            <span className="font-medium text-maroon">not</span> offer cash on
+            <span className="font-medium text-maroon">Not</span> offer cash on
             delivery at this time.
           </p>
         </FaqItem>
@@ -96,7 +96,7 @@ export default function FaqPage() {
             with a tracking link. You can also see the current status of any
             order in{" "}
             <Link href="/account/orders" className="soft-link text-cocoa">
-              your account
+              Your account
             </Link>
             .
           </p>
@@ -115,7 +115,7 @@ export default function FaqPage() {
           <p>
             The fastest way is our{" "}
             <Link href="/contact" className="soft-link text-cocoa">
-              contact page
+              Contact page
             </Link>{" "}
             — we usually reply within a business day. For anything urgent
             about an existing order, quote your order number so we can find it

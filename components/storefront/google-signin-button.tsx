@@ -21,7 +21,7 @@ interface GoogleSignInButtonProps {
  */
 export function GoogleSignInButton({
   nextPath,
-  label = "continue with google",
+  label = "Continue with Google",
   disabled = false,
   onError,
 }: GoogleSignInButtonProps) {
@@ -38,13 +38,13 @@ export function GoogleSignInButton({
         },
       });
       if (error) {
-        onError?.("couldn't open google sign-in. please try again.");
+        onError?.("Couldn't open google sign-in. Please try again.");
         setPending(false);
       }
       // On success supabase performs a top-level navigation to Google — no
       // need to reset pending on the happy path.
     } catch {
-      onError?.("couldn't open google sign-in. please try again.");
+      onError?.("Couldn't open google sign-in. Please try again.");
       setPending(false);
     }
   }

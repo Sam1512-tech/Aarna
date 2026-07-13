@@ -21,16 +21,16 @@ const FREE_SHIPPING_THRESHOLD = 299900; // ₹2,999 (matches backend)
 const FORM_DRAFT_KEY = "aarna-checkout-draft";
 
 const shippingSchema = z.object({
-  fullName: z.string().trim().min(2, "please enter your full name").max(100),
+  fullName: z.string().trim().min(2, "Please enter your full name").max(100),
   phone: z
     .string()
     .trim()
     .regex(/^\d{10}$/, "10-digit phone number"),
-  email: z.string().trim().email("valid email address required"),
-  line1: z.string().trim().min(3, "address line 1 required").max(200),
+  email: z.string().trim().email("Valid email address required"),
+  line1: z.string().trim().min(3, "Address line 1 required").max(200),
   line2: z.string().trim().max(200).optional().or(z.literal("")),
-  city: z.string().trim().min(2, "city required").max(100),
-  state: z.string().trim().min(2, "state required").max(60),
+  city: z.string().trim().min(2, "City required").max(100),
+  state: z.string().trim().min(2, "State required").max(60),
   pincode: z.string().trim().regex(/^\d{6}$/, "6-digit PIN code"),
   whatsappOptIn: z.boolean(),
 });
@@ -211,7 +211,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
       const Razorpay = window.Razorpay;
       if (!Razorpay) {
         setSubmitError(
-          "payment couldn't open. please refresh and try again.",
+          "Payment couldn't open. Please refresh and try again.",
         );
         setSubmitting(false);
         return;
@@ -281,8 +281,8 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
       });
     } catch (err) {
       const message =
-        actionErrorMessage(err, "something went wrong. please try again.");
-      setSubmitError(message.toLowerCase());
+        actionErrorMessage(err, "Something went wrong. Please try again.");
+      setSubmitError(message);
       setSubmitting(false);
     }
   }
@@ -294,10 +294,10 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
 
         <header className="border-b border-maroon/10 pb-8 pt-8">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            checkout
+            Checkout
           </p>
-          <h1 className="mt-4 font-display text-[44px] lowercase leading-[1.05] text-maroon md:text-6xl">
-            shipping &amp; payment
+          <h1 className="mt-4 font-display text-[44px] leading-[1.05] text-maroon md:text-6xl">
+            Shipping &amp; payment
           </h1>
         </header>
 
@@ -309,16 +309,16 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
           {/* Left: shipping form */}
           <div className="space-y-10">
             <fieldset className="space-y-5">
-              <Legend>contact</Legend>
+              <Legend>Contact</Legend>
               <Field
-                label="email address"
+                label="Email address"
                 error={errors.email?.message}
                 {...register("email")}
                 type="email"
                 autoComplete="email"
               />
               <Field
-                label="phone number"
+                label="Phone number"
                 hint="10-digit indian mobile"
                 error={errors.phone?.message}
                 {...register("phone")}
@@ -332,42 +332,42 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                   {...register("whatsappOptIn")}
                   className="mt-1 h-4 w-4 cursor-pointer accent-cocoa"
                 />
-                <span className="text-sm leading-6 lowercase text-charcoal/72">
-                  send order updates over whatsapp
+                <span className="text-sm leading-6 text-charcoal/72">
+                  Send order updates over WhatsApp
                 </span>
               </label>
             </fieldset>
 
             <fieldset className="space-y-5">
-              <Legend>shipping address</Legend>
+              <Legend>Shipping address</Legend>
               <Field
-                label="full name"
+                label="Full name"
                 error={errors.fullName?.message}
                 {...register("fullName")}
                 autoComplete="name"
               />
               <Field
-                label="address line 1"
+                label="Address line 1"
                 error={errors.line1?.message}
                 {...register("line1")}
                 autoComplete="address-line1"
               />
               <Field
-                label="address line 2"
-                hint="apartment, suite, landmark (optional)"
+                label="Address line 2"
+                hint="Apartment, suite, landmark (optional)"
                 error={errors.line2?.message}
                 {...register("line2")}
                 autoComplete="address-line2"
               />
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field
-                  label="city"
+                  label="City"
                   error={errors.city?.message}
                   {...register("city")}
                   autoComplete="address-level2"
                 />
                 <Field
-                  label="state"
+                  label="State"
                   error={errors.state?.message}
                   {...register("state")}
                   autoComplete="address-level1"
@@ -384,7 +384,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                 />
                 {pincodeStatus ? (
                   <p
-                    className={`mt-2 text-xs lowercase tracking-wide ${
+                    className={`mt-2 text-xs tracking-wide ${
                       pincodeStatus.checking
                         ? "text-charcoal/55"
                         : pincodeStatus.serviceable
@@ -393,11 +393,11 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                     }`}
                   >
                     {pincodeStatus.checking
-                      ? "checking serviceability…"
+                      ? "Checking serviceability…"
                       : pincodeStatus.serviceable
                         ? pincodeStatus.etaDays
                           ? `delivers in ~${pincodeStatus.etaDays} days`
-                          : "we deliver to this pincode"
+                          : "We deliver to this pincode"
                         : "sorry, we don't deliver here yet"}
                   </p>
                 ) : null}
@@ -421,7 +421,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                 <span className="flex items-center gap-3 text-[12px] font-medium uppercase tracking-[0.24em] text-cream">
                   <Lock className="h-4 w-4" aria-hidden="true" />
                   {submitting
-                    ? "opening secure payment…"
+                    ? "Opening secure payment…"
                     : `continue to secure payment · ${formatINR(previewTotal)}`}
                   {!submitting ? (
                     <ArrowRight
@@ -432,12 +432,12 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                 </span>
               </button>
               {submitError ? (
-                <p className="text-center text-xs lowercase tracking-wide text-burnt-red">
+                <p className="text-center text-xs tracking-wide text-burnt-red">
                   {submitError}
                 </p>
               ) : null}
-              <p className="text-center text-xs lowercase leading-6 text-charcoal/50">
-                you&rsquo;ll be securely redirected to razorpay to complete
+              <p className="text-center text-xs leading-6 text-charcoal/50">
+                You&rsquo;ll be securely redirected to Razorpay to complete
                 your payment.
               </p>
             </div>
@@ -448,10 +448,10 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
           {/* Right: sticky order summary */}
           <aside className="lg:sticky lg:top-36 lg:self-start">
             <div className="rounded-[28px] border border-cocoa/12 bg-cream/85 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:p-8">
-              <h2 className="font-display text-3xl lowercase leading-tight text-maroon">
-                order summary
+              <h2 className="font-display text-3xl leading-tight text-maroon">
+                Order summary
               </h2>
-              <p className="mt-1 text-sm lowercase text-charcoal/55">
+              <p className="mt-1 text-sm text-charcoal/55">
                 {cart.itemCount}{" "}
                 {cart.itemCount === 1 ? "piece" : "pieces"} held for you
               </p>
@@ -475,15 +475,15 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                     </div>
                     <div className="flex flex-1 flex-col justify-between text-sm">
                       <div>
-                        <p className="font-display text-base lowercase leading-snug text-maroon">
-                          {line.productTitle.toLowerCase()}
+                        <p className="font-display text-base leading-snug text-maroon">
+                          {line.productTitle}
                         </p>
                         {line.variantLabel ? (
-                          <p className="mt-0.5 text-xs lowercase text-charcoal/55">
-                            {line.variantLabel.toLowerCase()} · qty {line.quantity}
+                          <p className="mt-0.5 text-xs text-charcoal/55">
+                            {line.variantLabel} · qty {line.quantity}
                           </p>
                         ) : (
-                          <p className="mt-0.5 text-xs lowercase text-charcoal/55">
+                          <p className="mt-0.5 text-xs text-charcoal/55">
                             qty {line.quantity}
                           </p>
                         )}
@@ -497,7 +497,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
               </ul>
 
               <dl className="mt-6 space-y-3 border-t border-maroon/10 pt-6 text-sm text-charcoal/70">
-                <Row label="subtotal" value={formatINR(cart.subtotal)} />
+                <Row label="Subtotal" value={formatINR(cart.subtotal)} />
                 {discount > 0 ? (
                   <Row
                     label={`discount${couponCode ? ` (${couponCode})` : ""}`}
@@ -505,31 +505,31 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                   />
                 ) : null}
                 <Row
-                  label="shipping"
+                  label="Shipping"
                   value={
                     estimatedShipping === 0
                       ? "free"
                       : formatINR(estimatedShipping)
                   }
                 />
-                <Row label="taxes" value="inclusive" muted />
+                <Row label="Taxes" value="Inclusive" muted />
                 {remainingForFreeShipping > 0 ? (
-                  <p className="pt-1 text-xs lowercase leading-5 text-cocoa/85">
-                    add {formatINR(remainingForFreeShipping)} more for free
+                  <p className="pt-1 text-xs leading-5 text-cocoa/85">
+                    Add {formatINR(remainingForFreeShipping)} more for free
                     shipping
                   </p>
                 ) : (
-                  <p className="pt-1 text-xs lowercase leading-5 text-cocoa">
-                    you&rsquo;ve qualified for free shipping
+                  <p className="pt-1 text-xs leading-5 text-cocoa">
+                    You&rsquo;ve qualified for free shipping
                   </p>
                 )}
               </dl>
 
               <div className="mt-5 flex items-baseline justify-between border-t border-maroon/10 pt-5">
                 <span className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-                  total
+                  Total
                 </span>
-                <span className="font-display text-3xl lowercase text-maroon">
+                <span className="font-display text-3xl text-maroon">
                   {formatINR(previewTotal)}
                 </span>
               </div>
@@ -571,12 +571,12 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
         }`}
       />
       {hint && !error ? (
-        <span className="mt-1.5 block text-xs lowercase text-charcoal/50">
+        <span className="mt-1.5 block text-xs text-charcoal/50">
           {hint}
         </span>
       ) : null}
       {error ? (
-        <span className="mt-1.5 block text-xs lowercase text-burnt-red">
+        <span className="mt-1.5 block text-xs text-burnt-red">
           {error}
         </span>
       ) : null}
@@ -595,8 +595,8 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <dt className="lowercase">{label}</dt>
-      <dd className={muted ? "text-xs lowercase text-charcoal/50" : "text-charcoal"}>
+      <dt>{label}</dt>
+      <dd className={muted ? "text-xs text-charcoal/50" : "text-charcoal"}>
         {value}
       </dd>
     </div>
@@ -609,11 +609,11 @@ function ProgressStepper({
   active: "cart" | "login" | "shipping" | "payment" | "confirmation";
 }) {
   const steps: Array<{ id: typeof active; label: string }> = [
-    { id: "cart", label: "cart" },
-    { id: "login", label: "login" },
-    { id: "shipping", label: "shipping" },
-    { id: "payment", label: "payment" },
-    { id: "confirmation", label: "confirmation" },
+    { id: "cart", label: "Cart" },
+    { id: "login", label: "Login" },
+    { id: "shipping", label: "Shipping" },
+    { id: "payment", label: "Payment" },
+    { id: "confirmation", label: "Confirmation" },
   ];
   const activeIdx = steps.findIndex((s) => s.id === active);
   return (
@@ -666,7 +666,7 @@ function TrustStrip() {
   const items = [
     { Icon: ShieldCheck, label: "SSL encrypted checkout" },
     { Icon: Lock, label: "100% secure payments" },
-    { Icon: Truck, label: "fast & reliable shipping" },
+    { Icon: Truck, label: "Fast & reliable shipping" },
   ];
   return (
     <div className="grid gap-3 rounded-2xl border border-cocoa/12 bg-cream/60 px-5 py-4 text-[11px] uppercase tracking-[0.16em] text-charcoal/65 sm:grid-cols-3">
@@ -682,22 +682,22 @@ function TrustStrip() {
 
 function CheckoutFooter() {
   const links = [
-    { href: "/return-policy", label: "return policy" },
-    { href: "/shipping-policy", label: "shipping policy" },
-    { href: "/privacy-policy", label: "privacy policy" },
-    { href: "/terms", label: "terms & conditions" },
+    { href: "/return-policy", label: "Return policy" },
+    { href: "/shipping-policy", label: "Shipping policy" },
+    { href: "/privacy-policy", label: "Privacy policy" },
+    { href: "/terms", label: "Terms & conditions" },
   ];
   return (
     <div className="border-t border-cocoa/14 pt-6 text-center">
-      <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs lowercase text-charcoal/55">
+      <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-charcoal/55">
         {links.map((l) => (
           <Link key={l.href} href={l.href} className="soft-link">
             {l.label}
           </Link>
         ))}
       </div>
-      <p className="mt-4 text-xs lowercase text-charcoal/50">
-        need help with your order? our support team is here to assist you.
+      <p className="mt-4 text-xs text-charcoal/50">
+        Need help with your order? Our support team is here to assist you.
       </p>
     </div>
   );

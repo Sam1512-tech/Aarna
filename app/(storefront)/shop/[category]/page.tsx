@@ -28,10 +28,10 @@ export async function generateMetadata({
   try {
     const categories = await getCategories();
     const cat = categories.find((c) => c.slug === slug);
-    if (!cat) return { title: "category not found" };
+    if (!cat) return { title: "Category not found" };
     return categoryMetadata(cat);
   } catch {
-    return { title: "shop" };
+    return { title: "Shop" };
   }
 }
 
@@ -69,7 +69,7 @@ export default async function ShopCategoryPage({
   return (
     <PlpView
       eyebrow="the wardrobe"
-      title={category.name.toLowerCase()}
+      title={category.name}
       products={list.items.map((p) => toProductCardData(p))}
       total={list.total}
       page={list.page}

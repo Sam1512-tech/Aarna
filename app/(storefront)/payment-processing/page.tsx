@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { PaymentProcessingView } from "@/components/storefront/payment-processing-view";
 
 export const metadata: Metadata = {
-  title: "processing your payment",
+  title: "Processing your payment",
   robots: { index: false, follow: false },
 };
 

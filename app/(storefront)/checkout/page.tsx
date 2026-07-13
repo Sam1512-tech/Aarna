@@ -6,7 +6,7 @@ import { getCart } from "@/lib/actions/cart";
 import { getCurrentCustomer } from "@/lib/actions/auth";
 
 export const metadata: Metadata = {
-  title: "checkout",
+  title: "Checkout",
 };
 
 export default async function CheckoutPage() {

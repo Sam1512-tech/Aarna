@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronRight, Mail, Phone } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "contact",
+  title: "Contact",
   description:
     "Reach the Aarna team — email us or call for questions about orders, sizing, or anything else.",
 };
@@ -21,18 +21,18 @@ export default function ContactPage() {
           className="flex items-center gap-1 text-[11px] uppercase tracking-[0.18em] text-charcoal/55"
         >
           <Link href="/" className="soft-link hover:text-cocoa">
-            home
+            Home
           </Link>
           <ChevronRight className="h-3 w-3 opacity-60" aria-hidden="true" />
-          <span className="text-charcoal/75">contact</span>
+          <span className="text-charcoal/75">Contact</span>
         </nav>
 
         <header className="mt-8 border-b border-cocoa/12 pb-10">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            get in touch
+            Get in touch
           </p>
-          <h1 className="mt-4 font-display text-[40px] lowercase leading-[1.04] text-maroon md:text-6xl">
-            we&rsquo;re here to help.
+          <h1 className="mt-4 font-display text-[40px] leading-[1.04] text-maroon md:text-6xl">
+            We&rsquo;re here to help.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-8 text-charcoal/65">
             Questions about an order, sizing, fabric care, or anything else? Our
@@ -51,7 +51,7 @@ export default function ContactPage() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                email
+                Email
               </p>
               <p className="mt-1 break-all text-base text-charcoal/85 group-hover/tile:text-cocoa">
                 {EMAIL}
@@ -68,7 +68,7 @@ export default function ContactPage() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                phone
+                Phone
               </p>
               <p className="mt-1 text-base text-charcoal/85 group-hover/tile:text-cocoa">
                 {PHONE_DISPLAY}
@@ -77,8 +77,8 @@ export default function ContactPage() {
           </a>
         </div>
 
-        <p className="mt-12 text-center text-xs lowercase leading-6 text-charcoal/50">
-          for order-specific questions, sharing your order number helps us
+        <p className="mt-12 text-center text-xs leading-6 text-charcoal/50">
+          For order-specific questions, sharing your order number helps us
           respond faster.
         </p>
       </div>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LegalList, LegalPage } from "@/components/storefront/legal-page";
 
 export const metadata: Metadata = {
-  title: "fabric care guide",
+  title: "Fabric care guide",
   description:
     "How to keep your Aarna pieces feeling and looking their best — washing, drying, and everyday care.",
 };

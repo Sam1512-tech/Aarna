@@ -47,9 +47,9 @@ export function PaymentProcessingView({
         <PaymentPulse />
 
         <p className="mt-10 text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-          please wait
+          Please wait
         </p>
-        <h1 className="mt-4 font-display text-[40px] lowercase leading-[1.05] text-maroon md:text-6xl">
+        <h1 className="mt-4 font-display text-[40px] leading-[1.05] text-maroon md:text-6xl">
           processing your payment…
         </h1>
         <p className="mt-5 max-w-md text-base leading-7 text-charcoal/60">
@@ -58,13 +58,13 @@ export function PaymentProcessingView({
         </p>
 
         <div className="mt-8 rounded-full border border-cocoa/18 bg-cream/70 px-5 py-2 text-[11px] uppercase tracking-[0.18em] text-cocoa">
-          order&nbsp;·&nbsp;
+          Order&nbsp;·&nbsp;
           <span className="text-charcoal/75">{orderNumber}</span>
         </div>
 
-        <div className="mt-8 inline-flex items-center gap-2 text-xs lowercase text-charcoal/55">
+        <div className="mt-8 inline-flex items-center gap-2 text-xs text-charcoal/55">
           <ShieldCheck className="h-3.5 w-3.5 text-cocoa" aria-hidden="true" />
-          secure verification in progress · please don&rsquo;t refresh
+          Secure verification in progress · please don&rsquo;t refresh
         </div>
       </div>
     </section>

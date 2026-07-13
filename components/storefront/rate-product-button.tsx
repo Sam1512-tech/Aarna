@@ -26,7 +26,7 @@ export function RateProductButton({
         onClick={() => setOpen(true)}
         className="soft-link shrink-0 text-[11px] font-bold uppercase tracking-[0.16em] text-cocoa"
       >
-        {reviewed ? "edit review" : "rate this"}
+        {reviewed ? "Edit review" : "Rate this"}
       </button>
       {open ? (
         <ReviewModal
@@ -79,7 +79,7 @@ function ReviewModal({
         onSubmitted({ rating, body: trimmedBody || null });
       } catch (err) {
         setError(
-          actionErrorMessage(err, "couldn't submit review").toLowerCase(),
+          actionErrorMessage(err, "Couldn't submit review"),
         );
       }
     });
@@ -102,8 +102,8 @@ function ReviewModal({
         className="relative z-10 w-full max-w-lg rounded-t-3xl bg-cream p-6 shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-3xl md:p-8"
       >
         <div className="flex items-start justify-between">
-          <h2 className="font-display text-3xl lowercase text-maroon">
-            {existingReview ? "edit your review" : "rate this piece"}
+          <h2 className="font-display text-3xl text-maroon">
+            {existingReview ? "Edit your review" : "Rate this piece"}
           </h2>
           <button
             type="button"
@@ -114,14 +114,14 @@ function ReviewModal({
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <p className="mt-1 truncate text-sm lowercase text-charcoal/60">
-          {productTitle.toLowerCase()}
+        <p className="mt-1 truncate text-sm text-charcoal/60">
+          {productTitle}
         </p>
 
         <div className="mt-5 space-y-4">
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-              your rating
+              Your rating
             </span>
             <div className="mt-2 flex gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
@@ -147,20 +147,20 @@ function ReviewModal({
 
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-              tell us more (optional)
+              Tell us more (optional)
             </span>
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={4}
-              placeholder="how did it fit, feel, wear?"
+              placeholder="How did it fit, feel, wear?"
               className="mt-2 block w-full resize-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 text-sm leading-6 text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
             />
           </label>
         </div>
 
         {error ? (
-          <p className="mt-3 text-xs lowercase text-burnt-red">{error}</p>
+          <p className="mt-3 text-xs text-burnt-red">{error}</p>
         ) : null}
 
         <div className="mt-6 flex gap-3">
@@ -169,7 +169,7 @@ function ReviewModal({
             onClick={onCancel}
             className="flex-1 rounded-2xl border border-cocoa/24 bg-cream py-3 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa"
           >
-            cancel
+            Cancel
           </button>
           <button
             type="submit"
@@ -179,8 +179,8 @@ function ReviewModal({
             {pending
               ? "submitting…"
               : existingReview
-                ? "update review"
-                : "submit review"}
+                ? "Update review"
+                : "Submit review"}
           </button>
         </div>
       </form>
