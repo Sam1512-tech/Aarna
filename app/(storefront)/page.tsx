@@ -62,7 +62,7 @@ export default async function HomePage() {
             flush
             inlineClassName="aspect-[4/5]"
           />
-          <div className="reveal-up px-5 pb-14 pt-12 text-center">
+          <div className="px-5 pb-14 pt-12 text-center">
             <h1 className="font-display text-[52px] lowercase leading-[0.98] text-maroon">
               clothing made to live softly
             </h1>
@@ -75,7 +75,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="reveal-up bg-cocoa/10 px-5 py-20">
+        <section className="bg-cocoa/10 px-5 py-20">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             wardrobe paths
           </p>
@@ -86,13 +86,13 @@ export default async function HomePage() {
                   { name: "wardrobe", slug: "shop" },
                   { name: "slow essentials", slug: "shop" },
                 ]
-            ).map((category, index) => (
+            ).map((category) => (
               <Link
                 key={category.slug}
                 href={
                   category.slug === "shop" ? "/shop" : `/shop/${category.slug}`
                 }
-                className={`reveal-up reveal-stagger-${(index % 3) + 1} group block`}
+                className="group block"
               >
                 <div className="cloth-window aspect-[3/4] rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]" />
                 <p className="mt-3 font-display text-2xl lowercase leading-tight text-maroon">
@@ -103,7 +103,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="reveal-up px-5 py-24">
+        <section className="px-5 py-24">
           <HomepageCarousel
             banners={videoBanners}
             variant="inline"
@@ -114,7 +114,7 @@ export default async function HomePage() {
           </h2>
         </section>
 
-        <section className="reveal-up bg-cream px-5 py-24 text-center">
+        <section className="bg-cream px-5 py-24 text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             versatility
           </p>
@@ -137,7 +137,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="reveal-up bg-cocoa/10 px-5 py-20">
+        <section className="bg-cocoa/10 px-5 py-20">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             featured collection
           </p>
@@ -149,7 +149,7 @@ export default async function HomePage() {
                 <Link
                   key={product?.id ?? index}
                   href={product ? `/products/${product.slug}` : "/shop"}
-                  className="reveal-up w-[250px] shrink-0 snap-center"
+                  className="w-[250px] shrink-0 snap-center"
                 >
                   <div className="cloth-window aspect-[3/4] rounded-[22px]" />
                   <div className="mt-4">
@@ -181,7 +181,7 @@ export default async function HomePage() {
           flush
           inlineClassName="aspect-[12/5]"
         />
-        <div className="fade-rise mx-auto max-w-3xl px-6 pb-20 pt-16 text-center">
+        <div className="mx-auto max-w-3xl px-6 pb-20 pt-16 text-center">
           <h1 className="font-display text-[64px] lowercase leading-[1.02] text-maroon md:text-[80px]">
             clothing made to live softly
           </h1>
@@ -194,7 +194,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="reveal-up bg-cream px-6 py-20 md:py-28">
+      <section className="bg-cream px-6 py-20 md:py-28">
         <div className="mx-auto max-w-7xl">
           <HomepageCarousel
             banners={videoBanners}
@@ -207,7 +207,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="reveal-up bg-cream px-6 py-24 md:py-32">
+      <section className="bg-cream px-6 py-24 md:py-32">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             versatility
@@ -232,7 +232,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="reveal-up bg-cream px-6 py-16 md:py-24">
+      <section className="bg-cream px-6 py-16 md:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
@@ -257,7 +257,7 @@ export default async function HomePage() {
                 <Link
                   key={category.slug}
                   href={`/shop/${category.slug}`}
-                  className="reveal-up group block"
+                  className="group block"
                 >
                   <div className="cloth-window aspect-[4/5] shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]" />
                   <p className="mt-4 font-display text-3xl lowercase leading-tight text-maroon">
@@ -277,7 +277,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="reveal-up bg-cocoa/10 px-6 py-16 md:py-24">
+      <section className="bg-cocoa/10 px-6 py-16 md:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
@@ -297,7 +297,7 @@ export default async function HomePage() {
                   <Link
                     key={product.id}
                     href={`/products/${product.slug}`}
-                    className="reveal-up group block"
+                    className="group block"
                   >
                     <div className="cloth-window aspect-[3/4] transition duration-1000 group-hover:scale-[1.01]" />
                     <div className="mt-4 space-y-1 text-base leading-6 text-charcoal/66">
@@ -317,7 +317,7 @@ export default async function HomePage() {
           ) : (
             <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
               {[0, 1, 2, 3].map((slot) => (
-                <div key={slot} className={`reveal-up reveal-stagger-${(slot % 3) + 1}`}>
+                <div key={slot}>
                   <div className="cloth-window aspect-[3/4]" />
                   <p className="mt-4 text-sm lowercase leading-6 text-charcoal/58">
                     a soft arrival is being prepared

@@ -25,12 +25,14 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
 
   return (
     <>
+      {/* Static announcement strip — the looping marquee animation was removed
+          with the rest of the site motion. One message on mobile, all three
+          fit on desktop. */}
       <div className="fixed inset-x-0 top-0 z-50 h-9 overflow-hidden bg-maroon text-cream">
-        <div className="flex h-full w-max animate-[mobile-marquee_28s_linear_infinite] items-center gap-10 whitespace-nowrap px-4 text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]">
+        <div className="flex h-full items-center justify-center gap-10 whitespace-nowrap px-4 text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]">
           <span>slow-made pieces for everyday rituals</span>
-          <span>handcrafted in small batches</span>
-          <span>made to live in slowly</span>
-          <span>slow-made pieces for everyday rituals</span>
+          <span className="hidden md:inline">handcrafted in small batches</span>
+          <span className="hidden md:inline">made to live in slowly</span>
         </div>
       </div>
 

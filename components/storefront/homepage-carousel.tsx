@@ -219,7 +219,7 @@ function CarouselInner({
               className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-charcoal/55 via-charcoal/10 to-transparent"
             />
             <div className="pointer-events-none absolute inset-0 z-20 flex items-end px-5 pb-16 md:items-center md:px-12 md:pb-0">
-              <div className="pointer-events-auto fade-rise max-w-2xl">
+              <div className="pointer-events-auto max-w-2xl">
                 <h1 className="font-display text-[40px] lowercase leading-[0.98] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.45)] md:text-[64px] lg:text-[80px]">
                   {TAGLINE}
                 </h1>
@@ -413,7 +413,7 @@ function CarouselEmpty({
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-charcoal/40 via-charcoal/5 to-transparent"
         />
         <div className="absolute inset-0 flex items-end px-5 pb-16 md:items-center md:px-12 md:pb-0">
-          <div className="fade-rise max-w-2xl">
+          <div className="max-w-2xl">
             <h1 className="font-display text-[40px] lowercase leading-[0.98] text-maroon md:text-[64px] lg:text-[80px]">
               {TAGLINE}
             </h1>

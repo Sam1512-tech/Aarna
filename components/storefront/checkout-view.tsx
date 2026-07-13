@@ -293,7 +293,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
       <div className="mx-auto max-w-7xl">
         <ProgressStepper active="shipping" />
 
-        <header className="fade-rise border-b border-maroon/10 pb-8 pt-8">
+        <header className="border-b border-maroon/10 pb-8 pt-8">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             checkout
           </p>
@@ -308,7 +308,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
           noValidate
         >
           {/* Left: shipping form */}
-          <div className="fade-rise space-y-10">
+          <div className="space-y-10">
             <fieldset className="space-y-5">
               <Legend>contact</Legend>
               <Field
@@ -447,7 +447,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
           </div>
 
           {/* Right: sticky order summary */}
-          <aside className="fade-rise-late lg:sticky lg:top-36 lg:self-start">
+          <aside className="lg:sticky lg:top-36 lg:self-start">
             <div className="rounded-[28px] border border-cocoa/12 bg-cream/85 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:p-8">
               <h2 className="font-display text-3xl lowercase leading-tight text-maroon">
                 order summary

@@ -43,7 +43,7 @@ export function PaymentProcessingView({
       aria-live="polite"
       aria-busy="true"
     >
-      <div className="fade-rise flex max-w-xl flex-col items-center">
+      <div className="flex max-w-xl flex-col items-center">
         <PaymentPulse />
 
         <p className="mt-10 text-sm font-bold uppercase tracking-[0.24em] text-cocoa">

@@ -175,7 +175,7 @@ export function CartView({ initialCart }: CartViewProps) {
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[132px] md:px-6 md:pb-32 md:pt-36">
       <div className="mx-auto max-w-7xl">
-        <header className="fade-rise border-b border-maroon/12 pb-8">
+        <header className="border-b border-maroon/12 pb-8">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             your bag
           </p>
@@ -189,7 +189,7 @@ export function CartView({ initialCart }: CartViewProps) {
 
         <div className="grid gap-10 pt-12 lg:grid-cols-[1.55fr_0.9fr] lg:gap-20 md:pt-14">
           {/* Items */}
-          <div className="fade-rise">
+          <div>
             <ul>
               {cart.lines.map((line) => {
                 const isLeaving = removing.has(line.variantId);
@@ -230,7 +230,7 @@ export function CartView({ initialCart }: CartViewProps) {
           </div>
 
           {/* Summary */}
-          <aside className="fade-rise-late lg:sticky lg:top-36 lg:self-start">
+          <aside className="lg:sticky lg:top-36 lg:self-start">
             <div className="rounded-[28px] border border-cocoa/12 bg-cream/80 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:p-8">
               <h2 className="font-display text-3xl lowercase leading-tight text-maroon">
                 order summary
@@ -408,7 +408,7 @@ function CartItemCard({
             <div className="text-right">
               <p
                 key={line.quantity}
-                className="qty-pop text-lg text-charcoal"
+                className="text-lg text-charcoal"
               >
                 {formatINR(line.unitPrice * line.quantity)}
               </p>
@@ -471,7 +471,7 @@ function QtyStepper({
       </button>
       <span
         key={quantity}
-        className="qty-pop min-w-8 text-center text-sm tabular-nums"
+        className="min-w-8 text-center text-sm tabular-nums"
       >
         {quantity}
       </span>
@@ -520,7 +520,7 @@ function SummaryRow({
 function EmptyBag() {
   return (
     <section className="paper-grain flex min-h-screen flex-col items-center bg-cream px-5 pb-24 pt-[150px] text-center md:pt-48">
-      <div className="fade-rise flex max-w-md flex-col items-center">
+      <div className="flex max-w-md flex-col items-center">
         <BagIllustration />
         <p className="mt-9 text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
           your bag
@@ -554,7 +554,7 @@ function BagIllustration() {
         viewBox="0 0 120 120"
         role="img"
         aria-label="An empty shopping bag"
-        className="fade-rise relative h-32 w-32 text-cocoa/85 md:h-36 md:w-36"
+        className="relative h-32 w-32 text-cocoa/85 md:h-36 md:w-36"
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"

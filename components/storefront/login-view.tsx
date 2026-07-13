@@ -100,7 +100,7 @@ export function LoginView({ nextPath }: LoginViewProps) {
           welcome back — sign in the way that suits you.
         </p>
 
-        <div className="fade-rise mt-10 w-full space-y-6">
+        <div className="mt-10 w-full space-y-6">
           <GoogleSignInButton nextPath={nextPath} onError={setError} />
 
           <Divider label="or continue with email" />

@@ -26,7 +26,7 @@ export default function Loading() {
         aria-hidden="true"
       />
 
-      <div className="fade-rise relative flex flex-col items-center text-center">
+      <div className="relative flex flex-col items-center text-center">
         {/*
           Rotating hairline refresh mark. A ¾ hairline arc on a very faint
           full ring — spins on a slow, linear loop so it reads as calm and
