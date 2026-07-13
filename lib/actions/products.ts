@@ -1,7 +1,8 @@
 "use server";
 
-import { and, asc, desc, eq, gte, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { isVideoUrl } from "@/lib/media";
 import type {
   Category,
   Collection,
@@ -30,11 +31,48 @@ export interface ProductFilters {
   pageSize?: number;
 }
 
+export interface CardImage {
+  url: string;
+  altText: string | null;
+}
+
+/** Product row + the image its listing card should show (first non-video). */
+export type CardProduct = Product & { image: CardImage | null };
+
 export interface ProductListResult {
-  items: Product[];
+  items: CardProduct[];
   total: number;
   page: number;
   pageSize: number;
+}
+
+/**
+ * Batch-attaches each product's card image: lowest sortOrder wins, but a
+ * video only stands in until any real image exists for that product.
+ */
+async function attachCardImages(items: Product[]): Promise<CardProduct[]> {
+  if (items.length === 0) return [];
+
+  const rows = await db
+    .select()
+    .from(productImages)
+    .where(
+      inArray(
+        productImages.productId,
+        items.map((p) => p.id),
+      ),
+    )
+    .orderBy(asc(productImages.sortOrder));
+
+  const byProduct = new Map<string, CardImage>();
+  for (const row of rows) {
+    const existing = byProduct.get(row.productId);
+    if (!existing || (isVideoUrl(existing.url) && !isVideoUrl(row.url))) {
+      byProduct.set(row.productId, { url: row.url, altText: row.altText });
+    }
+  }
+
+  return items.map((p) => ({ ...p, image: byProduct.get(p.id) ?? null }));
 }
 
 // ── Categories ───────────────────────────────────────────────────────────────
@@ -126,7 +164,7 @@ export async function getProducts(
         );
 
       return {
-        items: items.map((r) => r.p),
+        items: await attachCardImages(items.map((r) => r.p)),
         total: totalRows[0]?.count ?? 0,
         page,
         pageSize,
@@ -142,7 +180,7 @@ export async function getProducts(
     .where(whereClause);
 
   return {
-    items,
+    items: await attachCardImages(items),
     total: totalRows[0]?.count ?? 0,
     page,
     pageSize,
@@ -184,19 +222,20 @@ export async function getProductBySlug(
   return { ...product, variants, images, category };
 }
 
-export async function getNewArrivals(limit = 8): Promise<Product[]> {
-  return db
+export async function getNewArrivals(limit = 8): Promise<CardProduct[]> {
+  const items = await db
     .select()
     .from(products)
     .where(eq(products.status, "active"))
     .orderBy(desc(products.createdAt))
     .limit(limit);
+  return attachCardImages(items);
 }
 
 export async function getRelatedProducts(
   productId: string,
   limit = 4,
-): Promise<Product[]> {
+): Promise<CardProduct[]> {
   const current = await db
     .select({ categoryId: products.categoryId })
     .from(products)
@@ -206,7 +245,7 @@ export async function getRelatedProducts(
   const categoryId = current[0]?.categoryId;
   if (!categoryId) return [];
 
-  return db
+  const items = await db
     .select()
     .from(products)
     .where(
@@ -218,4 +257,5 @@ export async function getRelatedProducts(
     )
     .orderBy(desc(products.createdAt))
     .limit(limit);
+  return attachCardImages(items);
 }

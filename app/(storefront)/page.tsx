@@ -1,9 +1,11 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Feather, Infinity, ShieldCheck, Sparkles } from "lucide-react";
 import { HomepageCarousel, isVideo } from "@/components/storefront/homepage-carousel";
 import { ScrollRail } from "@/components/storefront/scroll-rail";
 import { getActiveBanners } from "@/lib/actions/banners";
 import { getCategories, getNewArrivals } from "@/lib/actions/products";
+import { videoPosterUrl } from "@/lib/media";
 import type { Product } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
@@ -148,10 +150,22 @@ export default async function HomePage() {
               return (
                 <Link
                   key={product?.id ?? index}
-                  href={product ? `/products/${product.slug}` : "/shop"}
+                  href={product ? `/product/${product.slug}` : "/shop"}
                   className="w-[250px] shrink-0 snap-center"
                 >
-                  <div className="cloth-window aspect-[3/4] rounded-[22px]" />
+                  {product?.image ? (
+                    <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] bg-cream">
+                      <Image
+                        src={videoPosterUrl(product.image.url)}
+                        alt={product.image.altText ?? product.title}
+                        fill
+                        sizes="250px"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="cloth-window aspect-[3/4] rounded-[22px]" />
+                  )}
                   <div className="mt-4">
                     <h2 className="font-display text-3xl text-maroon">
                       {product?.title ?? "A soft arrival is being prepared"}
@@ -296,10 +310,22 @@ export default async function HomePage() {
                 return (
                   <Link
                     key={product.id}
-                    href={`/products/${product.slug}`}
+                    href={`/product/${product.slug}`}
                     className="group block"
                   >
-                    <div className="cloth-window aspect-[3/4] transition duration-1000 group-hover:scale-[1.01]" />
+                    {product.image ? (
+                      <div className="relative aspect-[3/4] overflow-hidden bg-cream">
+                        <Image
+                          src={videoPosterUrl(product.image.url)}
+                          alt={product.image.altText ?? product.title}
+                          fill
+                          sizes="(min-width: 1024px) 25vw, 50vw"
+                          className="object-cover transition duration-1000 group-hover:scale-[1.01]"
+                        />
+                      </div>
+                    ) : (
+                      <div className="cloth-window aspect-[3/4] transition duration-1000 group-hover:scale-[1.01]" />
+                    )}
                     <div className="mt-4 space-y-1 text-base leading-6 text-charcoal/66">
                       <div className="flex items-start justify-between gap-5 text-charcoal">
                         <h3 className="font-sans text-base font-normal">

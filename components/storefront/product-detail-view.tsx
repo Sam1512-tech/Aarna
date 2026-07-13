@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { isVideoUrl, videoPosterUrl } from "@/lib/media";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -524,7 +525,7 @@ function Gallery({
               }`}
             >
               <Image
-                src={img.url}
+                src={videoPosterUrl(img.url)}
                 alt={img.altText ?? altFallback}
                 fill
                 sizes="80px"
@@ -544,28 +545,53 @@ function Gallery({
               key={img.id}
               className="relative aspect-[3/4] w-[88vw] shrink-0 snap-center overflow-hidden rounded-[20px] bg-cream shadow-[0_18px_55px_rgba(43,38,35,0.06)]"
             >
-              <Image
-                src={img.url}
-                alt={img.altText ?? altFallback}
-                fill
-                sizes="88vw"
-                priority
-                className="object-cover"
-              />
+              {isVideoUrl(img.url) ? (
+                <video
+                  src={img.url}
+                  poster={videoPosterUrl(img.url)}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <Image
+                  src={img.url}
+                  alt={img.altText ?? altFallback}
+                  fill
+                  sizes="88vw"
+                  priority
+                  className="object-cover"
+                />
+              )}
             </div>
           ))}
         </div>
 
-        {/* Desktop: single large active image */}
+        {/* Desktop: single large active image (or inline video) */}
         <div className="relative hidden aspect-[3/4] overflow-hidden rounded-[22px] bg-cream shadow-[0_22px_60px_rgba(43,38,35,0.08)] md:block">
-          <Image
-            src={active.url}
-            alt={active.altText ?? altFallback}
-            fill
-            sizes="(min-width: 1024px) 50vw, 100vw"
-            priority
-            className="object-cover"
-          />
+          {isVideoUrl(active.url) ? (
+            <video
+              key={active.id}
+              src={active.url}
+              poster={videoPosterUrl(active.url)}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            <Image
+              src={active.url}
+              alt={active.altText ?? altFallback}
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              priority
+              className="object-cover"
+            />
+          )}
         </div>
       </div>
     </div>
