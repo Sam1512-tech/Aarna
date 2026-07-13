@@ -1,6 +1,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { HangTagDocument, type HangTagData } from "./template";
+import { ActionError } from "@/lib/action-error";
 
 export type { HangTagData } from "./template";
 
@@ -10,7 +11,7 @@ export type { HangTagData } from "./template";
  * Xprinter XP-365B (or any thermal/laser printer with the right roll size).
  */
 export async function generateHangTagPdf(tags: HangTagData[]): Promise<Buffer> {
-  if (tags.length === 0) throw new Error("At least one tag is required");
+  if (tags.length === 0) throw new ActionError("At least one tag is required");
   // renderToBuffer expects a Document at root — our wrapper produces one.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const element = React.createElement(HangTagDocument, { tags }) as any;

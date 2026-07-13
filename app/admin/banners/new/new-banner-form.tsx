@@ -12,6 +12,7 @@ import {
   TextInput,
 } from "@/components/admin/admin-form";
 import { createBanner } from "@/lib/actions/admin/banners";
+import { actionErrorMessage } from "@/lib/action-error";
 
 function toDateOrNull(v: string): Date | null {
   if (!v) return null;
@@ -59,7 +60,7 @@ export function NewBannerForm() {
         router.refresh();
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "couldn't create banner.",
+          actionErrorMessage(err, "couldn't create banner."),
         );
       }
     });

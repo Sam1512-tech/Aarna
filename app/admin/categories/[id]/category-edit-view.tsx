@@ -11,6 +11,7 @@ import {
 } from "@/components/admin/admin-form";
 import { updateCategory } from "@/lib/actions/admin/categories";
 import type { Category } from "@/lib/types";
+import { actionErrorMessage } from "@/lib/action-error";
 
 export function CategoryEditView({ category }: { category: Category }) {
   const [name, setName] = useState(category.name);
@@ -36,7 +37,7 @@ export function CategoryEditView({ category }: { category: Category }) {
         });
         setSaved("Saved.");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't save category.");
+        setError(actionErrorMessage(err, "couldn't save category."));
       }
     });
   }

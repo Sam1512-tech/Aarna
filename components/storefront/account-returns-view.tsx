@@ -4,6 +4,7 @@ import { ChevronDown, Plus, RotateCcw, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { requestReturn } from "@/lib/actions/account";
 import { formatINR } from "@/lib/utils";
+import { actionErrorMessage } from "@/lib/action-error";
 
 export interface ReturnRow {
   id: string;
@@ -206,7 +207,7 @@ function ReturnRequestForm({
         });
       } catch (err) {
         onError(
-          err instanceof Error ? err.message.toLowerCase() : "couldn't raise return",
+          actionErrorMessage(err, "couldn't raise return").toLowerCase(),
         );
       }
     });

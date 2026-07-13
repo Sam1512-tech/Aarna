@@ -4,6 +4,7 @@ import { and, desc, eq, ilike, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
+import { ActionError } from "@/lib/action-error";
 
 const { coupons } = schema;
 
@@ -17,20 +18,20 @@ function normalizeCode(input: string): string {
 
 function validateCode(input: string): string {
   const normalized = normalizeCode(input);
-  if (!normalized) throw new Error("Coupon code is required");
-  if (normalized.length > 40) throw new Error("Coupon code is too long (max 40 chars)");
+  if (!normalized) throw new ActionError("Coupon code is required");
+  if (normalized.length > 40) throw new ActionError("Coupon code is too long (max 40 chars)");
   if (!CODE_PATTERN.test(normalized)) {
-    throw new Error("Coupon code can only contain letters, numbers, _ and -");
+    throw new ActionError("Coupon code can only contain letters, numbers, _ and -");
   }
   return normalized;
 }
 
 function validateValue(type: CouponType, value: number): number {
   if (!Number.isInteger(value) || value <= 0) {
-    throw new Error("Coupon value must be a positive integer");
+    throw new ActionError("Coupon value must be a positive integer");
   }
   if (type === "percent" && value > 100) {
-    throw new Error("Percent coupon cannot exceed 100");
+    throw new ActionError("Percent coupon cannot exceed 100");
   }
   // For "flat", value is in paise — no upper bound enforced server-side
   return value;
@@ -109,22 +110,22 @@ export async function createCoupon(input: CreateCouponInput) {
 
   const minOrder = input.minOrderAmount ?? 0;
   if (!Number.isInteger(minOrder) || minOrder < 0) {
-    throw new Error("Minimum order amount must be a non-negative integer");
+    throw new ActionError("Minimum order amount must be a non-negative integer");
   }
 
   if (input.usageLimit !== undefined && input.usageLimit !== null) {
     if (!Number.isInteger(input.usageLimit) || input.usageLimit <= 0) {
-      throw new Error("Usage limit must be a positive integer or null");
+      throw new ActionError("Usage limit must be a positive integer or null");
     }
   }
 
   const perCustomer = input.perCustomerLimit ?? 1;
   if (!Number.isInteger(perCustomer) || perCustomer < 1) {
-    throw new Error("Per-customer limit must be at least 1");
+    throw new ActionError("Per-customer limit must be at least 1");
   }
 
   if (input.expiresAt && input.expiresAt.getTime() <= Date.now()) {
-    throw new Error("Expiry date must be in the future");
+    throw new ActionError("Expiry date must be in the future");
   }
 
   // Code uniqueness
@@ -133,7 +134,7 @@ export async function createCoupon(input: CreateCouponInput) {
     .from(coupons)
     .where(eq(coupons.code, code))
     .limit(1);
-  if (existing[0]) throw new Error(`Coupon "${code}" already exists`);
+  if (existing[0]) throw new ActionError(`Coupon "${code}" already exists`);
 
   const [created] = await db
     .insert(coupons)
@@ -172,7 +173,7 @@ export async function updateCoupon(id: string, input: UpdateCouponInput) {
     .from(coupons)
     .where(eq(coupons.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Coupon not found");
+  if (!existing[0]) throw new ActionError("Coupon not found");
 
   const patch: Partial<typeof coupons.$inferInsert> = {};
 
@@ -184,7 +185,7 @@ export async function updateCoupon(id: string, input: UpdateCouponInput) {
         .from(coupons)
         .where(eq(coupons.code, newCode))
         .limit(1);
-      if (collision[0]) throw new Error(`Coupon "${newCode}" already exists`);
+      if (collision[0]) throw new ActionError(`Coupon "${newCode}" already exists`);
     }
     patch.code = newCode;
   }
@@ -201,7 +202,7 @@ export async function updateCoupon(id: string, input: UpdateCouponInput) {
 
   if (input.minOrderAmount !== undefined) {
     if (!Number.isInteger(input.minOrderAmount) || input.minOrderAmount < 0) {
-      throw new Error("Minimum order amount must be a non-negative integer");
+      throw new ActionError("Minimum order amount must be a non-negative integer");
     }
     patch.minOrderAmount = input.minOrderAmount;
   }
@@ -209,10 +210,10 @@ export async function updateCoupon(id: string, input: UpdateCouponInput) {
   if (input.usageLimit !== undefined) {
     if (input.usageLimit !== null) {
       if (!Number.isInteger(input.usageLimit) || input.usageLimit <= 0) {
-        throw new Error("Usage limit must be a positive integer or null");
+        throw new ActionError("Usage limit must be a positive integer or null");
       }
       if (input.usageLimit < existing[0].usedCount) {
-        throw new Error(
+        throw new ActionError(
           `Usage limit (${input.usageLimit}) cannot be lower than already-used count (${existing[0].usedCount})`,
         );
       }
@@ -222,7 +223,7 @@ export async function updateCoupon(id: string, input: UpdateCouponInput) {
 
   if (input.perCustomerLimit !== undefined) {
     if (!Number.isInteger(input.perCustomerLimit) || input.perCustomerLimit < 1) {
-      throw new Error("Per-customer limit must be at least 1");
+      throw new ActionError("Per-customer limit must be at least 1");
     }
     patch.perCustomerLimit = input.perCustomerLimit;
   }
@@ -249,7 +250,7 @@ export async function toggleCouponActive(id: string) {
     .from(coupons)
     .where(eq(coupons.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Coupon not found");
+  if (!existing[0]) throw new ActionError("Coupon not found");
 
   const [updated] = await db
     .update(coupons)
@@ -269,12 +270,12 @@ export async function deleteCoupon(id: string): Promise<{ ok: true }> {
     .from(coupons)
     .where(eq(coupons.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Coupon not found");
+  if (!existing[0]) throw new ActionError("Coupon not found");
 
   // If the coupon has been used, deactivate instead of delete — preserves
   // the historical reference on the orders.couponCode column.
   if (existing[0].usedCount > 0) {
-    throw new Error(
+    throw new ActionError(
       `Cannot delete "${existing[0].code}" — already used ${existing[0].usedCount} time(s). Deactivate it instead.`,
     );
   }

@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { generateInvoicePdf } from "@/lib/invoice/generate";
 import { buildInvoiceData } from "@/lib/db/queries/orders";
+import { ActionError } from "@/lib/action-error";
 
 const { orders, orderItems, productImages, productVariants } = schema;
 
@@ -37,7 +38,7 @@ function assertValidTransition(from: FulfillmentStatus, to: FulfillmentStatus) {
   if (from === to) return;
   const allowed = FORWARD_TRANSITIONS[from];
   if (!allowed.includes(to)) {
-    throw new Error(`Cannot move order from "${from}" to "${to}"`);
+    throw new ActionError(`Cannot move order from "${from}" to "${to}"`);
   }
 }
 
@@ -255,7 +256,7 @@ export async function updateOrderFulfillmentStatus(
     .where(eq(orders.id, orderId))
     .limit(1);
 
-  if (!existing[0]) throw new Error("Order not found");
+  if (!existing[0]) throw new ActionError("Order not found");
 
   assertValidTransition(existing[0].fulfillmentStatus, newStatus);
 
@@ -285,10 +286,10 @@ export async function attachAwbNumber(orderId: string, awbNumber: string) {
     .where(eq(orders.id, orderId))
     .limit(1);
 
-  if (!existing[0]) throw new Error("Order not found");
+  if (!existing[0]) throw new ActionError("Order not found");
 
   const trimmed = awbNumber.trim();
-  if (!trimmed) throw new Error("AWB number is required");
+  if (!trimmed) throw new ActionError("AWB number is required");
 
   const willMoveToShipped = existing[0].fulfillmentStatus === "processing";
 
@@ -330,18 +331,18 @@ export async function createDelhiveryShipment(orderId: string) {
     .limit(1)
     .then((rows) => rows[0] ?? null);
 
-  if (!order) throw new Error("Order not found");
+  if (!order) throw new ActionError("Order not found");
   if (order.paymentStatus !== "paid") {
-    throw new Error("Order is not paid — cannot create a shipment");
+    throw new ActionError("Order is not paid — cannot create a shipment");
   }
   if (order.awbNumber) {
-    throw new Error(`Shipment already exists (AWB ${order.awbNumber})`);
+    throw new ActionError(`Shipment already exists (AWB ${order.awbNumber})`);
   }
   if (
     order.fulfillmentStatus !== "processing" &&
     order.fulfillmentStatus !== "pending"
   ) {
-    throw new Error(
+    throw new ActionError(
       `Cannot create a shipment for an order in "${order.fulfillmentStatus}" state`,
     );
   }
@@ -421,9 +422,9 @@ export async function regenerateInvoicePdf(orderId: string): Promise<Buffer> {
     .limit(1)
     .then((rows) => rows[0] ?? null);
 
-  if (!order) throw new Error("Order not found");
+  if (!order) throw new ActionError("Order not found");
   if (!order.invoiceNumber) {
-    throw new Error(
+    throw new ActionError(
       "Order has no invoice number — invoice is generated when payment is captured.",
     );
   }

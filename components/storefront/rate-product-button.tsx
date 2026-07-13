@@ -3,6 +3,7 @@
 import { Star, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { submitReview } from "@/lib/actions/reviews";
+import { actionErrorMessage } from "@/lib/action-error";
 
 export function RateProductButton({
   orderItemId,
@@ -78,9 +79,7 @@ function ReviewModal({
         onSubmitted({ rating, body: trimmedBody || null });
       } catch (err) {
         setError(
-          err instanceof Error
-            ? err.message.toLowerCase()
-            : "couldn't submit review",
+          actionErrorMessage(err, "couldn't submit review").toLowerCase(),
         );
       }
     });

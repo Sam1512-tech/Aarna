@@ -21,6 +21,7 @@ import {
   updateProduct,
   updateVariant,
 } from "@/lib/actions/admin/products";
+import { actionErrorMessage } from "@/lib/action-error";
 
 type ProductStatus = "draft" | "active" | "archived";
 
@@ -157,7 +158,7 @@ function BasicsForm({
         });
         setSaved("Basics saved.");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't save product.");
+        setError(actionErrorMessage(err, "couldn't save product."));
       }
     });
   }
@@ -302,7 +303,7 @@ function VariantsSection({
         onChange(variants.filter((v) => !ids.has(v.id)));
         setDraftSizes((s) => s.filter((x) => x !== size));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't remove size.");
+        setError(actionErrorMessage(err, "couldn't remove size."));
       } finally {
         setRemoving(null);
       }
@@ -520,7 +521,7 @@ function AddTagRow({
           isActive: created.isActive,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't add tag.");
+        setError(actionErrorMessage(err, "couldn't add tag."));
       }
     });
   }
@@ -612,7 +613,7 @@ function TagRow({
         setStockStr(String(next.stock));
         onUpdated(next);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't save");
+        setError(actionErrorMessage(err, "couldn't save"));
       }
     });
   }
@@ -624,7 +625,7 @@ function TagRow({
         await deleteVariant(v.id);
         onDeleted(v.id);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't delete");
+        setError(actionErrorMessage(err, "couldn't delete"));
       }
     });
   }
@@ -706,7 +707,7 @@ function ImagesSection({
         setUrl("");
         setAlt("");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't add image");
+        setError(actionErrorMessage(err, "couldn't add image"));
       }
     });
   }
@@ -718,7 +719,7 @@ function ImagesSection({
         await removeProductImage(id);
         onChange(images.filter((img) => img.id !== id));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't remove image");
+        setError(actionErrorMessage(err, "couldn't remove image"));
       }
     });
   }

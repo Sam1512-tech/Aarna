@@ -10,6 +10,7 @@ import {
   updateOrderFulfillmentStatus,
 } from "@/lib/actions/admin/orders";
 import { formatINR } from "@/lib/utils";
+import { actionErrorMessage } from "@/lib/action-error";
 
 type FulfillmentStatus =
   | "pending"
@@ -121,7 +122,7 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
         announce(`Status set to ${next.replace(/_/g, " ")}.`);
       } catch (err) {
         announce(
-          err instanceof Error ? err.message : "Couldn't update status",
+          actionErrorMessage(err, "Couldn't update status"),
           true,
         );
       }
@@ -142,7 +143,7 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
         }));
         announce(`AWB attached${updated.fulfillmentStatus === "shipped" ? " · status → shipped" : ""}.`);
       } catch (err) {
-        announce(err instanceof Error ? err.message : "Couldn't attach AWB", true);
+        announce(actionErrorMessage(err, "Couldn't attach AWB"), true);
       }
     });
   }
@@ -163,7 +164,7 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
         announce("Shipment created — AWB saved and order moved to shipped.");
       } catch (err) {
         announce(
-          err instanceof Error ? err.message : "Couldn't create shipment",
+          actionErrorMessage(err, "Couldn't create shipment"),
           true,
         );
       }

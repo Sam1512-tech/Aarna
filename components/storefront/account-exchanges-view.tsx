@@ -4,6 +4,7 @@ import { ChevronDown, Plus, Repeat, X } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { requestReturn } from "@/lib/actions/account";
 import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
+import { actionErrorMessage } from "@/lib/action-error";
 
 export interface ExchangeRow {
   id: string;
@@ -229,9 +230,7 @@ function ExchangeRequestForm({
         });
       } catch (err) {
         onError(
-          err instanceof Error
-            ? err.message.toLowerCase()
-            : "couldn't raise exchange",
+          actionErrorMessage(err, "couldn't raise exchange").toLowerCase(),
         );
       }
     });
