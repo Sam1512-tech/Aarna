@@ -17,10 +17,10 @@ export async function generateMetadata({
   const { slug } = await params;
   try {
     const product = await getProductBySlug(slug);
-    if (!product) return { title: "product not found" };
+    if (!product) return { title: "Product not found" };
     return productMetadata(product);
   } catch {
-    return { title: "product" };
+    return { title: "Product" };
   }
 }
 
@@ -48,12 +48,12 @@ export default async function ProductDetailPage({
     ...(product.category
       ? [
           {
-            name: product.category.name.toLowerCase(),
+            name: product.category.name,
             url: `/shop/${product.category.slug}`,
           },
         ]
       : []),
-    { name: product.title.toLowerCase(), url: `/product/${product.slug}` },
+    { name: product.title, url: `/product/${product.slug}` },
   ]);
 
   return (
@@ -87,17 +87,17 @@ export default async function ProductDetailPage({
             <div className="flex items-end justify-between gap-5 border-t border-cocoa/12 pb-10 pt-14 md:pt-20">
               <div>
                 <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-                  you may also love
+                  You may also love
                 </p>
-                <h2 className="mt-3 font-display text-3xl lowercase leading-tight text-maroon md:text-5xl">
-                  pieces in the same chapter.
+                <h2 className="mt-3 font-display text-3xl leading-tight text-maroon md:text-5xl">
+                  Pieces in the same chapter.
                 </h2>
               </div>
               <Link
                 href="/shop"
                 className="soft-link hidden text-[11px] font-bold uppercase tracking-[0.24em] text-maroon sm:inline-flex"
               >
-                view all
+                View all
               </Link>
             </div>
             <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">

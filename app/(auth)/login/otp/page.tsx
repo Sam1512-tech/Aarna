@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LoginOtpView } from "@/components/storefront/login-otp-view";
 
 export const metadata: Metadata = {
-  title: "sign in",
+  title: "Sign in",
 };
 
 export default async function LoginOtpPage({

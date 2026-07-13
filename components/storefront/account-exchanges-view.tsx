@@ -31,21 +31,21 @@ interface AccountExchangesViewProps {
 }
 
 const REASON_CATEGORIES = [
-  { value: "size_fit", label: "different size" },
-  { value: "color", label: "different colour" },
-  { value: "style", label: "different style" },
-  { value: "changed_mind", label: "changed my mind" },
+  { value: "size_fit", label: "Different size" },
+  { value: "color", label: "Different colour" },
+  { value: "style", label: "Different style" },
+  { value: "changed_mind", label: "Changed my mind" },
 ] as const;
 
 // Keys match the return_status pgEnum in lib/db/schema.ts. Exchange requests
 // piggyback on the returns pipeline until Sam ships a dedicated exchange model.
 const STATUS_LABEL: Record<string, string> = {
-  requested: "requested",
-  approved: "approved",
-  picked: "picked up",
-  received: "received",
-  refunded: "swap dispatched",
-  rejected: "declined",
+  requested: "Requested",
+  approved: "Approved",
+  picked: "Picked up",
+  received: "Received",
+  refunded: "Swap dispatched",
+  rejected: "Declined",
 };
 
 function fmtDate(d: Date | string) {
@@ -94,13 +94,13 @@ export function AccountExchangesView({
             className="inline-flex items-center gap-2 rounded-full bg-maroon px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-maroon/90"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            request exchange
+            Request exchange
           </button>
         ) : null}
       </div>
 
       {error ? (
-        <p className="mt-4 text-xs lowercase text-burnt-red">{error}</p>
+        <p className="mt-4 text-xs text-burnt-red">{error}</p>
       ) : null}
 
       {exchanges.length === 0 ? (
@@ -108,11 +108,11 @@ export function AccountExchangesView({
           <span className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-cocoa/20 text-cocoa">
             <Repeat className="h-5 w-5" aria-hidden="true" />
           </span>
-          <h2 className="mt-5 font-display text-2xl lowercase text-maroon">
-            no exchanges yet
+          <h2 className="mt-5 font-display text-2xl text-maroon">
+            No exchanges yet
           </h2>
           <p className="mt-2 max-w-sm text-sm text-charcoal/60">
-            swap a size or colour within 3 days of delivery.
+            Swap a size or colour within 3 days of delivery.
             {eligibleItems.length === 0 ? " no eligible items right now." : ""}
           </p>
         </div>
@@ -128,12 +128,12 @@ export function AccountExchangesView({
                   <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
                     order · {r.orderNumber} · raised {fmtDate(r.createdAt)}
                   </p>
-                  <p className="mt-1 font-display text-lg lowercase text-maroon">
-                    {r.productTitle.toLowerCase()}
+                  <p className="mt-1 font-display text-lg text-maroon">
+                    {r.productTitle}
                   </p>
                   {r.variantLabel ? (
-                    <p className="text-xs lowercase text-charcoal/55">
-                      current · {r.variantLabel.toLowerCase()} · qty {r.quantity}
+                    <p className="text-xs text-charcoal/55">
+                      Current · {r.variantLabel} · qty {r.quantity}
                     </p>
                   ) : null}
                 </div>
@@ -230,7 +230,7 @@ function ExchangeRequestForm({
         });
       } catch (err) {
         onError(
-          actionErrorMessage(err, "couldn't raise exchange").toLowerCase(),
+          actionErrorMessage(err, "Couldn't raise exchange"),
         );
       }
     });
@@ -253,8 +253,8 @@ function ExchangeRequestForm({
         className="relative z-10 w-full max-w-lg rounded-t-3xl bg-cream p-6 shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-3xl md:p-8"
       >
         <div className="flex items-start justify-between">
-          <h2 className="font-display text-3xl lowercase text-maroon">
-            request exchange
+          <h2 className="font-display text-3xl text-maroon">
+            Request exchange
           </h2>
           <button
             type="button"
@@ -269,7 +269,7 @@ function ExchangeRequestForm({
         <div className="mt-5 space-y-4">
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-              which piece?
+              Which piece?
             </span>
             <div className="relative mt-1.5">
               <select
@@ -291,15 +291,15 @@ function ExchangeRequestForm({
               />
             </div>
             {chosen?.variantLabel ? (
-              <p className="mt-1.5 text-xs lowercase text-charcoal/55">
-                you currently have {chosen.variantLabel.toLowerCase()}
+              <p className="mt-1.5 text-xs text-charcoal/55">
+                You currently have {chosen.variantLabel}
               </p>
             ) : null}
           </label>
 
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-              what would you like instead?
+              What would you like instead?
             </span>
             <div className="mt-2 flex flex-wrap gap-2">
               {REASON_CATEGORIES.map((c) => {
@@ -309,7 +309,7 @@ function ExchangeRequestForm({
                     key={c.value}
                     type="button"
                     onClick={() => setReasonCategory(c.value)}
-                    className={`rounded-full border px-3 py-1.5 text-xs lowercase transition duration-500 ${
+                    className={`rounded-full border px-3 py-1.5 text-xs transition duration-500 ${
                       active
                         ? "border-maroon bg-maroon text-cream"
                         : "border-cocoa/22 bg-cocoa/6 text-charcoal/72 hover:border-cocoa hover:bg-cocoa/10"
@@ -325,12 +325,12 @@ function ExchangeRequestForm({
           {wantsSize ? (
             <label className="block">
               <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                desired size
+                Desired size
               </span>
               <input
                 value={desiredSize}
                 onChange={(e) => setDesiredSize(e.target.value)}
-                placeholder="e.g. M or 10"
+                placeholder="E.g. M or 10"
                 className="mt-2 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
               />
             </label>
@@ -339,12 +339,12 @@ function ExchangeRequestForm({
           {wantsColor ? (
             <label className="block">
               <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                desired colour
+                Desired colour
               </span>
               <input
                 value={desiredColor}
                 onChange={(e) => setDesiredColor(e.target.value)}
-                placeholder="e.g. sand, ivory, charcoal"
+                placeholder="E.g. sand, ivory, charcoal"
                 className="mt-2 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
               />
             </label>
@@ -352,19 +352,19 @@ function ExchangeRequestForm({
 
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-              anything else to add?
+              Anything else to add?
             </span>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
-              placeholder="preferences, colour swap, timing — anything that helps our team."
+              placeholder="Preferences, colour swap, timing — anything that helps our team."
               className="mt-2 block w-full resize-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 text-sm leading-6 text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
             />
           </label>
 
           <p className="text-xs leading-5 text-charcoal/55">
-            once we approve your request we&rsquo;ll pick up the current piece
+            Once we approve your request we&rsquo;ll pick up the current piece
             and dispatch the swap. your status will move through this list.
           </p>
         </div>
@@ -375,7 +375,7 @@ function ExchangeRequestForm({
             onClick={onCancel}
             className="flex-1 rounded-2xl border border-cocoa/24 bg-cocoa/6 py-3 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa transition duration-500 hover:bg-cocoa/10"
           >
-            cancel
+            Cancel
           </button>
           <button
             type="submit"

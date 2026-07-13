@@ -78,7 +78,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         </div>
         {product.fabric ? (
-          <p className="text-xs lowercase text-charcoal/55">{product.fabric}</p>
+          <p className="text-xs text-charcoal/55">{product.fabric}</p>
         ) : null}
       </div>
     </Link>

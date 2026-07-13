@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LegalList, LegalPage } from "@/components/storefront/legal-page";
 
 export const metadata: Metadata = {
-  title: "shipping policy",
+  title: "Shipping policy",
   description:
     "How Aarna ships your slow-made pieces — processing times, tracking, and delivery timelines across India.",
 };

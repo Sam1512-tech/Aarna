@@ -36,7 +36,7 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
         await removeFromWishlist(variantId);
         setItems((rows) => rows.filter((r) => r.variantId !== variantId));
       } catch {
-        setError("couldn't remove item");
+        setError("Couldn't remove item");
       } finally {
         setBusyId(null);
       }
@@ -57,7 +57,7 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
           setMovedId(null);
         }, 900);
       } catch {
-        setError("couldn't move to bag");
+        setError("Couldn't move to bag");
       } finally {
         setBusyId(null);
       }
@@ -74,7 +74,7 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
         wishlist · {items.length}
       </p>
       {error ? (
-        <p className="mt-3 text-xs lowercase text-burnt-red">{error}</p>
+        <p className="mt-3 text-xs text-burnt-red">{error}</p>
       ) : null}
       <ul className="mt-5 grid gap-4 sm:grid-cols-2">
         {items.map((row) => {
@@ -109,13 +109,13 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
                   <div className="min-w-0">
                     <Link
                       href={`/product/${row.productSlug}`}
-                      className="font-display text-lg lowercase leading-tight text-maroon"
+                      className="font-display text-lg leading-tight text-maroon"
                     >
-                      {row.productTitle.toLowerCase()}
+                      {row.productTitle}
                     </Link>
                     {row.variantLabel ? (
-                      <p className="mt-0.5 text-xs lowercase text-charcoal/55">
-                        {row.variantLabel.toLowerCase()}
+                      <p className="mt-0.5 text-xs text-charcoal/55">
+                        {row.variantLabel}
                       </p>
                     ) : null}
                   </div>
@@ -163,18 +163,18 @@ function WishlistEmpty() {
       <span className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-cocoa/20 text-cocoa">
         <Heart className="h-6 w-6" aria-hidden="true" />
       </span>
-      <h2 className="mt-6 font-display text-[32px] lowercase leading-[1.1] text-maroon md:text-4xl">
-        no pieces saved yet
+      <h2 className="mt-6 font-display text-[32px] leading-[1.1] text-maroon md:text-4xl">
+        No pieces saved yet
       </h2>
       <p className="mt-3 max-w-sm text-sm leading-7 text-charcoal/60">
-        tap the heart on any piece you love — it will live here so you can come
+        Tap the heart on any piece you love — it will live here so you can come
         back to it later.
       </p>
       <Link
         href="/shop"
         className="mt-7 inline-flex items-center gap-2 border border-cocoa/24 bg-cream px-7 py-3 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
       >
-        enter the wardrobe
+        Enter the wardrobe
       </Link>
     </div>
   );

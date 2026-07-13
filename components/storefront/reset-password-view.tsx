@@ -36,10 +36,10 @@ export function ResetPasswordView() {
           // Brief pause so the user reads the success state, then off to /account.
           window.setTimeout(() => router.push("/account"), 1400);
         } else {
-          setError((res.message ?? "couldn't update password.").toLowerCase());
+          setError(res.message ?? "Couldn't update password.");
         }
       } catch {
-        setError("something went wrong. please try again.");
+        setError("Something went wrong. Please try again.");
       }
     });
   }
@@ -63,7 +63,7 @@ export function ResetPasswordView() {
         </h1>
         <p className="mt-3 max-w-xs text-center text-sm leading-6 text-charcoal/60">
           {done
-            ? "you're signed in — taking you to your account."
+            ? "You're signed in — taking you to your account."
             : "choose a password you'll remember — at least 8 characters."}
         </p>
 
@@ -74,7 +74,7 @@ export function ResetPasswordView() {
             noValidate
           >
             <PasswordField
-              label="new password"
+              label="New password"
               value={password}
               onChange={setPassword}
               show={show}
@@ -83,7 +83,7 @@ export function ResetPasswordView() {
               autoFocus
             />
             <PasswordField
-              label="confirm password"
+              label="Confirm password"
               value={confirm}
               onChange={setConfirm}
               show={show}
@@ -92,9 +92,9 @@ export function ResetPasswordView() {
             />
 
             {/* Validation hints */}
-            <ul className="space-y-1.5 pl-1 text-xs lowercase text-charcoal/55">
-              <Hint ok={lengthOk}>at least 8 characters</Hint>
-              <Hint ok={confirm.length > 0 && matchOk}>passwords match</Hint>
+            <ul className="space-y-1.5 pl-1 text-xs text-charcoal/55">
+              <Hint ok={lengthOk}>At least 8 characters</Hint>
+              <Hint ok={confirm.length > 0 && matchOk}>Passwords match</Hint>
             </ul>
 
             <button
@@ -103,7 +103,7 @@ export function ResetPasswordView() {
               className="group/cta mt-2 flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)] disabled:opacity-50 disabled:hover:bg-maroon disabled:hover:shadow-[0_18px_40px_rgba(74,31,31,0.22)]"
             >
               <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.24em] text-cream">
-                {pending ? "updating…" : "update password"}
+                {pending ? "Updating…" : "Update password"}
                 <ArrowRight
                   className="h-4 w-4 transition-transform duration-500 group-hover/cta:translate-x-1"
                   aria-hidden="true"
@@ -112,7 +112,7 @@ export function ResetPasswordView() {
             </button>
 
             {error ? (
-              <p className="text-center text-xs lowercase text-burnt-red">
+              <p className="text-center text-xs text-burnt-red">
                 {error}
               </p>
             ) : null}

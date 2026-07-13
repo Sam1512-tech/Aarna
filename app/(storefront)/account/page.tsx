@@ -5,7 +5,7 @@ import { getCurrentCustomer } from "@/lib/actions/auth";
 import { getMyOrders, getMyAddresses, getWishlist, getMyReturns } from "@/lib/actions/account";
 
 export const metadata: Metadata = {
-  title: "your account",
+  title: "Your account",
 };
 
 export default async function AccountDashboardPage() {
@@ -23,31 +23,31 @@ export default async function AccountDashboardPage() {
   const tiles = [
     {
       href: "/account/orders",
-      label: "orders",
+      label: "Orders",
       Icon: ShoppingBag,
       count: orders.length,
-      empty: "nothing carried yet",
+      empty: "Nothing carried yet",
     },
     {
       href: "/account/wishlist",
-      label: "wishlist",
+      label: "Wishlist",
       Icon: Heart,
       count: wishlist.length,
-      empty: "no pieces saved yet",
+      empty: "No pieces saved yet",
     },
     {
       href: "/account/addresses",
-      label: "addresses",
+      label: "Addresses",
       Icon: MapPin,
       count: addresses.length,
-      empty: "add your first address",
+      empty: "Add your first address",
     },
     {
       href: "/account/returns",
-      label: "returns",
+      label: "Returns",
       Icon: RotateCcw,
       count: returns.length,
-      empty: "no returns raised",
+      empty: "No returns raised",
     },
   ];
 
@@ -55,7 +55,7 @@ export default async function AccountDashboardPage() {
     <div>
       <div className="rounded-2xl border border-cocoa/12 bg-cream/70 p-5 text-sm text-charcoal/70">
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-          signed in as
+          Signed in as
         </p>
         <p className="mt-1.5 text-base text-charcoal">{customer.email}</p>
         {customer.phone ? (
@@ -91,8 +91,8 @@ export default async function AccountDashboardPage() {
         ))}
       </div>
 
-      <p className="mt-8 text-center text-xs lowercase leading-6 text-charcoal/50">
-        need help with an order? our support team is here to assist you.
+      <p className="mt-8 text-center text-xs leading-6 text-charcoal/50">
+        Need help with an order? Our support team is here to assist you.
       </p>
     </div>
   );

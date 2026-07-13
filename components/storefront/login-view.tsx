@@ -49,12 +49,12 @@ export function LoginView({ nextPath }: LoginViewProps) {
         try {
           const result = await login({ email, password });
           if (!result.ok) {
-            setError(result.message ?? "couldn't sign in. please try again.");
+            setError(result.message ?? "Couldn't sign in. Please try again.");
             return;
           }
           router.push(nextPath);
         } catch {
-          setError("couldn't sign in. please try again.");
+          setError("Couldn't sign in. Please try again.");
         }
       });
       return;
@@ -66,7 +66,7 @@ export function LoginView({ nextPath }: LoginViewProps) {
       try {
         const result = await sendEmailOtp(email);
         if (!result.ok) {
-          setError(result.message ?? "couldn't send code. please try again.");
+          setError(result.message ?? "Couldn't send code. Please try again.");
           return;
         }
         // Take them to the OTP verification page prefilled with the email.
@@ -74,7 +74,7 @@ export function LoginView({ nextPath }: LoginViewProps) {
           `/login/otp?next=${encodeURIComponent(nextPath)}&email=${encodeURIComponent(email)}`,
         );
       } catch {
-        setError("couldn't send code. please try again.");
+        setError("Couldn't send code. Please try again.");
       }
     });
   }
@@ -97,18 +97,18 @@ export function LoginView({ nextPath }: LoginViewProps) {
           SIGN IN
         </h1>
         <p className="mt-3 max-w-xs text-center text-sm leading-6 text-charcoal/60">
-          welcome back — sign in the way that suits you.
+          Welcome back — sign in the way that suits you.
         </p>
 
         <div className="mt-10 w-full space-y-6">
           <GoogleSignInButton nextPath={nextPath} onError={setError} />
 
-          <Divider label="or continue with email" />
+          <Divider label="Or continue with email" />
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <label className="block">
               <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                email address
+                Email address
               </span>
               <div className="mt-2 flex items-center gap-3 rounded-xl border border-cocoa/20 bg-cream px-4 py-3 transition duration-500 focus-within:border-cocoa">
                 <Mail
@@ -121,7 +121,7 @@ export function LoginView({ nextPath }: LoginViewProps) {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="You@example.com"
                   className="w-full bg-transparent text-base text-charcoal outline-none placeholder:text-charcoal/35"
                   aria-label="Email address"
                   autoFocus
@@ -133,7 +133,7 @@ export function LoginView({ nextPath }: LoginViewProps) {
               <>
                 <label className="block">
                   <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                    password
+                    Password
                   </span>
                   <div className="mt-2 flex items-center gap-3 rounded-xl border border-cocoa/20 bg-cream px-4 py-3 transition duration-500 focus-within:border-cocoa">
                     <Lock
@@ -170,9 +170,9 @@ export function LoginView({ nextPath }: LoginViewProps) {
                 <div className="flex justify-end">
                   <Link
                     href="/forgot-password"
-                    className="soft-link text-xs lowercase text-cocoa"
+                    className="soft-link text-xs text-cocoa"
                   >
-                    forgot password?
+                    Forgot password?
                   </Link>
                 </div>
               </>
@@ -186,15 +186,15 @@ export function LoginView({ nextPath }: LoginViewProps) {
                 pending
                   ? mode === "password"
                     ? "signing in…"
-                    : "sending code…"
+                    : "Sending code…"
                   : mode === "password"
                     ? "sign in"
-                    : "send one-time code"
+                    : "Send one-time code"
               }
             />
 
             {error ? (
-              <p className="text-center text-xs lowercase text-burnt-red">
+              <p className="text-center text-xs text-burnt-red">
                 {error}
               </p>
             ) : null}
@@ -207,38 +207,38 @@ export function LoginView({ nextPath }: LoginViewProps) {
                 setMode(mode === "password" ? "otp" : "password");
                 setError(null);
               }}
-              className="soft-link text-xs lowercase text-charcoal/55 hover:text-cocoa"
+              className="soft-link text-xs text-charcoal/55 hover:text-cocoa"
             >
               {mode === "password"
-                ? "prefer a one-time code? sign in without a password"
-                : "prefer a password? sign in the classic way"}
+                ? "Prefer a one-time code? Sign in without a password"
+                : "Prefer a password? Sign in the classic way"}
             </button>
           </div>
         </div>
 
-        <div className="mt-10 flex items-center gap-2 text-xs lowercase text-charcoal/45">
+        <div className="mt-10 flex items-center gap-2 text-xs text-charcoal/45">
           <ShieldCheck className="h-3.5 w-3.5 text-cocoa" aria-hidden="true" />
-          secure sign-in · we never store your password in plain text
+          Secure sign-in · we never store your password in plain text
         </div>
 
-        <p className="mt-6 text-center text-xs lowercase text-charcoal/50">
-          new to aarna?{" "}
+        <p className="mt-6 text-center text-xs text-charcoal/50">
+          New to Aarna?{" "}
           <Link
             href={`/signup?next=${encodeURIComponent(nextPath)}`}
             className="soft-link text-cocoa"
           >
-            create an account
+            Create an account
           </Link>
         </p>
 
-        <p className="mt-6 text-center text-xs lowercase leading-6 text-charcoal/40">
-          by continuing, you agree to our{" "}
+        <p className="mt-6 text-center text-xs leading-6 text-charcoal/40">
+          By continuing, you agree to our{" "}
           <Link href="/terms" className="soft-link">
-            terms
+            Terms
           </Link>{" "}
           and{" "}
           <Link href="/privacy-policy" className="soft-link">
-            privacy policy
+            Privacy policy
           </Link>
           .
         </p>

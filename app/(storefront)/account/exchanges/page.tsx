@@ -4,7 +4,7 @@ import { getMyOrders, getMyReturns } from "@/lib/actions/account";
 import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
 
 export const metadata: Metadata = {
-  title: "your exchanges",
+  title: "Your exchanges",
 };
 
 // Same window the backend enforces on returns / exchanges — 3 days (client decision Jul 11).

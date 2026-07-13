@@ -4,7 +4,7 @@ import { toProductCardData } from "@/components/storefront/product-card";
 import { getCategories, getProducts } from "@/lib/actions/products";
 
 export const metadata: Metadata = {
-  title: "shop",
+  title: "Shop",
   description:
     "Browse the full Aarna wardrobe — slow-made pieces for everyday rituals, quiet gatherings, travel, and layering.",
 };
@@ -53,7 +53,7 @@ export default async function ShopPage({
   return (
     <PlpView
       eyebrow="the wardrobe"
-      title="every piece, made slowly."
+      title="Every piece, made slowly."
       intro="A small, considered collection. Browse all current pieces by sort and refine as you go."
       products={list.items.map((p) => toProductCardData(p))}
       total={list.total}

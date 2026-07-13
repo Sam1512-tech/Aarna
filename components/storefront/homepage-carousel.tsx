@@ -45,7 +45,7 @@ interface HomepageCarouselProps {
 
 const AUTOPLAY_MS = 6000;
 const SWIPE_THRESHOLD_PX = 50;
-const TAGLINE = "clothing made to live softly";
+const TAGLINE = "Clothing made to live softly";
 
 // Video detection: extension or Cloudinary "/video/upload/" path.
 // Exported so callers can filter a banner list to videos only.
@@ -220,14 +220,14 @@ function CarouselInner({
             />
             <div className="pointer-events-none absolute inset-0 z-20 flex items-end px-5 pb-16 md:items-center md:px-12 md:pb-0">
               <div className="pointer-events-auto max-w-2xl">
-                <h1 className="font-display text-[40px] lowercase leading-[0.98] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.45)] md:text-[64px] lg:text-[80px]">
+                <h1 className="font-display text-[40px] leading-[0.98] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.45)] md:text-[64px] lg:text-[80px]">
                   {TAGLINE}
                 </h1>
                 <Link
                   href="/shop"
-                  className="mt-7 inline-flex items-center justify-center border border-cream/60 bg-cream/95 px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(43,38,35,0.18)] transition duration-1000 hover:bg-cream"
+                  className="mt-7 inline-flex items-center justify-center border border-cream/60 bg-cream/95 px-7 py-4 text-[11px] font-bold tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(43,38,35,0.18)] transition duration-1000 hover:bg-cream"
                 >
-                  <span className="text-cocoa">shop the wardrobe</span>
+                  <span className="text-cocoa">Shop the wardrobe</span>
                 </Link>
               </div>
             </div>
@@ -414,14 +414,14 @@ function CarouselEmpty({
         />
         <div className="absolute inset-0 flex items-end px-5 pb-16 md:items-center md:px-12 md:pb-0">
           <div className="max-w-2xl">
-            <h1 className="font-display text-[40px] lowercase leading-[0.98] text-maroon md:text-[64px] lg:text-[80px]">
+            <h1 className="font-display text-[40px] leading-[0.98] text-maroon md:text-[64px] lg:text-[80px]">
               {TAGLINE}
             </h1>
             <Link
               href="/shop"
-              className="mt-7 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
+              className="mt-7 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
             >
-              <span className="text-cocoa">shop the wardrobe</span>
+              <span className="text-cocoa">Shop the wardrobe</span>
             </Link>
           </div>
         </div>

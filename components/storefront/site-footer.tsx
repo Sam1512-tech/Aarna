@@ -11,16 +11,16 @@ interface SiteFooterProps {
 }
 
 const policyLinks = [
-  { href: "/shipping-policy", label: "shipping policy" },
-  { href: "/return-policy", label: "return policy" },
-  { href: "/privacy-policy", label: "privacy policy" },
-  { href: "/terms", label: "terms of service" },
-  { href: "/contact", label: "contact" },
+  { href: "/shipping-policy", label: "Shipping policy" },
+  { href: "/return-policy", label: "Return policy" },
+  { href: "/privacy-policy", label: "Privacy policy" },
+  { href: "/terms", label: "Terms of service" },
+  { href: "/contact", label: "Contact" },
 ];
 
 const resourceLinks = [
-  { href: "/fabric-care", label: "fabric care guide" },
-  { href: "/faq", label: "faq" },
+  { href: "/fabric-care", label: "Fabric care guide" },
+  { href: "/faq", label: "FAQ" },
 ];
 
 export function SiteFooter({ categories }: SiteFooterProps) {
@@ -29,8 +29,8 @@ export function SiteFooter({ categories }: SiteFooterProps) {
       <div className="mx-auto max-w-7xl px-6 py-16 md:py-20">
         <div className="grid gap-10 border-b border-maroon/14 pb-12 md:grid-cols-[1.1fr_0.9fr] md:items-end">
           <div>
-            <h2 className="max-w-2xl font-display text-5xl lowercase leading-[1.08] md:text-7xl">
-              from our wardrobe to your everyday rituals.
+            <h2 className="max-w-2xl font-display text-5xl leading-[1.08] md:text-7xl">
+              From our wardrobe to your everyday rituals.
             </h2>
             <p className="mt-6 max-w-2xl text-lg leading-9 text-charcoal/68">
               Sign up for quiet collection notes, styling rituals, fabric care,
@@ -44,14 +44,14 @@ export function SiteFooter({ categories }: SiteFooterProps) {
             <input
               id="footer-email"
               type="email"
-              placeholder="email address"
-              className="min-h-12 border border-cocoa/18 bg-cream px-4 text-base lowercase text-charcoal outline-none transition duration-700 placeholder:text-charcoal/45 focus:border-cocoa"
+              placeholder="Email address"
+              className="min-h-12 border border-cocoa/18 bg-cream px-4 text-base text-charcoal outline-none transition duration-700 placeholder:text-charcoal/45 focus:border-cocoa"
             />
             <button
               type="submit"
-              className="min-h-12 bg-cocoa px-6 text-xs font-medium lowercase tracking-[0.24em] text-white transition duration-1000 hover:bg-cocoa/85"
+              className="min-h-12 bg-cocoa px-6 text-xs font-medium tracking-[0.24em] text-white transition duration-1000 hover:bg-cocoa/85"
             >
-              sign up
+              Sign up
             </button>
           </form>
         </div>
@@ -59,7 +59,7 @@ export function SiteFooter({ categories }: SiteFooterProps) {
         <div className="grid gap-10 py-12 md:grid-cols-[1.1fr_0.9fr_0.9fr_0.9fr]">
           <div>
             <h3 className="text-base font-bold uppercase tracking-[0.24em] text-charcoal/64">
-              aarna
+              Aarna
             </h3>
             <p className="mt-5 max-w-sm text-lg leading-9 text-charcoal/70">
               A slow-made clothing line for intimate gatherings, travel,
@@ -69,9 +69,9 @@ export function SiteFooter({ categories }: SiteFooterProps) {
 
           <div>
             <h3 className="text-base font-bold uppercase tracking-[0.24em] text-charcoal/64">
-              policies
+              Policies
             </h3>
-            <div className="mt-5 flex flex-col gap-3 text-lg lowercase leading-7 text-charcoal/72">
+            <div className="mt-5 flex flex-col gap-3 text-lg leading-7 text-charcoal/72">
               {policyLinks.map((link) => (
                 <Link key={link.href} href={link.href} className="soft-link w-fit">
                   {link.label}
@@ -82,11 +82,11 @@ export function SiteFooter({ categories }: SiteFooterProps) {
 
           <div>
             <h3 className="text-base font-bold uppercase tracking-[0.24em] text-charcoal/64">
-              shop
+              Shop
             </h3>
-            <div className="mt-5 flex flex-col gap-3 text-lg lowercase leading-7 text-charcoal/72">
+            <div className="mt-5 flex flex-col gap-3 text-lg leading-7 text-charcoal/72">
               <Link href="/shop" className="soft-link w-fit">
-                the wardrobe
+                The wardrobe
               </Link>
               {categories.map((category) => (
                 <Link
@@ -94,7 +94,7 @@ export function SiteFooter({ categories }: SiteFooterProps) {
                   href={`/shop/${category.slug}`}
                   className="soft-link w-fit"
                 >
-                  {category.name.toLowerCase()}
+                  {category.name}
                 </Link>
               ))}
             </div>
@@ -102,9 +102,9 @@ export function SiteFooter({ categories }: SiteFooterProps) {
 
           <div>
             <h3 className="text-base font-bold uppercase tracking-[0.24em] text-charcoal/64">
-              resources
+              Resources
             </h3>
-            <div className="mt-5 flex flex-col gap-3 text-lg lowercase leading-7 text-charcoal/72">
+            <div className="mt-5 flex flex-col gap-3 text-lg leading-7 text-charcoal/72">
               {resourceLinks.map((link) => (
                 <Link key={link.href} href={link.href} className="soft-link w-fit">
                   {link.label}
@@ -122,10 +122,10 @@ export function SiteFooter({ categories }: SiteFooterProps) {
             height={420}
             className="logo-blend mx-auto w-full max-w-[320px] object-contain md:max-w-[430px]"
           />
-          <p className="mt-6 text-lg lowercase text-charcoal/68">
-            slow-made clothing, delivered across india.
+          <p className="mt-6 text-lg text-charcoal/68">
+            Slow-made clothing, delivered across India.
           </p>
-          <p className="mt-4 text-base lowercase text-charcoal/54">
+          <p className="mt-4 text-base text-charcoal/54">
             (c) 2026 Aarna by Arpitha Abhishek. All rights reserved.
           </p>
         </div>

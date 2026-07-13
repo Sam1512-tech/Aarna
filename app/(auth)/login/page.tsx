@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LoginView } from "@/components/storefront/login-view";
 
 export const metadata: Metadata = {
-  title: "sign in",
+  title: "Sign in",
 };
 
 export default async function LoginPage({

@@ -3,7 +3,7 @@ import { AccountAddressesView } from "@/components/storefront/account-addresses-
 import { getMyAddresses } from "@/lib/actions/account";
 
 export const metadata: Metadata = {
-  title: "your addresses",
+  title: "Your addresses",
 };
 
 export default async function AccountAddressesPage() {
