@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { videoPosterUrl } from "@/lib/media";
 import type { Product, ProductImage } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
@@ -93,12 +94,12 @@ export function ProductCard({ product }: ProductCardProps) {
  * separately from images.
  */
 export function toProductCardData(
-  product: Product,
+  product: Product & { image?: { url: string; altText: string | null } | null },
   images?: ProductImage[],
 ): ProductCardData {
   const first = images?.length
     ? [...images].sort((a, b) => a.sortOrder - b.sortOrder)[0]
-    : null;
+    : product.image ?? null;
   return {
     id: product.id,
     slug: product.slug,
@@ -106,6 +107,10 @@ export function toProductCardData(
     basePrice: product.basePrice,
     mrp: product.mrp,
     fabric: product.fabric,
-    image: first ? { url: first.url, altText: first.altText } : null,
+    // videoPosterUrl is a no-op for image URLs; for a video it swaps in the
+    // Cloudinary poster frame so the card always renders a still.
+    image: first
+      ? { url: videoPosterUrl(first.url), altText: first.altText }
+      : null,
   };
 }
