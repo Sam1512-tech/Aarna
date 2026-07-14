@@ -129,6 +129,9 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
       if (!raw) return;
       const draft = JSON.parse(raw) as Partial<ShippingForm>;
       (Object.keys(draft) as (keyof ShippingForm)[]).forEach((k) => {
+        // email is the signed-in account's email (read-only) — never let a
+        // stale draft from a previous session overwrite it.
+        if (k === "email") return;
         const v = draft[k];
         if (v !== undefined && v !== null && v !== "") {
           setValue(k, v as never, { shouldValidate: false });
@@ -312,10 +315,12 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
               <Legend>Contact</Legend>
               <Field
                 label="Email address"
+                hint="Your order is tied to this account email"
                 error={errors.email?.message}
                 {...register("email")}
                 type="email"
                 autoComplete="email"
+                readOnly
               />
               <Field
                 label="Phone number"
