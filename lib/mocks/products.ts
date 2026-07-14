@@ -10,6 +10,7 @@ export const MOCK_PRODUCTS: ProductWithVariants[] = [
     id: "00000000-0000-0000-0000-000000000001",
     title: "Linen Wrap Dress",
     slug: "linen-wrap-dress",
+    styleCode: "DR001",
     description:
       "A breathable linen wrap dress with a self-tie sash and a relaxed midi length.",
     fabric: "100% Linen",

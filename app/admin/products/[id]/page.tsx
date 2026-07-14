@@ -42,6 +42,7 @@ export default async function AdminProductDetailPage({
           id: product.id,
           title: product.title,
           slug: product.slug,
+          styleCode: product.styleCode ?? null,
           description: product.description ?? "",
           fabric: product.fabric ?? "",
           washCare: product.washCare ?? "",

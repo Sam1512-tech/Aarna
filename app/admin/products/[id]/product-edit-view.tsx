@@ -47,6 +47,7 @@ interface ProductDraft {
   id: string;
   title: string;
   slug: string;
+  styleCode: string | null;
   description: string;
   fabric: string;
   washCare: string;
@@ -85,6 +86,7 @@ export function ProductEditView({
       />
       <VariantsSection
         productId={product.id}
+        styleCode={product.styleCode}
         variants={product.variants}
         onChange={(variants) => setProduct((p) => ({ ...p, variants }))}
       />
@@ -178,6 +180,9 @@ function BasicsForm({
             onChange={(e) => setSlug(slugify(e.target.value))}
           />
         </Field>
+        <Field label="style code" hint="auto-generated · used to build tag SKUs">
+          <TextInput value={product.styleCode ?? "—"} disabled readOnly className="font-mono" />
+        </Field>
         <Field label="category" wide>
           <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             <option value="">— uncategorised —</option>
@@ -246,10 +251,12 @@ const PRESET_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
 function VariantsSection({
   productId,
+  styleCode,
   variants,
   onChange,
 }: {
   productId: string;
+  styleCode: string | null;
   variants: Variant[];
   onChange: (v: Variant[]) => void;
 }) {
@@ -378,6 +385,7 @@ function VariantsSection({
             <SizeGroup
               key={size}
               productId={productId}
+              styleCode={styleCode}
               size={size}
               tags={sizeGroups.get(size) ?? []}
               onRemoveSize={() => removeSize(size)}
@@ -394,11 +402,24 @@ function VariantsSection({
   );
 }
 
+/**
+ * Client-side preview only — mirrors the server's colorCodeFrom/sizeCodeFrom
+ * in lib/actions/admin/products.ts. The server always regenerates and is the
+ * source of truth (handles collisions), this just shows the admin what to
+ * expect before they hit "add tag".
+ */
+function previewSku(styleCode: string | null, color: string, size: string): string {
+  const colorCode = color.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3) || "STD";
+  const sizeCode = size.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 4) || "OS";
+  return `${styleCode ?? "…"}-${colorCode}-${sizeCode}`;
+}
+
 const variantInputClass =
   "w-full rounded-lg border border-cocoa/20 bg-cream px-3 py-2 text-sm text-charcoal outline-none transition duration-300 focus:border-cocoa disabled:opacity-60";
 
 function SizeGroup({
   productId,
+  styleCode,
   size,
   tags,
   onRemoveSize,
@@ -407,6 +428,7 @@ function SizeGroup({
   onTagDeleted,
 }: {
   productId: string;
+  styleCode: string | null;
   size: string;
   tags: Variant[];
   onRemoveSize: () => void;
@@ -450,6 +472,7 @@ function SizeGroup({
       {adding ? (
         <AddTagRow
           productId={productId}
+          styleCode={styleCode}
           size={size}
           onAdded={handleAdded}
           onCancel={() => setAdding(false)}
@@ -478,24 +501,28 @@ function SizeGroup({
 
 function AddTagRow({
   productId,
+  styleCode,
   size,
   onAdded,
   onCancel,
 }: {
   productId: string;
+  styleCode: string | null;
   size: string;
   onAdded: (v: Variant) => void;
   onCancel: () => void;
 }) {
   const [color, setColor] = useState("");
   const [sku, setSku] = useState("");
+  const [skuEdited, setSkuEdited] = useState(false);
   const [priceRupees, setPriceRupees] = useState("");
   const [stock, setStock] = useState("0");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const effectiveSku = skuEdited ? sku : previewSku(styleCode, color, size);
   const priceValid = priceRupees.length > 0 && !Number.isNaN(rupeesToPaise(priceRupees));
-  const canSubmit = sku.trim().length > 0 && priceValid && !pending;
+  const canSubmit = priceValid && !pending;
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -506,7 +533,7 @@ function AddTagRow({
         const created = await createVariant(productId, {
           size,
           color: color.trim() || undefined,
-          sku: sku.trim(),
+          sku: skuEdited ? sku.trim() : undefined,
           price: rupeesToPaise(priceRupees),
           stock: Number.parseInt(stock, 10) || 0,
         });
@@ -534,12 +561,17 @@ function AddTagRow({
     >
       <div className="grid gap-3 sm:grid-cols-[1.4fr_1.4fr_1fr_1fr]">
         <input placeholder="tag (e.g. color) *" value={color} onChange={(e) => setColor(e.target.value)} className={variantInputClass} />
-        <input placeholder="sku *" value={sku} onChange={(e) => setSku(e.target.value)} className={variantInputClass} />
+        <input placeholder="sku (auto)" value={effectiveSku}
+          onChange={(e) => { setSku(e.target.value); setSkuEdited(true); }}
+          className={`${variantInputClass} font-mono`} />
         <input inputMode="decimal" placeholder="price (₹) *" value={priceRupees}
           onChange={(e) => setPriceRupees(e.target.value)} className={variantInputClass} />
         <input inputMode="numeric" placeholder="stock" value={stock}
           onChange={(e) => setStock(e.target.value.replace(/\D/g, ""))} className={variantInputClass} />
       </div>
+      <p className="mt-1.5 text-[11px] text-charcoal/45">
+        SKU auto-fills from the style code, tag, and size — edit it to override.
+      </p>
       {error ? <p className="mt-2 text-xs text-burnt-red">{error}</p> : null}
       <div className="mt-3 flex items-center justify-end gap-2">
         <button type="button" onClick={onCancel}
