@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import {
   AdminEmpty,
@@ -82,7 +83,13 @@ export default async function AdminBannersPage() {
                       />
                     </td>
                     <td className={t.td}>
-                      <div className="flex justify-end">
+                      <div className="flex items-center justify-end gap-3">
+                        <Link
+                          href={`/admin/banners/${b.id}`}
+                          className="soft-link text-[11px] font-bold uppercase tracking-[0.16em] text-cocoa"
+                        >
+                          edit
+                        </Link>
                         <DeleteButton
                           action={deleteBanner}
                           id={b.id}
