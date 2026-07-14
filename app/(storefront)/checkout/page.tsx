@@ -15,19 +15,18 @@ export default async function CheckoutPage() {
     redirect("/cart");
   }
 
-  let prefillEmail = "";
-  let prefillPhone = "";
-  let prefillName = "";
-  try {
-    const customer = await getCurrentCustomer();
-    if (customer) {
-      prefillEmail = customer.email ?? "";
-      prefillPhone = customer.phone ?? "";
-      prefillName = customer.fullName ?? "";
-    }
-  } catch {
-    // Guest checkout — no prefill, no error surface.
+  // Checkout requires a signed-in customer (no guest orders). The proxy
+  // middleware already gates /checkout, but a session can expire between
+  // page loads — re-check here and bounce to login instead of rendering a
+  // form whose submit is guaranteed to be rejected.
+  const customer = await getCurrentCustomer().catch(() => null);
+  if (!customer) {
+    redirect("/login?redirect=/checkout");
   }
+
+  const prefillEmail = customer.email ?? "";
+  const prefillPhone = customer.phone ?? "";
+  const prefillName = customer.fullName ?? "";
 
   return (
     <>

@@ -45,5 +45,15 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Checkout requires a signed-in customer (guest checkout removed by client
+  // decision Jul 13 — orders must always be linked to an account so returns/
+  // exchanges can be raised from the dashboard).
+  if (path.startsWith("/checkout") && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("redirect", path);
+    return NextResponse.redirect(url);
+  }
+
   return response;
 }

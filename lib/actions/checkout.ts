@@ -44,25 +44,26 @@ function calculateShipping(taxableAfterDiscount: number): number {
   return taxableAfterDiscount >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_FEE;
 }
 
-async function resolveCustomerId(email: string): Promise<string | null> {
-  // If logged in, get customer id via supabase auth user
+/**
+ * Checkout requires a signed-in customer (guest checkout removed by client
+ * decision Jul 13). Every order is linked to an account so returns/exchanges
+ * can always be raised from the dashboard.
+ */
+async function requireCheckoutCustomer(): Promise<{
+  id: string;
+  email: string;
+}> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getUser();
-  if (data.user?.email) {
+  if (data.user) {
     const c = await db
-      .select({ id: customers.id })
+      .select({ id: customers.id, email: customers.email })
       .from(customers)
-      .where(eq(customers.email, data.user.email))
+      .where(eq(customers.id, data.user.id))
       .limit(1);
-    if (c[0]) return c[0].id;
+    if (c[0]) return c[0];
   }
-  // Guest checkout — see if a customer record already exists for this email
-  const existing = await db
-    .select({ id: customers.id })
-    .from(customers)
-    .where(eq(customers.email, email))
-    .limit(1);
-  return existing[0]?.id ?? null;
+  throw new ActionError("Please sign in to place your order");
 }
 
 // ── Public actions ───────────────────────────────────────────────────────────
@@ -111,8 +112,11 @@ export async function initCheckout(
 
   if (total <= 0) throw new ActionError("Invalid order total");
 
-  // 5. Resolve customer
-  const customerId = await resolveCustomerId(input.email);
+  // 5. Resolve customer — must be signed in; the order is always tied to the
+  // account email so it shows up in the dashboard (returns/exchanges).
+  const customer = await requireCheckoutCustomer();
+  const customerId = customer.id;
+  const orderEmail = customer.email || input.email;
 
   // 6. Generate order number, insert internal order
   const orderNumber = await nextOrderNumber();
@@ -122,7 +126,7 @@ export async function initCheckout(
     .values({
       orderNumber,
       customerId,
-      email: input.email,
+      email: orderEmail,
       phone: input.shippingAddress.phone,
       whatsappOptIn: input.whatsappOptIn,
       shippingAddress: input.shippingAddress,
@@ -158,7 +162,7 @@ export async function initCheckout(
     notes: {
       internal_order_id: createdOrder.id,
       order_number: orderNumber,
-      email: input.email,
+      email: orderEmail,
     },
   });
 
