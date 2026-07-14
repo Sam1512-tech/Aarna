@@ -75,6 +75,62 @@ function revalidateProductConsumers(slug?: string) {
   revalidatePath("/admin/products");
 }
 
+// ── Style code / SKU generation ─────────────────────────────────────────────
+//
+// A "style code" (e.g. "DR001") is a short per-product code derived from its
+// category, assigned once at creation. Variant SKUs are built from it plus a
+// short color + size code (e.g. "DR001-MRN-M"), so every tag is legible on a
+// hang tag or in a spreadsheet without the admin having to invent one.
+
+function categoryPrefixFrom(categoryName: string | null): string {
+  const letters = (categoryName ?? "").replace(/[^a-zA-Z]/g, "").toUpperCase();
+  return (letters.slice(0, 2) || "PR").padEnd(2, "X");
+}
+
+function colorCodeFrom(color: string | undefined): string {
+  const letters = (color ?? "").replace(/[^a-zA-Z]/g, "").toUpperCase();
+  return letters.slice(0, 3) || "STD";
+}
+
+function sizeCodeFrom(size: string | undefined): string {
+  const cleaned = (size ?? "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  return cleaned.slice(0, 4) || "OS";
+}
+
+async function nextStyleCode(categoryName: string | null): Promise<string> {
+  const prefix = categoryPrefixFrom(categoryName);
+  const existing = await db
+    .select({ styleCode: products.styleCode })
+    .from(products)
+    .where(sql`${products.styleCode} like ${prefix + "%"}`);
+
+  let max = 0;
+  const pattern = new RegExp(`^${prefix}(\\d+)$`);
+  for (const row of existing) {
+    const match = row.styleCode ? row.styleCode.match(pattern) : null;
+    if (match) max = Math.max(max, Number.parseInt(match[1], 10));
+  }
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
+}
+
+async function generateUniqueSku(
+  styleCode: string,
+  color: string | undefined,
+  size: string | undefined,
+): Promise<string> {
+  const base = `${styleCode}-${colorCodeFrom(color)}-${sizeCodeFrom(size)}`;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const candidate = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    const clash = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .where(eq(productVariants.sku, candidate))
+      .limit(1);
+    if (!clash[0]) return candidate;
+  }
+  throw new ActionError("couldn't generate a unique SKU — enter one manually");
+}
+
 // ── Product CRUD ─────────────────────────────────────────────────────────────
 
 export interface AdminProductFilters {
@@ -198,11 +254,23 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
     .limit(1);
   if (existing[0]) throw new ActionError(`Slug "${slug}" is already taken`);
 
+  let categoryName: string | null = null;
+  if (input.categoryId) {
+    const cat = await db
+      .select({ name: categories.name })
+      .from(categories)
+      .where(eq(categories.id, input.categoryId))
+      .limit(1);
+    categoryName = cat[0]?.name ?? null;
+  }
+  const styleCode = await nextStyleCode(categoryName);
+
   const [created] = await db
     .insert(products)
     .values({
       title,
       slug,
+      styleCode,
       description: input.description?.trim() || null,
       fabric: input.fabric?.trim() || null,
       washCare: input.washCare?.trim() || null,
@@ -329,7 +397,7 @@ export async function deleteProduct(id: string): Promise<{ ok: true }> {
 export interface CreateVariantInput {
   size?: string;
   color?: string;
-  sku: string;
+  sku?: string; // blank/omitted = auto-generate from the product's style code
   price: number;
   stock?: number;
   weightGrams?: number;
@@ -341,25 +409,41 @@ export async function createVariant(
 ) {
   await requireAdmin();
 
-  const sku = input.sku.trim();
-  if (!sku) throw new ActionError("SKU is required");
   const price = validatePrice(input.price, "Variant price");
 
   // Verify product exists
   const product = await db
-    .select({ id: products.id, slug: products.slug })
+    .select({
+      id: products.id,
+      slug: products.slug,
+      styleCode: products.styleCode,
+      categoryName: categories.name,
+    })
     .from(products)
+    .leftJoin(categories, eq(products.categoryId, categories.id))
     .where(eq(products.id, productId))
     .limit(1);
   if (!product[0]) throw new ActionError("Product not found");
 
-  // SKU uniqueness
-  const skuClash = await db
-    .select({ id: productVariants.id })
-    .from(productVariants)
-    .where(eq(productVariants.sku, sku))
-    .limit(1);
-  if (skuClash[0]) throw new ActionError(`SKU "${sku}" is already taken`);
+  // Legacy products created before style codes existed — backfill lazily.
+  let styleCode = product[0].styleCode;
+  if (!styleCode) {
+    styleCode = await nextStyleCode(product[0].categoryName);
+    await db.update(products).set({ styleCode }).where(eq(products.id, productId));
+  }
+
+  let sku = input.sku?.trim();
+  if (sku) {
+    // Manually entered — enforce the existing exact-match uniqueness UX.
+    const skuClash = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .where(eq(productVariants.sku, sku))
+      .limit(1);
+    if (skuClash[0]) throw new ActionError(`SKU "${sku}" is already taken`);
+  } else {
+    sku = await generateUniqueSku(styleCode, input.color, input.size);
+  }
 
   const [created] = await db
     .insert(productVariants)
