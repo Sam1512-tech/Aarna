@@ -68,11 +68,25 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
   return (
     <>
       <div className="fixed inset-x-0 top-0 z-50 h-9 overflow-hidden bg-maroon text-cream">
-        <div className="flex h-full w-max animate-[mobile-marquee_28s_linear_infinite] items-center gap-10 whitespace-nowrap px-4 text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]">
+        {/*
+          The mobile-marquee keyframe translates the strip from 0 → -50%, so
+          for a seamless loop the strip must contain TWO identical halves.
+          Previous markup had 3 unique messages + 1 stray duplicate — the
+          loop jumped at the reset point. Now the full 3-message set is
+          rendered twice; the second copy is aria-hidden so screen readers
+          only announce it once. will-change tells the compositor to promote
+          the strip for GPU compositing so the scroll stays smooth.
+        */}
+        <div
+          className="flex h-full w-max animate-[mobile-marquee_36s_linear_infinite] items-center gap-14 whitespace-nowrap px-4 text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]"
+          style={{ willChange: "transform" }}
+        >
           <span>slow-made pieces for everyday rituals</span>
           <span>handcrafted in small batches</span>
           <span>made to live in slowly</span>
-          <span>slow-made pieces for everyday rituals</span>
+          <span aria-hidden="true">slow-made pieces for everyday rituals</span>
+          <span aria-hidden="true">handcrafted in small batches</span>
+          <span aria-hidden="true">made to live in slowly</span>
         </div>
       </div>
 
