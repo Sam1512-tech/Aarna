@@ -285,7 +285,7 @@ export function CartView({ initialCart }: CartViewProps) {
                 <span className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
                   Total
                 </span>
-                <span className="font-display text-3xl text-maroon">
+                <span className="text-lg font-semibold tabular-nums text-maroon">
                   {formatINR(total)}
                 </span>
               </div>
