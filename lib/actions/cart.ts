@@ -98,6 +98,7 @@ async function hydrateCart(cartId: string): Promise<CartState> {
       variantId: cartItems.variantId,
       quantity: cartItems.quantity,
       productId: products.id,
+      productSlug: products.slug,
       productTitle: products.title,
       size: productVariants.size,
       color: productVariants.color,
@@ -133,6 +134,7 @@ async function hydrateCart(cartId: string): Promise<CartState> {
   const lines: CartLine[] = rows.map((r) => ({
     variantId: r.variantId,
     productId: r.productId,
+    productSlug: r.productSlug,
     productTitle: r.productTitle,
     variantLabel: [r.size, r.color].filter(Boolean).join(" / "),
     imageUrl: imageByProduct.get(r.productId) ?? null,

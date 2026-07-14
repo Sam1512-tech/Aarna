@@ -38,6 +38,7 @@ export interface ProductWithVariants extends Product {
 export interface CartLine {
   variantId: string;
   productId: string;
+  productSlug: string;
   productTitle: string;
   variantLabel: string;
   imageUrl: string | null;
