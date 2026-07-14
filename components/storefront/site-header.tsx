@@ -25,14 +25,25 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
 
   return (
     <>
-      {/* Static announcement strip — the looping marquee animation was removed
-          with the rest of the site motion. One message on mobile, all three
-          fit on desktop. */}
+      {/*
+        Looping announcement marquee — the only animation kept after the rest
+        of the site motion was removed. The mobile-marquee keyframe
+        translates the strip 0 → -50%, so for a seamless loop the strip must
+        contain two identical halves; the second copy is aria-hidden so
+        screen readers only announce it once. will-change promotes the strip
+        to its own compositor layer so the scroll stays smooth.
+      */}
       <div className="fixed inset-x-0 top-0 z-50 h-9 overflow-hidden bg-maroon text-cream">
-        <div className="flex h-full items-center justify-center gap-10 whitespace-nowrap px-4 text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]">
+        <div
+          className="flex h-full w-max animate-[mobile-marquee_36s_linear_infinite] items-center gap-14 whitespace-nowrap px-4 text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]"
+          style={{ willChange: "transform" }}
+        >
           <span>Slow-made pieces for everyday rituals</span>
-          <span className="hidden md:inline">Handcrafted in small batches</span>
-          <span className="hidden md:inline">Made to live in slowly</span>
+          <span>Handcrafted in small batches</span>
+          <span>Made to live in slowly</span>
+          <span aria-hidden="true">Slow-made pieces for everyday rituals</span>
+          <span aria-hidden="true">Handcrafted in small batches</span>
+          <span aria-hidden="true">Made to live in slowly</span>
         </div>
       </div>
 
