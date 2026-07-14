@@ -560,7 +560,7 @@ function AddTagRow({
       noValidate
     >
       <div className="grid gap-3 sm:grid-cols-[1.4fr_1.4fr_1fr_1fr]">
-        <input placeholder="tag (e.g. color) *" value={color} onChange={(e) => setColor(e.target.value)} className={variantInputClass} />
+        <input placeholder="tag (e.g. color, optional)" value={color} onChange={(e) => setColor(e.target.value)} className={variantInputClass} />
         <input placeholder="sku (auto)" value={effectiveSku}
           onChange={(e) => { setSku(e.target.value); setSkuEdited(true); }}
           className={`${variantInputClass} font-mono`} />
