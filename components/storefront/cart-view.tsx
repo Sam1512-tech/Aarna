@@ -355,7 +355,11 @@ function CartItemCard({
         leaving ? "translate-x-3" : ""
       }`}
     >
-      <div className="relative h-[108px] w-[82px] shrink-0 overflow-hidden rounded-[16px] md:h-[128px] md:w-[96px]">
+      <Link
+        href={`/product/${line.productSlug}`}
+        aria-label={line.productTitle}
+        className="relative block h-[108px] w-[82px] shrink-0 overflow-hidden rounded-[16px] md:h-[128px] md:w-[96px]"
+      >
         {line.imageUrl ? (
           <Image
             src={line.imageUrl}
@@ -367,13 +371,18 @@ function CartItemCard({
         ) : (
           <div className="cloth-window h-full w-full transition duration-700 group-hover:scale-[1.05]" />
         )}
-      </div>
+      </Link>
 
       <div className="flex flex-1 flex-col">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="font-display text-xl leading-tight text-maroon md:text-2xl">
-              {line.productTitle}
+              <Link
+                href={`/product/${line.productSlug}`}
+                className="transition duration-500 hover:text-burnt-red"
+              >
+                {line.productTitle}
+              </Link>
             </h2>
             <div className="mt-2.5 flex flex-wrap items-center gap-2">
               {size ? <VariantChip label="Size" value={size} /> : null}
