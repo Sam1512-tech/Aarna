@@ -395,9 +395,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                     {pincodeStatus.checking
                       ? "Checking serviceability…"
                       : pincodeStatus.serviceable
-                        ? pincodeStatus.etaDays
-                          ? `delivers in ~${pincodeStatus.etaDays} days`
-                          : "We deliver to this pincode"
+                        ? "We deliver to this pincode"
                         : "sorry, we don't deliver here yet"}
                   </p>
                 ) : null}
