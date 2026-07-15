@@ -4,6 +4,7 @@ import { ChevronDown, Plus, RotateCcw, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { requestReturn } from "@/lib/actions/account";
 import { formatINR } from "@/lib/utils";
+import { actionErrorMessage } from "@/lib/action-error";
 
 export interface ReturnRow {
   id: string;
@@ -31,22 +32,22 @@ interface AccountReturnsViewProps {
 }
 
 const REASON_CATEGORIES = [
-  { value: "size_fit", label: "size or fit" },
-  { value: "quality", label: "quality issue" },
-  { value: "damaged", label: "arrived damaged" },
-  { value: "wrong_item", label: "wrong item sent" },
-  { value: "changed_mind", label: "changed my mind" },
+  { value: "size_fit", label: "Size or fit" },
+  { value: "quality", label: "Quality issue" },
+  { value: "damaged", label: "Arrived damaged" },
+  { value: "wrong_item", label: "Wrong item sent" },
+  { value: "changed_mind", label: "Changed my mind" },
 ] as const;
 
 // Keys match the return_status pgEnum in lib/db/schema.ts
 // (requested / approved / rejected / picked / received / refunded).
 const STATUS_LABEL: Record<string, string> = {
-  requested: "requested",
-  approved: "approved",
-  picked: "picked up",
-  received: "received",
-  refunded: "refunded",
-  rejected: "rejected",
+  requested: "Requested",
+  approved: "Approved",
+  picked: "Picked up",
+  received: "Received",
+  refunded: "Refunded",
+  rejected: "Rejected",
 };
 
 function fmtDate(d: Date | string) {
@@ -80,16 +81,16 @@ export function AccountReturnsView({
           <button
             type="button"
             onClick={() => setFormOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-maroon px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-maroon/90"
+            className="inline-flex items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            raise a return
+            Raise a return
           </button>
         ) : null}
       </div>
 
       {error ? (
-        <p className="mt-4 text-xs lowercase text-burnt-red">{error}</p>
+        <p className="mt-4 text-xs text-burnt-red">{error}</p>
       ) : null}
 
       {returns.length === 0 ? (
@@ -97,11 +98,11 @@ export function AccountReturnsView({
           <span className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-cocoa/20 text-cocoa">
             <RotateCcw className="h-5 w-5" aria-hidden="true" />
           </span>
-          <h2 className="mt-5 font-display text-2xl lowercase text-maroon">
-            no returns yet
+          <h2 className="mt-5 font-display text-2xl text-maroon">
+            No returns yet
           </h2>
           <p className="mt-2 max-w-sm text-sm text-charcoal/60">
-            you can request a return within 3 days of delivery.
+            You can request a return within 3 days of delivery.
             {eligibleItems.length === 0 ? " no eligible items right now." : ""}
           </p>
         </div>
@@ -117,12 +118,12 @@ export function AccountReturnsView({
                   <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
                     order · {r.orderNumber} · raised {fmtDate(r.createdAt)}
                   </p>
-                  <p className="mt-1 font-display text-lg lowercase text-maroon">
-                    {r.productTitle.toLowerCase()}
+                  <p className="mt-1 font-display text-lg text-maroon">
+                    {r.productTitle}
                   </p>
                   {r.variantLabel ? (
-                    <p className="text-xs lowercase text-charcoal/55">
-                      {r.variantLabel.toLowerCase()} · qty {r.quantity}
+                    <p className="text-xs text-charcoal/55">
+                      {r.variantLabel} · qty {r.quantity}
                     </p>
                   ) : null}
                 </div>
@@ -135,7 +136,7 @@ export function AccountReturnsView({
               </p>
               {r.refundAmount ? (
                 <p className="mt-2 text-sm">
-                  <span className="text-charcoal/55">refund </span>
+                  <span className="text-charcoal/55">Refund </span>
                   <span className="font-medium text-cocoa">
                     {formatINR(r.refundAmount)}
                   </span>
@@ -206,7 +207,7 @@ function ReturnRequestForm({
         });
       } catch (err) {
         onError(
-          err instanceof Error ? err.message.toLowerCase() : "couldn't raise return",
+          actionErrorMessage(err, "Couldn't raise return"),
         );
       }
     });
@@ -229,8 +230,8 @@ function ReturnRequestForm({
         className="relative z-10 w-full max-w-lg rounded-t-3xl bg-cream p-6 shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-3xl md:p-8"
       >
         <div className="flex items-start justify-between">
-          <h2 className="font-display text-3xl lowercase text-maroon">
-            raise a return
+          <h2 className="font-display text-3xl text-maroon">
+            Raise a return
           </h2>
           <button
             type="button"
@@ -245,7 +246,7 @@ function ReturnRequestForm({
         <div className="mt-5 space-y-4">
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-              which piece?
+              Which piece?
             </span>
             <div className="relative mt-1.5">
               <select
@@ -270,7 +271,7 @@ function ReturnRequestForm({
 
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-              why?
+              Why?
             </span>
             <div className="mt-2 flex flex-wrap gap-2">
               {REASON_CATEGORIES.map((c) => {
@@ -282,9 +283,9 @@ function ReturnRequestForm({
                     onClick={() =>
                       setReasonCategory((prev) => (prev === c.value ? "" : c.value))
                     }
-                    className={`rounded-full border px-3 py-1.5 text-xs lowercase transition duration-500 ${
+                    className={`rounded-full border px-3 py-1.5 text-xs transition duration-500 ${
                       active
-                        ? "border-maroon bg-maroon text-cream"
+                        ? "border-cocoa bg-cocoa text-cream"
                         : "border-cocoa/22 text-charcoal/72 hover:border-cocoa"
                     }`}
                   >
@@ -297,14 +298,14 @@ function ReturnRequestForm({
 
           <label className="block">
             <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-              tell us more
+              Tell us more
             </span>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={4}
               minLength={5}
-              placeholder="describe the issue so our team can help quickly."
+              placeholder="Describe the issue so our team can help quickly."
               className="mt-2 block w-full resize-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 text-sm leading-6 text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
             />
           </label>
@@ -316,12 +317,12 @@ function ReturnRequestForm({
             onClick={onCancel}
             className="flex-1 rounded-2xl border border-cocoa/24 bg-cream py-3 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa"
           >
-            cancel
+            Cancel
           </button>
           <button
             type="submit"
             disabled={!canSubmit || pending}
-            className="flex-1 rounded-2xl bg-maroon py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-500 hover:bg-maroon/90 disabled:opacity-50"
+            className="flex-1 rounded-2xl bg-cocoa py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(140,106,90,0.24)] transition duration-500 hover:bg-cocoa/90 disabled:opacity-50"
           >
             {pending ? "raising…" : "raise return"}
           </button>

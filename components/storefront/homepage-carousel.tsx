@@ -11,6 +11,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { isVideoUrl } from "@/lib/media";
 
 // Minimal shape — keeps the component decoupled from the Drizzle Banner type
 // and easy to mock. The server page maps DB rows into this shape.
@@ -45,16 +46,7 @@ interface HomepageCarouselProps {
 
 const AUTOPLAY_MS = 6000;
 const SWIPE_THRESHOLD_PX = 50;
-const TAGLINE = "clothing made to live softly";
-
-// Video detection: extension or Cloudinary "/video/upload/" path.
-// Exported so callers can filter a banner list to videos only.
-export function isVideo(url: string): boolean {
-  return (
-    /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) ||
-    /\/video\/upload\//i.test(url)
-  );
-}
+const TAGLINE = "Clothing made to live softly";
 
 export function HomepageCarousel({
   banners,
@@ -123,9 +115,9 @@ function CarouselInner({
   useEffect(() => {
     if (count <= 1 || paused) return;
     const activeBanner = banners[active];
-    const desktopIsVideo = isVideo(activeBanner.imageUrl);
+    const desktopIsVideo = isVideoUrl(activeBanner.imageUrl);
     const mobileIsVideo = activeBanner.mobileImageUrl
-      ? isVideo(activeBanner.mobileImageUrl)
+      ? isVideoUrl(activeBanner.mobileImageUrl)
       : desktopIsVideo;
     if (desktopIsVideo || mobileIsVideo) return;
     const t = window.setTimeout(goNext, AUTOPLAY_MS);
@@ -219,15 +211,15 @@ function CarouselInner({
               className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-charcoal/55 via-charcoal/10 to-transparent"
             />
             <div className="pointer-events-none absolute inset-0 z-20 flex items-end px-5 pb-16 md:items-center md:px-12 md:pb-0">
-              <div className="pointer-events-auto fade-rise max-w-2xl">
-                <h1 className="font-display text-[40px] lowercase leading-[0.98] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.45)] md:text-[64px] lg:text-[80px]">
+              <div className="pointer-events-auto max-w-2xl">
+                <h1 className="font-display text-[40px] leading-[0.98] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.45)] md:text-[64px] lg:text-[80px]">
                   {TAGLINE}
                 </h1>
                 <Link
                   href="/shop"
-                  className="mt-7 inline-flex items-center justify-center border border-cream/60 bg-cream/95 px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(43,38,35,0.18)] transition duration-1000 hover:bg-cream"
+                  className="mt-7 inline-flex items-center justify-center border border-cream/60 bg-cream/95 px-7 py-4 text-[11px] font-bold tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(43,38,35,0.18)] transition duration-1000 hover:bg-cream"
                 >
-                  <span className="text-cocoa">shop the wardrobe</span>
+                  <span className="text-cocoa">Shop the wardrobe</span>
                 </Link>
               </div>
             </div>
@@ -353,7 +345,7 @@ function Media({
   registerVideo: (el: HTMLVideoElement | null) => void;
   onVideoEnded: () => void;
 }) {
-  if (isVideo(src)) {
+  if (isVideoUrl(src)) {
     return (
       <video
         ref={(el) => {
@@ -413,15 +405,15 @@ function CarouselEmpty({
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-charcoal/40 via-charcoal/5 to-transparent"
         />
         <div className="absolute inset-0 flex items-end px-5 pb-16 md:items-center md:px-12 md:pb-0">
-          <div className="fade-rise max-w-2xl">
-            <h1 className="font-display text-[40px] lowercase leading-[0.98] text-maroon md:text-[64px] lg:text-[80px]">
+          <div className="max-w-2xl">
+            <h1 className="font-display text-[40px] leading-[0.98] text-maroon md:text-[64px] lg:text-[80px]">
               {TAGLINE}
             </h1>
             <Link
               href="/shop"
-              className="mt-7 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
+              className="mt-7 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
             >
-              <span className="text-cocoa">shop the wardrobe</span>
+              <span className="text-cocoa">Shop the wardrobe</span>
             </Link>
           </div>
         </div>

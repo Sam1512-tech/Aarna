@@ -30,18 +30,18 @@ export function LegalPage({
           className="flex items-center gap-1 text-[11px] uppercase tracking-[0.18em] text-charcoal/55"
         >
           <Link href="/" className="soft-link hover:text-cocoa">
-            home
+            Home
           </Link>
           <ChevronRight className="h-3 w-3 opacity-60" aria-hidden="true" />
-          <span className="text-charcoal/75">{title.toLowerCase()}</span>
+          <span className="text-charcoal/75">{title}</span>
         </nav>
 
-        <header className="fade-rise mt-8 border-b border-cocoa/12 pb-10">
+        <header className="mt-8 border-b border-cocoa/12 pb-10">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             {eyebrow}
           </p>
-          <h1 className="mt-4 font-display text-[40px] lowercase leading-[1.04] text-maroon md:text-6xl">
-            {title.toLowerCase()}
+          <h1 className="mt-4 font-display text-[40px] leading-[1.04] text-maroon md:text-6xl">
+            {title}
           </h1>
           {intro ? (
             <p className="mt-5 max-w-xl text-base leading-8 text-charcoal/65">
@@ -55,7 +55,7 @@ export function LegalPage({
           ) : null}
         </header>
 
-        <div className="fade-rise-late mt-10 space-y-10 pb-16">{children}</div>
+        <div className="mt-10 space-y-10 pb-16">{children}</div>
       </div>
     </section>
   );
@@ -75,8 +75,8 @@ export function LegalSection({
   return (
     <section>
       {heading ? (
-        <h2 className="font-display text-2xl lowercase leading-tight text-maroon md:text-3xl">
-          {heading.toLowerCase()}
+        <h2 className="font-display text-2xl leading-tight text-maroon md:text-3xl">
+          {heading}
         </h2>
       ) : null}
       <div className={heading ? "mt-5" : ""}>{children}</div>

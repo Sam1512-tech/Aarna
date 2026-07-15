@@ -20,8 +20,8 @@ export function FaqItem({
     <li>
       <details className="group">
         <summary className="flex cursor-pointer list-none items-start justify-between gap-6 py-6 transition duration-500 hover:text-cocoa [&::-webkit-details-marker]:hidden">
-          <span className="font-display text-xl lowercase leading-snug text-maroon md:text-2xl">
-            {question.toLowerCase()}
+          <span className="font-display text-xl leading-snug text-maroon md:text-2xl">
+            {question}
           </span>
           <span
             aria-hidden="true"

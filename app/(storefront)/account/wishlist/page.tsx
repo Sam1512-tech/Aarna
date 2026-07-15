@@ -3,7 +3,7 @@ import { AccountWishlistView } from "@/components/storefront/account-wishlist-vi
 import { getWishlist } from "@/lib/actions/account";
 
 export const metadata: Metadata = {
-  title: "your wishlist",
+  title: "Your wishlist",
 };
 
 export default async function AccountWishlistPage() {

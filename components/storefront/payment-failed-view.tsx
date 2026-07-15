@@ -28,41 +28,41 @@ export function PaymentFailedView({
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[128px] md:px-6 md:pt-36">
       <div className="mx-auto max-w-2xl">
-        <header className="fade-rise flex flex-col items-center text-center">
+        <header className="flex flex-col items-center text-center">
           {isPending ? <PendingMark /> : <FailedMark />}
           <p className="mt-8 text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            {isPending ? "payment pending" : "payment unsuccessful"}
+            {isPending ? "Payment pending" : "Payment unsuccessful"}
           </p>
-          <h1 className="mt-4 font-display text-[36px] lowercase leading-[1.06] text-maroon md:text-5xl">
+          <h1 className="mt-4 font-display text-[36px] leading-[1.06] text-maroon md:text-5xl">
             {isPending
-              ? "we're still verifying"
-              : "payment couldn't be completed"}
+              ? "We're still verifying"
+              : "Payment couldn't be completed"}
           </h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-charcoal/65">
             {isPending ? PENDING_MESSAGE : FAILED_MESSAGE}
           </p>
         </header>
 
-        <div className="fade-rise-late mt-10 rounded-[28px] border border-cocoa/12 bg-cream/85 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:p-8">
+        <div className="mt-10 rounded-[28px] border border-cocoa/12 bg-cream/85 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:p-8">
           <dl className="space-y-4 text-sm">
             <Detail
-              label="payment status"
+              label="Payment status"
               value={
                 isPending
-                  ? "pending verification"
+                  ? "Pending verification"
                   : paymentStatus === "failed"
                     ? "failed"
-                    : "not completed"
+                    : "Not completed"
               }
               tone={isPending ? "warn" : "fail"}
             />
             {orderNumber ? (
-              <Detail label="order id" value={orderNumber} mono />
+              <Detail label="Order id" value={orderNumber} mono />
             ) : null}
             {reason ? (
               <Detail
-                label="reason"
-                value={reason.replaceAll("_", " ").toLowerCase()}
+                label="Reason"
+                value={(reason.replaceAll("_", " ").toLowerCase()).replace(/^./, (c) => c.toUpperCase())}
               />
             ) : null}
           </dl>
@@ -77,7 +77,7 @@ export function PaymentFailedView({
             >
               <span className="flex items-center gap-3 text-[12px] font-medium uppercase tracking-[0.24em] text-cream">
                 <RotateCw className="h-4 w-4" aria-hidden="true" />
-                retry payment
+                Retry payment
                 <ArrowRight
                   className="h-4 w-4 transition-transform duration-500 group-hover/cta:translate-x-1"
                   aria-hidden="true"
@@ -104,8 +104,8 @@ export function PaymentFailedView({
               </span>
             </Link>
           </div>
-          <p className="pt-3 text-center text-xs lowercase leading-6 text-charcoal/50">
-            need help? our support team is here to assist you.
+          <p className="pt-3 text-center text-xs leading-6 text-charcoal/50">
+            Need help? Our support team is here to assist you.
           </p>
         </div>
       </div>
@@ -132,7 +132,7 @@ function PendingMark() {
     <div className="relative flex h-24 w-24 items-center justify-center">
       <span
         aria-hidden="true"
-        className="absolute inset-0 rounded-full bg-cocoa/12 animate-[ping_2.6s_cubic-bezier(0,0,0.2,1)_infinite]"
+        className="absolute inset-0 rounded-full bg-cocoa/12"
       />
       <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-cocoa shadow-[0_18px_40px_rgba(140,106,90,0.22)]">
         <Clock className="h-6 w-6 text-cream" aria-hidden="true" />

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { isVideoUrl, videoPosterUrl } from "@/lib/media";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -184,12 +185,12 @@ export function ProductDetailView({
           />
 
           {/* Info */}
-          <div className="fade-rise-late md:sticky md:top-36 md:self-start">
+          <div className="md:sticky md:top-36 md:self-start">
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-              {product.category?.name.toLowerCase() ?? "wardrobe"}
+              {product.category?.name ?? "Wardrobe"}
             </p>
-            <h1 className="mt-3 font-display text-[40px] lowercase leading-[1.04] text-maroon md:text-5xl">
-              {product.title.toLowerCase()}
+            <h1 className="mt-3 font-display text-[40px] leading-[1.04] text-maroon md:text-5xl">
+              {product.title}
             </h1>
 
             {reviewSummary && reviewSummary.count > 0 ? (
@@ -226,22 +227,22 @@ export function ProductDetailView({
                 </>
               ) : null}
             </div>
-            <p className="mt-1 text-xs lowercase text-charcoal/50">
-              inclusive of all taxes
+            <p className="mt-1 text-xs text-charcoal/50">
+              Inclusive of all taxes
             </p>
 
             {/* Size picker */}
             {sizes.length > 0 ? (
               <fieldset className="mt-9">
                 <legend className="mb-3 flex items-center justify-between gap-4 text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
-                  <span>size</span>
+                  <span>Size</span>
                   {/* /size-guide doesn't exist yet — the FAQ covers sizing
                       help. Re-point here when a dedicated guide ships. */}
                   <Link
                     href="/faq"
                     className="soft-link text-[10px] tracking-[0.18em] text-cocoa"
                   >
-                    size help
+                    Size help
                   </Link>
                 </legend>
                 <div className="flex flex-wrap gap-2">
@@ -275,9 +276,9 @@ export function ProductDetailView({
             {colors.length > 0 ? (
               <fieldset className="mt-7">
                 <legend className="mb-3 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
-                  <span>colour</span>
+                  <span>Colour</span>
                   {selectedColor ? (
-                    <span className="font-normal lowercase tracking-normal text-charcoal/55">
+                    <span className="font-normal tracking-normal text-charcoal/55">
                       · {selectedColor}
                     </span>
                   ) : null}
@@ -316,7 +317,7 @@ export function ProductDetailView({
             <div className="mt-8 flex items-end justify-between gap-4">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
-                  quantity
+                  Quantity
                 </p>
                 <div className="mt-3 inline-flex items-center rounded-full border border-cocoa/22 bg-cream text-maroon shadow-[0_6px_18px_rgba(43,38,35,0.04)]">
                   <button
@@ -330,7 +331,7 @@ export function ProductDetailView({
                   </button>
                   <span
                     key={quantity}
-                    className="qty-pop min-w-9 text-center text-sm tabular-nums"
+                    className="min-w-9 text-center text-sm tabular-nums"
                   >
                     {quantity}
                   </span>
@@ -368,14 +369,14 @@ export function ProductDetailView({
             </div>
 
             {/* CTAs */}
-            <div className="mt-8 flex items-stretch gap-3">
+            <div className="mt-8 flex items-stretch gap-2 md:gap-3">
               <button
                 type="button"
                 onClick={handleAddToBag}
                 disabled={!variantSelected || !inStock || isPending}
-                className="group/cta flex min-h-[60px] flex-1 items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)] disabled:opacity-45 disabled:hover:bg-maroon disabled:hover:shadow-[0_18px_40px_rgba(74,31,31,0.22)]"
+                className="group/cta flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-maroon px-4 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)] disabled:opacity-45 disabled:hover:bg-maroon disabled:hover:shadow-[0_18px_40px_rgba(74,31,31,0.22)] md:min-h-[60px] md:px-6"
               >
-                <span className="flex items-center gap-3 text-[12px] font-medium uppercase tracking-[0.24em] text-cream">
+                <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-cream md:gap-3 md:text-[12px] md:tracking-[0.24em]">
                   {bagFeedback === "added"
                     ? "added to bag ✓"
                     : bagFeedback === "error"
@@ -395,7 +396,7 @@ export function ProductDetailView({
                 disabled={!variantSelected}
                 aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}
                 aria-pressed={wished}
-                className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-2xl border border-cocoa/22 bg-cream text-maroon transition duration-500 hover:border-cocoa disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-2xl border border-cocoa/22 bg-cream text-maroon transition duration-500 hover:border-cocoa disabled:cursor-not-allowed disabled:opacity-40 md:h-[60px] md:w-[60px]"
               >
                 <Heart
                   className={`h-5 w-5 transition duration-500 ${
@@ -406,7 +407,7 @@ export function ProductDetailView({
               </button>
             </div>
             {wishError ? (
-              <p className="mt-3 text-center text-xs lowercase text-burnt-red">
+              <p className="mt-3 text-center text-xs text-burnt-red">
                 {wishError}
               </p>
             ) : null}
@@ -415,32 +416,32 @@ export function ProductDetailView({
             <div className="mt-8 grid grid-cols-1 gap-3 rounded-2xl border border-cocoa/12 bg-cream/60 px-5 py-4 text-[11px] uppercase tracking-[0.16em] text-charcoal/65 sm:grid-cols-2">
               <div className="flex items-center gap-2">
                 <Truck className="h-4 w-4 text-cocoa" aria-hidden="true" />
-                <span>free shipping above ₹2999</span>
+                <span>Free shipping above ₹2999</span>
               </div>
               <div className="flex items-center gap-2">
                 <Lock className="h-4 w-4 text-cocoa" aria-hidden="true" />
-                <span>secure checkout</span>
+                <span>Secure checkout</span>
               </div>
             </div>
 
             {/* Details (fabric / care / description) */}
             <div className="mt-10 space-y-px border-t border-cocoa/10">
               {product.description ? (
-                <DetailRow label="about this piece">
+                <DetailRow label="About this piece">
                   <p className="text-sm leading-7 text-charcoal/70">
                     {product.description}
                   </p>
                 </DetailRow>
               ) : null}
               {product.fabric ? (
-                <DetailRow label="fabric">
+                <DetailRow label="Fabric">
                   <p className="text-sm leading-7 text-charcoal/70">
                     {product.fabric}
                   </p>
                 </DetailRow>
               ) : null}
               {product.washCare ? (
-                <DetailRow label="care">
+                <DetailRow label="Care">
                   <p className="text-sm leading-7 text-charcoal/70">
                     {product.washCare}
                   </p>
@@ -463,11 +464,11 @@ function Breadcrumb({ product }: { product: ProductWithVariants }) {
       className="flex flex-wrap items-center gap-1 text-[11px] uppercase tracking-[0.18em] text-charcoal/55"
     >
       <Link href="/" className="soft-link hover:text-cocoa">
-        home
+        Home
       </Link>
       <ChevronRight className="h-3 w-3 opacity-60" aria-hidden="true" />
       <Link href="/shop" className="soft-link hover:text-cocoa">
-        shop
+        Shop
       </Link>
       {product.category ? (
         <>
@@ -476,12 +477,12 @@ function Breadcrumb({ product }: { product: ProductWithVariants }) {
             href={`/shop/${product.category.slug}`}
             className="soft-link hover:text-cocoa"
           >
-            {product.category.name.toLowerCase()}
+            {product.category.name}
           </Link>
         </>
       ) : null}
       <ChevronRight className="h-3 w-3 opacity-60" aria-hidden="true" />
-      <span className="text-charcoal/75">{product.title.toLowerCase()}</span>
+      <span className="text-charcoal/75">{product.title}</span>
     </nav>
   );
 }
@@ -499,7 +500,7 @@ function Gallery({
 }) {
   if (images.length === 0) {
     return (
-      <div className="fade-rise">
+      <div>
         <div className="cloth-window aspect-[4/5] w-full rounded-[22px] shadow-[0_22px_60px_rgba(43,38,35,0.08)]" />
       </div>
     );
@@ -508,7 +509,7 @@ function Gallery({
   const active = images[Math.min(activeIdx, images.length - 1)] ?? images[0];
 
   return (
-    <div className="fade-rise md:grid md:grid-cols-[80px_1fr] md:gap-4">
+    <div className="md:grid md:grid-cols-[80px_1fr] md:gap-4">
       {/* Thumbnail strip — vertical on desktop, hidden on mobile (uses snap rail instead) */}
       {images.length > 1 ? (
         <div className="hidden h-fit flex-col gap-3 md:flex">
@@ -526,7 +527,7 @@ function Gallery({
               }`}
             >
               <Image
-                src={img.url}
+                src={videoPosterUrl(img.url)}
                 alt={img.altText ?? altFallback}
                 fill
                 sizes="80px"
@@ -546,28 +547,53 @@ function Gallery({
               key={img.id}
               className="relative aspect-[3/4] w-[88vw] shrink-0 snap-center overflow-hidden rounded-[20px] bg-cream shadow-[0_18px_55px_rgba(43,38,35,0.06)]"
             >
-              <Image
-                src={img.url}
-                alt={img.altText ?? altFallback}
-                fill
-                sizes="88vw"
-                priority
-                className="object-cover"
-              />
+              {isVideoUrl(img.url) ? (
+                <video
+                  src={img.url}
+                  poster={videoPosterUrl(img.url)}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <Image
+                  src={img.url}
+                  alt={img.altText ?? altFallback}
+                  fill
+                  sizes="88vw"
+                  priority
+                  className="object-cover"
+                />
+              )}
             </div>
           ))}
         </div>
 
-        {/* Desktop: single large active image */}
+        {/* Desktop: single large active image (or inline video) */}
         <div className="relative hidden aspect-[3/4] overflow-hidden rounded-[22px] bg-cream shadow-[0_22px_60px_rgba(43,38,35,0.08)] md:block">
-          <Image
-            src={active.url}
-            alt={active.altText ?? altFallback}
-            fill
-            sizes="(min-width: 1024px) 50vw, 100vw"
-            priority
-            className="object-cover"
-          />
+          {isVideoUrl(active.url) ? (
+            <video
+              key={active.id}
+              src={active.url}
+              poster={videoPosterUrl(active.url)}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            <Image
+              src={active.url}
+              alt={active.altText ?? altFallback}
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              priority
+              className="object-cover"
+            />
+          )}
         </div>
       </div>
     </div>

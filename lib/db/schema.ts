@@ -122,6 +122,10 @@ export const products = pgTable("products", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: varchar("title", { length: 200 }).notNull(),
   slug: varchar("slug", { length: 220 }).notNull().unique(),
+  // Short human code (e.g. "DR001") derived from category + a per-category
+  // sequence, generated once at creation. Nullable so pre-existing rows
+  // don't need a backfill; createVariant() backfills it lazily on first use.
+  styleCode: varchar("style_code", { length: 20 }).unique(),
   description: text("description"),
   fabric: varchar("fabric", { length: 120 }),
   washCare: text("wash_care"),

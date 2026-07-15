@@ -4,7 +4,7 @@ import { getMyOrders, getMyReturns } from "@/lib/actions/account";
 import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
 
 export const metadata: Metadata = {
-  title: "your returns",
+  title: "Your returns",
 };
 
 const RETURN_WINDOW_DAYS = 3;

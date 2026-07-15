@@ -41,8 +41,8 @@ interface SearchViewProps {
 // render (dynamic-categories rule: /shop/bestsellers and /shop/new-arrivals
 // aren't real categories and 404'd).
 const QUICK_PICKS = [
-  { label: "continue shopping", href: "/shop", Icon: ShoppingBag },
-  { label: "recently viewed", href: "/shop", Icon: Clock },
+  { label: "Continue shopping", href: "/shop", Icon: ShoppingBag },
+  { label: "Recently viewed", href: "/shop", Icon: Clock },
 ];
 const CATEGORY_ICONS = [Star, Sparkles];
 
@@ -120,10 +120,10 @@ export function SearchView({
             onKeyDown={(e) => {
               if (e.key === "Enter") commitSearch(query);
             }}
-            placeholder="search for pieces, categories…"
+            placeholder="Search for pieces, categories…"
             aria-label="Search"
             autoComplete="off"
-            className="w-full appearance-none bg-transparent text-base lowercase text-charcoal outline-none placeholder:text-charcoal/40 [&::-webkit-search-cancel-button]:hidden"
+            className="w-full appearance-none bg-transparent text-base text-charcoal outline-none placeholder:text-charcoal/40 [&::-webkit-search-cancel-button]:hidden"
           />
           {query ? (
             <button
@@ -140,10 +140,10 @@ export function SearchView({
 
       <div className="mx-auto max-w-7xl px-5 pt-9 md:px-6 md:pt-12">
         {isSearching ? (
-          <div key={trimmed} className="fade-rise">
+          <div key={trimmed}>
             {matchedCategories.length > 0 ? (
               <section className="mb-12">
-                <SectionLabel>categories</SectionLabel>
+                <SectionLabel>Categories</SectionLabel>
                 <div className="mt-5 flex flex-wrap gap-2.5">
                   {matchedCategories.map((c) => (
                     <Link
@@ -151,7 +151,7 @@ export function SearchView({
                       href={`/shop/${c.slug}`}
                       className="rounded-full border border-cocoa/20 bg-cocoa/5 px-5 py-2.5 transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/35 hover:bg-cocoa/10"
                     >
-                      <span className="text-sm lowercase text-charcoal/80">
+                      <span className="text-sm text-charcoal/80">
                         <Highlight text={c.name.toLowerCase()} query={trimmed} />
                       </span>
                     </Link>
@@ -190,8 +190,8 @@ export function SearchView({
         ) : (
           <div className="space-y-14 md:space-y-20">
             {/* Quick Picks */}
-            <section className="fade-rise">
-              <SectionLabel>quick picks</SectionLabel>
+            <section>
+              <SectionLabel>Quick picks</SectionLabel>
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   ...QUICK_PICKS,
@@ -220,15 +220,15 @@ export function SearchView({
 
             {/* Recent Searches */}
             {recent.length > 0 ? (
-              <section className="fade-rise">
+              <section>
                 <div className="flex items-center justify-between gap-4">
-                  <SectionLabel>recent searches</SectionLabel>
+                  <SectionLabel>Recent searches</SectionLabel>
                   <button
                     type="button"
                     onClick={clearRecent}
                     className="soft-link text-[11px] font-semibold uppercase tracking-[0.16em] text-cocoa/70 hover:text-cocoa"
                   >
-                    clear all
+                    Clear all
                   </button>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-2.5">
@@ -240,7 +240,7 @@ export function SearchView({
                       <button
                         type="button"
                         onClick={() => commitSearch(term)}
-                        className="text-sm lowercase text-charcoal/80 transition duration-500 group-hover:text-maroon"
+                        className="text-sm text-charcoal/80 transition duration-500 group-hover:text-maroon"
                       >
                         {term}
                       </button>
@@ -260,15 +260,15 @@ export function SearchView({
 
             {/* Trending Searches (existing categories) */}
             {categories.length > 0 ? (
-              <section className="fade-rise">
-                <SectionLabel>trending searches</SectionLabel>
+              <section>
+                <SectionLabel>Trending searches</SectionLabel>
                 <div className="mt-5 flex flex-wrap gap-2.5">
                   {categories.map((c) => (
                     <button
                       key={c.slug}
                       type="button"
                       onClick={() => commitSearch(c.name)}
-                      className="rounded-full border border-cocoa/20 bg-cocoa/5 px-5 py-2.5 text-sm lowercase text-charcoal/80 transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/35 hover:bg-cocoa/10 hover:text-maroon"
+                      className="rounded-full border border-cocoa/20 bg-cocoa/5 px-5 py-2.5 text-sm text-charcoal/80 transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/35 hover:bg-cocoa/10 hover:text-maroon"
                     >
                       {c.name.toLowerCase()}
                     </button>
@@ -279,8 +279,8 @@ export function SearchView({
 
             {/* Shop by Category */}
             {categories.length > 0 ? (
-              <section className="fade-rise">
-                <SectionLabel>shop by category</SectionLabel>
+              <section>
+                <SectionLabel>Shop by category</SectionLabel>
                 <div className="mt-7 flex flex-wrap justify-center gap-5 sm:gap-6">
                   {categories.map((c) => (
                     <Link
@@ -289,7 +289,7 @@ export function SearchView({
                       className="group block w-[calc(50%-10px)] sm:w-[230px]"
                     >
                       <div className="cloth-window aspect-[4/5] rounded-[20px] shadow-[0_16px_44px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]" />
-                      <p className="mt-3.5 font-display text-2xl lowercase leading-tight text-maroon">
+                      <p className="mt-3.5 font-display text-2xl leading-tight text-maroon">
                         {c.name.toLowerCase()}
                       </p>
                     </Link>
@@ -300,8 +300,8 @@ export function SearchView({
 
             {/* Recommended For You */}
             {recommended.length > 0 ? (
-              <section className="fade-rise">
-                <SectionLabel>recommended for you</SectionLabel>
+              <section>
+                <SectionLabel>Recommended for you</SectionLabel>
                 <div className="mt-7 flex snap-x gap-5 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {recommended.map((product) => (
                     <div key={product.id} className="w-[200px] shrink-0 snap-start md:w-[230px]">
@@ -403,16 +403,16 @@ function ProductCard({
               : "opacity-100 md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100"
           }`}
         >
-          <span className="flex items-center gap-2 text-[11px] font-medium lowercase tracking-[0.18em] text-cream">
+          <span className="flex items-center gap-2 text-[11px] font-medium tracking-[0.18em] text-cream">
             {justAdded ? (
               <>
                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                added to bag
+                Added to bag
               </>
             ) : (
               <>
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                add to bag
+                Add to bag
               </>
             )}
           </span>
@@ -438,12 +438,12 @@ function EmptyResults({
   onPick: (name: string) => void;
 }) {
   return (
-    <div className="fade-rise flex flex-col items-center px-4 py-16 text-center md:py-24">
+    <div className="flex flex-col items-center px-4 py-16 text-center md:py-24">
       <span className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-cocoa/20 text-cocoa">
         <Search className="h-6 w-6" aria-hidden="true" />
       </span>
-      <h2 className="mt-7 font-display text-[34px] lowercase leading-[1.1] text-maroon md:text-5xl">
-        no products found
+      <h2 className="mt-7 font-display text-[34px] leading-[1.1] text-maroon md:text-5xl">
+        No products found
       </h2>
       <p className="mt-4 max-w-sm text-base leading-7 text-charcoal/60">
         Try a different keyword or browse one of our categories.
@@ -455,7 +455,7 @@ function EmptyResults({
               key={c.slug}
               type="button"
               onClick={() => onPick(c.name)}
-              className="rounded-full border border-cocoa/20 bg-cocoa/5 px-5 py-2.5 text-sm lowercase text-charcoal/80 transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/35 hover:bg-cocoa/10 hover:text-maroon"
+              className="rounded-full border border-cocoa/20 bg-cocoa/5 px-5 py-2.5 text-sm text-charcoal/80 transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/35 hover:bg-cocoa/10 hover:text-maroon"
             >
               {c.name.toLowerCase()}
             </button>

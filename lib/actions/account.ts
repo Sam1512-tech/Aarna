@@ -4,6 +4,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { getCurrentCustomer } from "@/lib/actions/auth";
 import type { AddressInput } from "@/lib/types";
+import { ActionError } from "@/lib/action-error";
 
 const {
   orders,
@@ -21,7 +22,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 async function requireCustomer() {
   const customer = await getCurrentCustomer();
-  if (!customer) throw new Error("Unauthorized — please sign in");
+  if (!customer) throw new ActionError("Unauthorized — please sign in");
   return customer;
 }
 
@@ -232,7 +233,7 @@ export async function updateAddress(id: string, input: Partial<AddressInput>) {
     .from(addresses)
     .where(and(eq(addresses.id, id), eq(addresses.customerId, customer.id)))
     .limit(1);
-  if (!owned[0]) throw new Error("Address not found");
+  if (!owned[0]) throw new ActionError("Address not found");
 
   await db
     .update(addresses)
@@ -257,7 +258,7 @@ export async function deleteAddress(id: string) {
     .where(and(eq(addresses.id, id), eq(addresses.customerId, customer.id)))
     .returning({ id: addresses.id, wasDefault: addresses.isDefault });
 
-  if (!result[0]) throw new Error("Address not found");
+  if (!result[0]) throw new ActionError("Address not found");
 
   // If deleted address was default, promote the most recent remaining one
   if (result[0].wasDefault) {
@@ -286,7 +287,7 @@ export async function setDefaultAddress(id: string) {
     .from(addresses)
     .where(and(eq(addresses.id, id), eq(addresses.customerId, customer.id)))
     .limit(1);
-  if (!owned[0]) throw new Error("Address not found");
+  if (!owned[0]) throw new ActionError("Address not found");
 
   // Unset all, then set this one
   await db
@@ -326,11 +327,11 @@ export async function requestReturn(input: ReturnRequestInput) {
     .limit(1);
 
   if (!row[0] || row[0].customerId !== customer.id) {
-    throw new Error("Order item not found");
+    throw new ActionError("Order item not found");
   }
 
   if (row[0].fulfillmentStatus !== "delivered") {
-    throw new Error("Returns can only be requested after delivery");
+    throw new ActionError("Returns can only be requested after delivery");
   }
 
   // Use the last updatedAt as a proxy for delivery date (set by webhook)
@@ -338,7 +339,7 @@ export async function requestReturn(input: ReturnRequestInput) {
   const daysSinceDelivery =
     (Date.now() - new Date(deliveredAt).getTime()) / MS_PER_DAY;
   if (daysSinceDelivery > RETURN_WINDOW_DAYS) {
-    throw new Error(`Return window of ${RETURN_WINDOW_DAYS} days has expired`);
+    throw new ActionError(`Return window of ${RETURN_WINDOW_DAYS} days has expired`);
   }
 
   // Prevent duplicate return requests for the same order item
@@ -347,7 +348,7 @@ export async function requestReturn(input: ReturnRequestInput) {
     .from(returns)
     .where(eq(returns.orderItemId, input.orderItemId))
     .limit(1);
-  if (existing[0]) throw new Error("A return has already been requested for this item");
+  if (existing[0]) throw new ActionError("A return has already been requested for this item");
 
   const [created] = await db
     .insert(returns)

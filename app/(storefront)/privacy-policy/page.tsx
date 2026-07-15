@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LegalList, LegalPage } from "@/components/storefront/legal-page";
 
 export const metadata: Metadata = {
-  title: "privacy policy",
+  title: "Privacy policy",
   description:
     "How Aarna handles and safeguards customer information — what we collect, why, and what we never share.",
 };

@@ -4,6 +4,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
+import { ActionError } from "@/lib/action-error";
 
 const { reviews, products, customers } = schema;
 
@@ -78,7 +79,7 @@ export async function updateReviewStatus(id: string, status: ReviewStatus) {
   await requireAdmin();
 
   if (!ALLOWED_STATUSES.includes(status)) {
-    throw new Error(`Invalid review status: ${status}`);
+    throw new ActionError(`Invalid review status: ${status}`);
   }
 
   const existing = await db
@@ -86,7 +87,7 @@ export async function updateReviewStatus(id: string, status: ReviewStatus) {
     .from(reviews)
     .where(eq(reviews.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Review not found");
+  if (!existing[0]) throw new ActionError("Review not found");
 
   const [updated] = await db
     .update(reviews)
@@ -115,7 +116,7 @@ export async function deleteReview(id: string): Promise<{ ok: true }> {
     .from(reviews)
     .where(eq(reviews.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Review not found");
+  if (!existing[0]) throw new ActionError("Review not found");
 
   await db.delete(reviews).where(eq(reviews.id, id));
   revalidatePath("/admin/reviews");

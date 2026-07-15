@@ -4,12 +4,13 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { getCurrentCustomer } from "@/lib/actions/auth";
+import { ActionError } from "@/lib/action-error";
 
 const { orders, orderItems, productVariants, reviews, customers } = schema;
 
 async function requireCustomer() {
   const customer = await getCurrentCustomer();
-  if (!customer) throw new Error("Unauthorized — please sign in");
+  if (!customer) throw new ActionError("Unauthorized — please sign in");
   return customer;
 }
 
@@ -94,7 +95,7 @@ export async function submitReview(
 
   const rating = Math.round(input.rating);
   if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
-    throw new Error("Rating must be between 1 and 5 stars");
+    throw new ActionError("Rating must be between 1 and 5 stars");
   }
 
   const row = await db
@@ -110,10 +111,10 @@ export async function submitReview(
     .limit(1);
 
   if (!row[0] || row[0].customerId !== customer.id) {
-    throw new Error("Order item not found");
+    throw new ActionError("Order item not found");
   }
   if (row[0].fulfillmentStatus !== "delivered") {
-    throw new Error("You can review a product once it's delivered");
+    throw new ActionError("You can review a product once it's delivered");
   }
 
   const productId = row[0].productId;

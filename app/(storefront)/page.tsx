@@ -1,9 +1,11 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Feather, Infinity, ShieldCheck, Sparkles } from "lucide-react";
-import { HomepageCarousel, isVideo } from "@/components/storefront/homepage-carousel";
+import { HomepageCarousel } from "@/components/storefront/homepage-carousel";
 import { ScrollRail } from "@/components/storefront/scroll-rail";
 import { getActiveBanners } from "@/lib/actions/banners";
 import { getCategories, getNewArrivals } from "@/lib/actions/products";
+import { isVideoUrl, videoPosterUrl } from "@/lib/media";
 import type { Product } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
@@ -25,10 +27,10 @@ function productColor(product: Product) {
 
 // Clean single-weight Lucide icons — no more hand-drawn doodles.
 const rituals = [
-  { label: "everyday comfort", Icon: Feather },
-  { label: "timeless design", Icon: Infinity },
-  { label: "premium fabrics", Icon: Sparkles },
-  { label: "made to last", Icon: ShieldCheck },
+  { label: "Everyday comfort", Icon: Feather },
+  { label: "Timeless design", Icon: Infinity },
+  { label: "Premium fabrics", Icon: Sparkles },
+  { label: "Made to last", Icon: ShieldCheck },
 ];
 
 export default async function HomePage() {
@@ -49,8 +51,8 @@ export default async function HomePage() {
   }));
   // Split by media type: photos drive the hero banner under the nav, videos
   // drive the in-content carousel inside the "made to live in" section.
-  const photoBanners = carouselBanners.filter((b) => !isVideo(b.imageUrl));
-  const videoBanners = carouselBanners.filter((b) => isVideo(b.imageUrl));
+  const photoBanners = carouselBanners.filter((b) => !isVideoUrl(b.imageUrl));
+  const videoBanners = carouselBanners.filter((b) => isVideoUrl(b.imageUrl));
 
   return (
     <>
@@ -62,61 +64,61 @@ export default async function HomePage() {
             flush
             inlineClassName="aspect-[4/5]"
           />
-          <div className="reveal-up px-5 pb-14 pt-12 text-center">
-            <h1 className="font-display text-[52px] lowercase leading-[0.98] text-maroon">
-              clothing made to live softly
+          <div className="px-5 pb-14 pt-12 text-center">
+            <h1 className="font-display text-[52px] leading-[0.98] text-maroon">
+              Clothing made to live softly
             </h1>
             <Link
               href="/shop"
-              className="mt-8 inline-flex rounded-2xl border border-cocoa/24 bg-cream px-7 py-4 text-xs font-bold lowercase tracking-[0.2em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
+              className="mt-8 inline-flex rounded-2xl border border-cocoa/24 bg-cream px-7 py-4 text-xs font-bold tracking-[0.2em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
             >
-              shop the wardrobe
+              Shop the wardrobe
             </Link>
           </div>
         </section>
 
-        <section className="reveal-up bg-cocoa/10 px-5 py-20">
+        <section className="bg-cocoa/10 px-5 py-20">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            wardrobe paths
+            Wardrobe paths
           </p>
           <div className="mt-8 grid grid-cols-2 gap-5">
             {(categories.length > 0
               ? categories
               : [
-                  { name: "wardrobe", slug: "shop" },
-                  { name: "slow essentials", slug: "shop" },
+                  { name: "Wardrobe", slug: "shop" },
+                  { name: "Slow essentials", slug: "shop" },
                 ]
-            ).map((category, index) => (
+            ).map((category) => (
               <Link
                 key={category.slug}
                 href={
                   category.slug === "shop" ? "/shop" : `/shop/${category.slug}`
                 }
-                className={`reveal-up reveal-stagger-${(index % 3) + 1} group block`}
+                className="group block"
               >
                 <div className="cloth-window aspect-[3/4] rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]" />
-                <p className="mt-3 font-display text-2xl lowercase leading-tight text-maroon">
-                  {category.name.toLowerCase()}
+                <p className="mt-3 font-display text-2xl leading-tight text-maroon">
+                  {category.name}
                 </p>
               </Link>
             ))}
           </div>
         </section>
 
-        <section className="reveal-up px-5 py-24">
+        <section className="px-5 py-24">
           <HomepageCarousel
             banners={videoBanners}
             variant="inline"
             inlineClassName="h-[260px]"
           />
-          <h2 className="mt-9 font-display text-[44px] lowercase leading-[1.05] text-maroon">
-            made to live in.
+          <h2 className="mt-9 font-display text-[44px] leading-[1.05] text-maroon">
+            Made to live in.
           </h2>
         </section>
 
-        <section className="reveal-up bg-cream px-5 py-24 text-center">
+        <section className="bg-cream px-5 py-24 text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            versatility
+            Versatility
           </p>
           <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-12">
             {rituals.map((ritual) => (
@@ -129,7 +131,7 @@ export default async function HomePage() {
                   strokeWidth={1.25}
                   aria-hidden="true"
                 />
-                <p className="font-display text-xl lowercase leading-tight text-cocoa">
+                <p className="font-display text-xl leading-tight text-cocoa">
                   {ritual.label}
                 </p>
               </div>
@@ -137,9 +139,9 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="reveal-up bg-cocoa/10 px-5 py-20">
+        <section className="bg-cocoa/10 px-5 py-20">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            featured collection
+            Featured collection
           </p>
           <ScrollRail className="mt-8">
             {(products.length > 0 ? products : [0, 1, 2]).map((item, index) => {
@@ -148,16 +150,28 @@ export default async function HomePage() {
               return (
                 <Link
                   key={product?.id ?? index}
-                  href={product ? `/products/${product.slug}` : "/shop"}
-                  className="reveal-up w-[250px] shrink-0 snap-center"
+                  href={product ? `/product/${product.slug}` : "/shop"}
+                  className="w-[250px] shrink-0 snap-center"
                 >
-                  <div className="cloth-window aspect-[3/4] rounded-[22px]" />
+                  {product?.image ? (
+                    <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] bg-cream">
+                      <Image
+                        src={videoPosterUrl(product.image.url)}
+                        alt={product.image.altText ?? product.title}
+                        fill
+                        sizes="250px"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="cloth-window aspect-[3/4] rounded-[22px]" />
+                  )}
                   <div className="mt-4">
-                    <h2 className="font-display text-3xl lowercase text-maroon">
-                      {product?.title ?? "a soft arrival is being prepared"}
+                    <h2 className="font-display text-3xl text-maroon">
+                      {product?.title ?? "A soft arrival is being prepared"}
                     </h2>
-                    <p className="mt-1 text-sm lowercase text-charcoal/62">
-                      {product?.fabric ?? "collection details will unfold here"}
+                    <p className="mt-1 text-sm text-charcoal/62">
+                      {product?.fabric ?? "Collection details will unfold here"}
                     </p>
                     {product ? (
                       <p className="mt-1 text-sm text-charcoal/70">
@@ -181,36 +195,36 @@ export default async function HomePage() {
           flush
           inlineClassName="aspect-[12/5]"
         />
-        <div className="fade-rise mx-auto max-w-3xl px-6 pb-20 pt-16 text-center">
-          <h1 className="font-display text-[64px] lowercase leading-[1.02] text-maroon md:text-[80px]">
-            clothing made to live softly
+        <div className="mx-auto max-w-3xl px-6 pb-20 pt-16 text-center">
+          <h1 className="font-display text-[64px] leading-[1.02] text-maroon md:text-[80px]">
+            Clothing made to live softly
           </h1>
           <Link
             href="/shop"
-            className="mt-10 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-8 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
+            className="mt-10 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-8 py-4 text-[11px] font-bold tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
           >
-            shop the wardrobe
+            Shop the wardrobe
           </Link>
         </div>
       </section>
 
-      <section className="reveal-up bg-cream px-6 py-20 md:py-28">
+      <section className="bg-cream px-6 py-20 md:py-28">
         <div className="mx-auto max-w-7xl">
           <HomepageCarousel
             banners={videoBanners}
             variant="inline"
             inlineClassName="h-[420px] md:h-[520px]"
           />
-          <h2 className="mt-10 max-w-3xl font-display text-[56px] lowercase leading-[1.05] text-maroon md:text-[72px]">
-            made to live in.
+          <h2 className="mt-10 max-w-3xl font-display text-[56px] leading-[1.05] text-maroon md:text-[72px]">
+            Made to live in.
           </h2>
         </div>
       </section>
 
-      <section className="reveal-up bg-cream px-6 py-24 md:py-32">
+      <section className="bg-cream px-6 py-24 md:py-32">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            versatility
+            Versatility
           </p>
           <div className="mx-auto mt-16 grid max-w-4xl gap-x-8 gap-y-16 sm:grid-cols-2 md:grid-cols-4">
             {rituals.map((ritual) => (
@@ -223,7 +237,7 @@ export default async function HomePage() {
                   strokeWidth={1.25}
                   aria-hidden="true"
                 />
-                <p className="font-display text-2xl lowercase leading-tight text-cocoa">
+                <p className="font-display text-2xl leading-tight text-cocoa">
                   {ritual.label}
                 </p>
               </div>
@@ -232,22 +246,22 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="reveal-up bg-cream px-6 py-16 md:py-24">
+      <section className="bg-cream px-6 py-16 md:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-                wardrobe paths
+                Wardrobe paths
               </p>
-              <h2 className="mt-4 font-display text-[42px] lowercase leading-[1.1] text-maroon">
-                choose what feels close.
+              <h2 className="mt-4 font-display text-[42px] leading-[1.1] text-maroon">
+                Choose what feels close.
               </h2>
             </div>
             <Link
               href="/shop"
               className="soft-link my-8 w-fit py-3 text-sm font-bold uppercase tracking-[0.24em] text-maroon md:my-10"
             >
-              enter the wardrobe
+              Enter the wardrobe
             </Link>
           </div>
 
@@ -257,11 +271,11 @@ export default async function HomePage() {
                 <Link
                   key={category.slug}
                   href={`/shop/${category.slug}`}
-                  className="reveal-up group block"
+                  className="group block"
                 >
                   <div className="cloth-window aspect-[4/5] shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]" />
-                  <p className="mt-4 font-display text-3xl lowercase leading-tight text-maroon">
-                    {category.name.toLowerCase()}
+                  <p className="mt-4 font-display text-3xl leading-tight text-maroon">
+                    {category.name}
                   </p>
                 </Link>
               ))}
@@ -277,14 +291,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="reveal-up bg-cocoa/10 px-6 py-16 md:py-24">
+      <section className="bg-cocoa/10 px-6 py-16 md:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-              featured collection
+              Featured collection
             </p>
-            <h2 className="mt-4 font-display text-[42px] lowercase leading-[1.1] text-maroon">
-              slow essentials, taking shape for the first chapter.
+            <h2 className="mt-4 font-display text-[42px] leading-[1.1] text-maroon">
+              Slow essentials, taking shape for the first chapter.
             </h2>
           </div>
 
@@ -296,10 +310,22 @@ export default async function HomePage() {
                 return (
                   <Link
                     key={product.id}
-                    href={`/products/${product.slug}`}
-                    className="reveal-up group block"
+                    href={`/product/${product.slug}`}
+                    className="group block"
                   >
-                    <div className="cloth-window aspect-[3/4] transition duration-1000 group-hover:scale-[1.01]" />
+                    {product.image ? (
+                      <div className="relative aspect-[3/4] overflow-hidden bg-cream">
+                        <Image
+                          src={videoPosterUrl(product.image.url)}
+                          alt={product.image.altText ?? product.title}
+                          fill
+                          sizes="(min-width: 1024px) 25vw, 50vw"
+                          className="object-cover transition duration-1000 group-hover:scale-[1.01]"
+                        />
+                      </div>
+                    ) : (
+                      <div className="cloth-window aspect-[3/4] transition duration-1000 group-hover:scale-[1.01]" />
+                    )}
                     <div className="mt-4 space-y-1 text-base leading-6 text-charcoal/66">
                       <div className="flex items-start justify-between gap-5 text-charcoal">
                         <h3 className="font-sans text-base font-normal">
@@ -317,10 +343,10 @@ export default async function HomePage() {
           ) : (
             <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
               {[0, 1, 2, 3].map((slot) => (
-                <div key={slot} className={`reveal-up reveal-stagger-${(slot % 3) + 1}`}>
+                <div key={slot}>
                   <div className="cloth-window aspect-[3/4]" />
-                  <p className="mt-4 text-sm lowercase leading-6 text-charcoal/58">
-                    a soft arrival is being prepared
+                  <p className="mt-4 text-sm leading-6 text-charcoal/58">
+                    A soft arrival is being prepared
                   </p>
                   <div className="mt-4 h-3 w-3/4 bg-cocoa/16" />
                   <div className="mt-3 h-3 w-1/2 bg-cocoa/14" />

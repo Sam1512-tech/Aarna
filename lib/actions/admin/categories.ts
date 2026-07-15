@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import type { Category } from "@/lib/types";
+import { ActionError } from "@/lib/action-error";
 
 const { categories, products } = schema;
 
@@ -20,18 +21,18 @@ function normalizeSlug(input: string): string {
 
 function validateName(name: string): string {
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Category name is required");
-  if (trimmed.length > 120) throw new Error("Category name is too long (max 120 chars)");
+  if (!trimmed) throw new ActionError("Category name is required");
+  if (trimmed.length > 120) throw new ActionError("Category name is too long (max 120 chars)");
   return trimmed;
 }
 
 function validateSlug(slug: string): string {
   const normalized = normalizeSlug(slug);
-  if (!normalized) throw new Error("Category slug is required");
+  if (!normalized) throw new ActionError("Category slug is required");
   if (!SLUG_PATTERN.test(normalized)) {
-    throw new Error("Slug must be lowercase letters, numbers, and hyphens only");
+    throw new ActionError("Slug must be lowercase letters, numbers, and hyphens only");
   }
-  if (normalized.length > 140) throw new Error("Category slug is too long (max 140 chars)");
+  if (normalized.length > 140) throw new ActionError("Category slug is too long (max 140 chars)");
   return normalized;
 }
 
@@ -81,7 +82,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
     .from(categories)
     .where(eq(categories.slug, slug))
     .limit(1);
-  if (existing[0]) throw new Error(`Slug "${slug}" is already taken`);
+  if (existing[0]) throw new ActionError(`Slug "${slug}" is already taken`);
 
   // If sortOrder isn't provided, append to the end
   const nextSort =
@@ -124,7 +125,7 @@ export async function updateCategory(
     .from(categories)
     .where(eq(categories.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Category not found");
+  if (!existing[0]) throw new ActionError("Category not found");
 
   const patch: Partial<typeof categories.$inferInsert> = {};
 
@@ -138,7 +139,7 @@ export async function updateCategory(
         .from(categories)
         .where(eq(categories.slug, newSlug))
         .limit(1);
-      if (collision[0]) throw new Error(`Slug "${newSlug}" is already taken`);
+      if (collision[0]) throw new ActionError(`Slug "${newSlug}" is already taken`);
     }
     patch.slug = newSlug;
   }
@@ -169,7 +170,7 @@ export async function deleteCategory(id: string): Promise<{ ok: true }> {
     .where(eq(products.categoryId, id));
 
   if ((productCount[0]?.count ?? 0) > 0) {
-    throw new Error(
+    throw new ActionError(
       `Cannot delete: ${productCount[0].count} product(s) still in this category. Reassign them first.`,
     );
   }
@@ -181,7 +182,7 @@ export async function deleteCategory(id: string): Promise<{ ok: true }> {
     .where(eq(categories.parentId, id));
 
   if ((childCount[0]?.count ?? 0) > 0) {
-    throw new Error(
+    throw new ActionError(
       `Cannot delete: ${childCount[0].count} sub-categor${
         childCount[0].count === 1 ? "y" : "ies"
       } still reference this. Reparent or delete them first.`,

@@ -40,7 +40,7 @@ export function AccountAddressesView({
           rows.map((r) => ({ ...r, isDefault: r.id === id })),
         );
       } catch {
-        setError("couldn't update default address");
+        setError("Couldn't update default address");
       }
     });
   }
@@ -52,7 +52,7 @@ export function AccountAddressesView({
         await deleteAddress(id);
         setAddresses((rows) => rows.filter((r) => r.id !== id));
       } catch {
-        setError("couldn't delete address");
+        setError("Couldn't delete address");
       }
     });
   }
@@ -72,7 +72,7 @@ export function AccountAddressesView({
         });
         setEditor({ mode: "closed" });
       } catch {
-        setError("couldn't save address");
+        setError("Couldn't save address");
       }
     });
   }
@@ -95,7 +95,7 @@ export function AccountAddressesView({
         );
         setEditor({ mode: "closed" });
       } catch {
-        setError("couldn't update address");
+        setError("Couldn't update address");
       }
     });
   }
@@ -109,15 +109,15 @@ export function AccountAddressesView({
         <button
           type="button"
           onClick={() => setEditor({ mode: "create" })}
-          className="inline-flex items-center gap-2 rounded-full bg-maroon px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-maroon/90"
+          className="inline-flex items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90"
         >
           <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-          add address
+          Add address
         </button>
       </div>
 
       {error ? (
-        <p className="mt-4 text-xs lowercase text-burnt-red">{error}</p>
+        <p className="mt-4 text-xs text-burnt-red">{error}</p>
       ) : null}
 
       {addresses.length === 0 ? (
@@ -125,11 +125,11 @@ export function AccountAddressesView({
           <span className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-cocoa/20 text-cocoa">
             <MapPin className="h-5 w-5" aria-hidden="true" />
           </span>
-          <h2 className="mt-5 font-display text-2xl lowercase text-maroon">
-            no addresses yet
+          <h2 className="mt-5 font-display text-2xl text-maroon">
+            No addresses yet
           </h2>
           <p className="mt-2 max-w-xs text-sm text-charcoal/60">
-            add a delivery address to check out faster next time.
+            Add a delivery address to check out faster next time.
           </p>
         </div>
       ) : (
@@ -181,11 +181,11 @@ function AddressCard({
       {address.isDefault ? (
         <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full border border-cocoa/25 bg-cocoa/8 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-cocoa">
           <Star className="h-3 w-3" aria-hidden="true" />
-          default
+          Default
         </span>
       ) : null}
-      <p className="font-display text-xl lowercase text-maroon">
-        {address.fullName.toLowerCase()}
+      <p className="font-display text-xl text-maroon">
+        {address.fullName}
       </p>
       <p className="mt-2 text-sm leading-6 text-charcoal/75">
         {address.line1}
@@ -208,7 +208,7 @@ function AddressCard({
             disabled={disabled}
             className="soft-link text-cocoa disabled:opacity-50"
           >
-            make default
+            Make default
           </button>
         ) : null}
         <button
@@ -218,7 +218,7 @@ function AddressCard({
           className="inline-flex items-center gap-1 text-charcoal/70 hover:text-cocoa disabled:opacity-50"
         >
           <Pencil className="h-3 w-3" aria-hidden="true" />
-          edit
+          Edit
         </button>
         <button
           type="button"
@@ -227,7 +227,7 @@ function AddressCard({
           className="ml-auto inline-flex items-center gap-1 text-charcoal/60 hover:text-burnt-red disabled:opacity-50"
         >
           <Trash2 className="h-3 w-3" aria-hidden="true" />
-          delete
+          Delete
         </button>
       </div>
     </article>
@@ -286,7 +286,7 @@ function AddressEditor({
         className="relative z-10 w-full max-w-lg rounded-t-3xl bg-cream p-6 shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-3xl md:p-8"
       >
         <div className="flex items-start justify-between">
-          <h2 className="font-display text-3xl lowercase text-maroon">
+          <h2 className="font-display text-3xl text-maroon">
             {initial ? "edit address" : "add address"}
           </h2>
           <button
@@ -301,12 +301,12 @@ function AddressEditor({
 
         <div className="mt-5 space-y-3">
           <TextField
-            label="full name"
+            label="Full name"
             value={form.fullName}
             onChange={(v) => setForm((f) => ({ ...f, fullName: v }))}
           />
           <TextField
-            label="phone (10 digits)"
+            label="Phone (10 digits)"
             value={form.phone}
             onChange={(v) =>
               setForm((f) => ({
@@ -318,29 +318,29 @@ function AddressEditor({
             maxLength={10}
           />
           <TextField
-            label="address line 1"
+            label="Address line 1"
             value={form.line1}
             onChange={(v) => setForm((f) => ({ ...f, line1: v }))}
           />
           <TextField
-            label="address line 2 (optional)"
+            label="Address line 2 (optional)"
             value={form.line2 ?? ""}
             onChange={(v) => setForm((f) => ({ ...f, line2: v }))}
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <TextField
-              label="city"
+              label="City"
               value={form.city}
               onChange={(v) => setForm((f) => ({ ...f, city: v }))}
             />
             <TextField
-              label="state"
+              label="State"
               value={form.state}
               onChange={(v) => setForm((f) => ({ ...f, state: v }))}
             />
           </div>
           <TextField
-            label="pin code (6 digits)"
+            label="Pin code (6 digits)"
             value={form.pincode}
             onChange={(v) =>
               setForm((f) => ({
@@ -353,7 +353,7 @@ function AddressEditor({
           />
         </div>
 
-        <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm lowercase text-charcoal/70">
+        <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm text-charcoal/70">
           <input
             type="checkbox"
             checked={form.isDefault}
@@ -362,7 +362,7 @@ function AddressEditor({
             }
             className="h-4 w-4 accent-cocoa"
           />
-          make this my default address
+          Make this my default address
         </label>
 
         <div className="mt-6 flex gap-3">
@@ -371,19 +371,19 @@ function AddressEditor({
             onClick={onCancel}
             className="flex-1 rounded-2xl border border-cocoa/24 bg-cream py-3 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa"
           >
-            cancel
+            Cancel
           </button>
           <button
             type="submit"
             disabled={!canSave || pending}
-            className="flex-1 rounded-2xl bg-maroon py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-500 hover:bg-maroon/90 disabled:opacity-50"
+            className="flex-1 rounded-2xl bg-cocoa py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(140,106,90,0.24)] transition duration-500 hover:bg-cocoa/90 disabled:opacity-50"
           >
             <span className="inline-flex items-center gap-2">
               {pending ? (
                 "saving…"
               ) : (
                 <>
-                  save
+                  Save
                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
                 </>
               )}

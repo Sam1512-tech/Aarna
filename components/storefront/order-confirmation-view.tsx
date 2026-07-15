@@ -29,15 +29,15 @@ export function OrderConfirmationView({
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[128px] md:px-6 md:pt-36">
       <div className="mx-auto max-w-3xl">
-        <header className="fade-rise flex flex-col items-center text-center">
+        <header className="flex flex-col items-center text-center">
           <SuccessMark />
           <p className="mt-8 text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            {stillVerifying ? "almost there" : "thank you"}
+            {stillVerifying ? "Almost there" : "Thank you"}
           </p>
-          <h1 className="mt-4 font-display text-[40px] lowercase leading-[1.05] text-maroon md:text-6xl">
+          <h1 className="mt-4 font-display text-[40px] leading-[1.05] text-maroon md:text-6xl">
             {stillVerifying
-              ? "we're confirming your order"
-              : "your order is placed."}
+              ? "We're confirming your order"
+              : "Your order is placed."}
           </h1>
           <p className="mt-5 max-w-md text-base leading-7 text-charcoal/65">
             {stillVerifying
@@ -46,12 +46,12 @@ export function OrderConfirmationView({
           </p>
         </header>
 
-        <div className="fade-rise-late mt-10 rounded-[28px] border border-cocoa/12 bg-cream/85 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:mt-12 md:p-9">
-          <DetailRow label="order id" value={orderNumber} mono />
+        <div className="mt-10 rounded-[28px] border border-cocoa/12 bg-cream/85 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:mt-12 md:p-9">
+          <DetailRow label="Order id" value={orderNumber} mono />
 
           {shipping ? (
             <DetailRow
-              label="shipping to"
+              label="Shipping to"
               icon={<MapPin className="h-4 w-4 text-cocoa" aria-hidden="true" />}
             >
               <p className="text-base leading-7 text-charcoal/80">
@@ -75,7 +75,7 @@ export function OrderConfirmationView({
           ) : null}
 
           <DetailRow
-            label="payment method"
+            label="Payment method"
             icon={<ShieldCheck className="h-4 w-4 text-cocoa" aria-hidden="true" />}
             value="Razorpay · secure online payment"
           />
@@ -94,7 +94,7 @@ export function OrderConfirmationView({
             className="group/cta flex min-h-[56px] items-center justify-center rounded-2xl border border-cocoa/24 bg-cream px-6 shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-700 hover:bg-cocoa/12"
           >
             <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa">
-              continue shopping
+              Continue shopping
               <ArrowRight
                 className="h-4 w-4 transition-transform duration-500 group-hover/cta:translate-x-1"
                 aria-hidden="true"
@@ -106,7 +106,7 @@ export function OrderConfirmationView({
             className="group/cta flex min-h-[56px] items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)]"
           >
             <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.24em] text-cream">
-              view orders
+              View orders
               <ArrowRight
                 className="h-4 w-4 transition-transform duration-500 group-hover/cta:translate-x-1"
                 aria-hidden="true"
@@ -124,11 +124,11 @@ function SuccessMark() {
     <div className="relative flex h-24 w-24 items-center justify-center">
       <span
         aria-hidden="true"
-        className="absolute inset-0 rounded-full bg-cocoa/12 animate-[ping_2.6s_cubic-bezier(0,0,0.2,1)_infinite]"
+        className="absolute inset-0 rounded-full bg-cocoa/12"
       />
       <span
         aria-hidden="true"
-        className="absolute inset-3 rounded-full bg-cocoa/15 animate-[ping_2.6s_cubic-bezier(0,0,0.2,1)_infinite] [animation-delay:700ms]"
+        className="absolute inset-3 rounded-full bg-cocoa/15"
       />
       <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-maroon shadow-[0_18px_40px_rgba(74,31,31,0.22)]">
         <Check

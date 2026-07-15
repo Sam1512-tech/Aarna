@@ -40,9 +40,9 @@ interface PlpViewProps {
 }
 
 const SORT_LABELS: Record<SortOption, string> = {
-  newest: "newest",
-  price_asc: "price · low to high",
-  price_desc: "price · high to low",
+  newest: "Newest",
+  price_asc: "Price · low to high",
+  price_desc: "Price · high to low",
 };
 
 export function PlpView({
@@ -97,11 +97,11 @@ export function PlpView({
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[128px] md:px-6 md:pt-36">
       <div className="mx-auto max-w-7xl">
-        <header className="fade-rise border-b border-cocoa/12 pb-9">
+        <header className="border-b border-cocoa/12 pb-9">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             {eyebrow}
           </p>
-          <h1 className="mt-4 font-display text-[44px] lowercase leading-[1.05] text-maroon md:text-6xl">
+          <h1 className="mt-4 font-display text-[44px] leading-[1.05] text-maroon md:text-6xl">
             {title}
           </h1>
           {intro ? (
@@ -113,7 +113,7 @@ export function PlpView({
 
         {/* Toolbar — count + filter + sort */}
         <div className="sticky top-[120px] z-20 -mx-5 mt-6 flex items-center justify-between gap-3 border-b border-cocoa/10 bg-cream/85 px-5 py-3.5 backdrop-blur-xl md:top-[100px] md:-mx-6 md:px-6">
-          <p className="text-sm lowercase text-charcoal/65">
+          <p className="text-sm text-charcoal/65">
             {total} {total === 1 ? "piece" : "pieces"}
           </p>
           <div className="flex items-center gap-3">
@@ -123,7 +123,7 @@ export function PlpView({
               className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa lg:hidden"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-              filters
+              Filters
             </button>
             <SortDropdown value={currentSort} onChange={changeSort} />
           </div>
@@ -139,11 +139,11 @@ export function PlpView({
           </aside>
 
           {/* Grid */}
-          <div className="fade-rise">
+          <div>
             {products.length > 0 ? (
               <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-                {products.map((p, i) => (
-                  <ProductCard key={p.id} product={p} staggerIndex={i} />
+                {products.map((p) => (
+                  <ProductCard key={p.id} product={p} />
                 ))}
               </div>
             ) : (
@@ -183,7 +183,7 @@ function SortDropdown({
 }) {
   return (
     <label className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa">
-      <span className="hidden sm:inline">sort</span>
+      <span className="hidden sm:inline">Sort</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as SortOption)}
@@ -212,12 +212,12 @@ function FilterPanel({
     <div className="space-y-9">
       <div>
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-charcoal/55">
-          shop by
+          Shop by
         </p>
         <nav className="mt-4 flex flex-col gap-2.5">
           <CatLink
             href="/shop"
-            label="all pieces"
+            label="All pieces"
             active={activeCategorySlug === null}
             onClick={onNavigate}
           />
@@ -225,7 +225,7 @@ function FilterPanel({
             <CatLink
               key={c.slug}
               href={`/shop/${c.slug}`}
-              label={c.name.toLowerCase()}
+              label={c.name}
               active={activeCategorySlug === c.slug}
               onClick={onNavigate}
             />
@@ -251,7 +251,7 @@ function CatLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`block w-fit text-sm lowercase transition duration-500 ${
+      className={`block w-fit text-sm transition duration-500 ${
         active
           ? "font-medium text-maroon"
           : "text-charcoal/72 hover:text-cocoa"
@@ -294,8 +294,8 @@ function MobileFilterSheet({
         }`}
       >
         <div className="flex items-center justify-between border-b border-cocoa/12 px-6 py-5">
-          <h2 className="font-display text-2xl lowercase text-maroon">
-            filters
+          <h2 className="font-display text-2xl text-maroon">
+            Filters
           </h2>
           <button
             type="button"
@@ -427,8 +427,8 @@ function EmptyState({ basePath }: { basePath: string }) {
   const isFiltered = basePath !== "/shop";
   return (
     <div className="flex flex-col items-center px-4 py-20 text-center">
-      <h2 className="font-display text-[34px] lowercase leading-[1.1] text-maroon md:text-5xl">
-        nothing here yet
+      <h2 className="font-display text-[34px] leading-[1.1] text-maroon md:text-5xl">
+        Nothing here yet
       </h2>
       <p className="mt-4 max-w-sm text-base leading-7 text-charcoal/60">
         {isFiltered
@@ -438,9 +438,9 @@ function EmptyState({ basePath }: { basePath: string }) {
       {isFiltered ? (
         <Link
           href="/shop"
-          className="mt-8 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
+          className="mt-8 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
         >
-          browse all pieces
+          Browse all pieces
         </Link>
       ) : null}
     </div>

@@ -11,7 +11,7 @@ import {
   Textarea,
   TextInput,
 } from "@/components/admin/admin-form";
-import { createBanner } from "@/lib/actions/admin/banners";
+import { updateBanner, type Banner } from "@/lib/actions/admin/banners";
 import { actionErrorMessage } from "@/lib/action-error";
 
 function toDateOrNull(v: string): Date | null {
@@ -20,19 +20,30 @@ function toDateOrNull(v: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export function NewBannerForm() {
+function toLocalInputValue(d: Date | string | null): string {
+  if (!d) return "";
+  const dt = typeof d === "string" ? new Date(d) : d;
+  if (Number.isNaN(dt.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(
+    dt.getHours(),
+  )}:${pad(dt.getMinutes())}`;
+}
+
+export function BannerEditView({ banner }: { banner: Banner }) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [subtitle, setSubtitle] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [mobileImageUrl, setMobileImageUrl] = useState("");
-  const [ctaLabel, setCtaLabel] = useState("");
-  const [ctaHref, setCtaHref] = useState("");
-  const [sortOrder, setSortOrder] = useState("0");
-  const [startsAt, setStartsAt] = useState("");
-  const [endsAt, setEndsAt] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const [title, setTitle] = useState(banner.title ?? "");
+  const [subtitle, setSubtitle] = useState(banner.subtitle ?? "");
+  const [imageUrl, setImageUrl] = useState(banner.imageUrl);
+  const [mobileImageUrl, setMobileImageUrl] = useState(banner.mobileImageUrl ?? "");
+  const [ctaLabel, setCtaLabel] = useState(banner.ctaLabel ?? "");
+  const [ctaHref, setCtaHref] = useState(banner.ctaHref ?? "");
+  const [sortOrder, setSortOrder] = useState(String(banner.sortOrder));
+  const [startsAt, setStartsAt] = useState(toLocalInputValue(banner.startsAt));
+  const [endsAt, setEndsAt] = useState(toLocalInputValue(banner.endsAt));
+  const [isActive, setIsActive] = useState(banner.isActive);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const imageValid = /^https?:\/\//.test(imageUrl);
@@ -42,26 +53,25 @@ export function NewBannerForm() {
     e.preventDefault();
     if (!canSubmit) return;
     setError(null);
+    setSaved(null);
     startTransition(async () => {
       try {
-        await createBanner({
-          title: title.trim() || undefined,
-          subtitle: subtitle.trim() || undefined,
+        await updateBanner(banner.id, {
+          title: title.trim() || null,
+          subtitle: subtitle.trim() || null,
           imageUrl: imageUrl.trim(),
-          mobileImageUrl: mobileImageUrl.trim() || undefined,
-          ctaLabel: ctaLabel.trim() || undefined,
-          ctaHref: ctaHref.trim() || undefined,
+          mobileImageUrl: mobileImageUrl.trim() || null,
+          ctaLabel: ctaLabel.trim() || null,
+          ctaHref: ctaHref.trim() || null,
           sortOrder: Number.parseInt(sortOrder, 10) || 0,
           startsAt: toDateOrNull(startsAt),
           endsAt: toDateOrNull(endsAt),
           isActive,
         });
-        router.push("/admin/banners");
+        setSaved("Saved.");
         router.refresh();
       } catch (err) {
-        setError(
-          actionErrorMessage(err, "couldn't create banner."),
-        );
+        setError(actionErrorMessage(err, "couldn't save banner."));
       }
     });
   }
@@ -160,10 +170,11 @@ export function NewBannerForm() {
         />
       </FormSection>
 
+      {saved ? <p className="text-xs text-cocoa">{saved}</p> : null}
       <SubmitBar
         cancelHref="/admin/banners"
         pending={pending}
-        label="create banner"
+        label="save changes"
         error={error}
         disabled={!canSubmit}
       />

@@ -3,7 +3,7 @@ import { SearchView } from "@/components/storefront/search-view";
 import { getCategories, getProducts } from "@/lib/actions/products";
 
 export const metadata: Metadata = {
-  title: "search",
+  title: "Search",
 };
 
 export default async function SearchPage({

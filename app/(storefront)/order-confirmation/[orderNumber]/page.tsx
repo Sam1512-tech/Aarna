@@ -5,7 +5,7 @@ import { getMyOrderDetail } from "@/lib/actions/account";
 import type { AddressInput } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "thank you for your order",
+  title: "Thank you for your order",
   robots: { index: false, follow: false },
 };
 

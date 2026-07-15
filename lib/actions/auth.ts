@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { mergeGuestCartOnLogin } from "@/lib/actions/cart";
+import { ActionError } from "@/lib/action-error";
 
 const { customers, admins } = schema;
 
@@ -192,7 +193,7 @@ export async function getCurrentAdmin() {
  */
 export async function requireAdmin() {
   const admin = await getCurrentAdmin();
-  if (!admin) throw new Error("Unauthorized — admin access required");
+  if (!admin) throw new ActionError("Unauthorized — admin access required");
   return admin;
 }
 

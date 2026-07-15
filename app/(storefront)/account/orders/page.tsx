@@ -7,24 +7,24 @@ import { getReviewableItems } from "@/lib/actions/reviews";
 import { formatINR } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "your orders",
+  title: "Your orders",
 };
 
 const PAYMENT_LABEL: Record<string, string> = {
-  pending: "payment pending",
-  paid: "paid",
-  failed: "payment failed",
-  refunded: "refunded",
-  partially_refunded: "partially refunded",
+  pending: "Payment pending",
+  paid: "Paid",
+  failed: "Payment failed",
+  refunded: "Refunded",
+  partially_refunded: "Partially refunded",
 };
 
 const FULFILLMENT_LABEL: Record<string, string> = {
-  pending: "preparing",
-  processing: "processing",
-  shipped: "shipped",
-  delivered: "delivered",
-  cancelled: "cancelled",
-  returned: "returned",
+  pending: "Preparing",
+  processing: "Processing",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+  returned: "Returned",
 };
 
 function fmtDate(d: Date | string | null) {
@@ -112,16 +112,16 @@ export default async function AccountOrdersPage() {
                       className="flex items-center justify-between gap-4 py-3 text-sm"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-display text-base lowercase text-maroon">
-                          {it.productTitleSnapshot.toLowerCase()}
+                        <p className="truncate font-display text-base text-maroon">
+                          {it.productTitleSnapshot}
                         </p>
                         {it.variantLabelSnapshot ? (
-                          <p className="text-xs lowercase text-charcoal/55">
-                            {it.variantLabelSnapshot.toLowerCase()} · qty{" "}
+                          <p className="text-xs text-charcoal/55">
+                            {it.variantLabelSnapshot} · qty{" "}
                             {it.quantity}
                           </p>
                         ) : (
-                          <p className="text-xs lowercase text-charcoal/55">
+                          <p className="text-xs text-charcoal/55">
                             qty {it.quantity}
                           </p>
                         )}
@@ -142,7 +142,7 @@ export default async function AccountOrdersPage() {
                   );
                 })}
                 {order.items.length > 3 ? (
-                  <li className="py-2 text-xs lowercase text-charcoal/50">
+                  <li className="py-2 text-xs text-charcoal/50">
                     + {order.items.length - 3} more
                   </li>
                 ) : null}
@@ -150,7 +150,7 @@ export default async function AccountOrdersPage() {
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-cocoa/10 px-5 py-4">
                 <div className="text-sm">
-                  <span className="text-charcoal/55">total </span>
+                  <span className="text-charcoal/55">Total </span>
                   <span className="font-display text-lg text-maroon">
                     {formatINR(order.total)}
                   </span>
@@ -162,11 +162,11 @@ export default async function AccountOrdersPage() {
                     rel="noopener"
                     className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
                   >
-                    track shipment
+                    Track shipment
                   </Link>
                 ) : (
                   <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/40">
-                    tracking soon
+                    Tracking soon
                   </span>
                 )}
               </div>
@@ -206,17 +206,17 @@ function OrdersEmpty() {
       <span className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-cocoa/20 text-cocoa">
         <PackageOpen className="h-6 w-6" aria-hidden="true" />
       </span>
-      <h2 className="mt-6 font-display text-[32px] lowercase leading-[1.1] text-maroon md:text-4xl">
-        no orders yet
+      <h2 className="mt-6 font-display text-[32px] leading-[1.1] text-maroon md:text-4xl">
+        No orders yet
       </h2>
       <p className="mt-3 max-w-sm text-sm leading-7 text-charcoal/60">
-        pieces you order will live here — with tracking, invoices, and returns.
+        Pieces you order will live here — with tracking, invoices, and returns.
       </p>
       <Link
         href="/shop"
         className="mt-7 inline-flex items-center gap-2 border border-cocoa/24 bg-cream px-7 py-3 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
       >
-        enter the wardrobe
+        Enter the wardrobe
         <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
       </Link>
     </div>

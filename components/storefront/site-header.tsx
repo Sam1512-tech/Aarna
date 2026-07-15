@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useCartCount } from "@/store/cart-count";
 
 interface CategoryLink {
@@ -30,8 +30,6 @@ export function SiteHeader({
   initialCartCount = 0,
 }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isTransparent, setIsTransparent] = useState(false);
-  const lastScrollY = useRef(0);
 
   // Hydrate the client store with the server value on mount so subsequent
   // navigations + mutations pick up from where the server left off. If the
@@ -46,72 +44,36 @@ export function SiteHeader({
   const storeHydrated = useCartCount((s) => s.hydrated);
   const cartCount = storeHydrated ? storeCount : initialCartCount;
 
-  // One scroll listener, rAF-throttled. The previous version stacked
-  // interval-polling + wheel + touchmove + scroll all racing to set the same
-  // state, which fired far more re-renders than any frame budget could absorb
-  // and made the blur+background transition tear on both mobile and desktop.
-  useEffect(() => {
-    function getScrollY() {
-      return (
-        document.scrollingElement?.scrollTop ??
-        window.scrollY ??
-        document.documentElement.scrollTop ??
-        0
-      );
-    }
-
-    lastScrollY.current = getScrollY();
-    let ticking = false;
-
-    function update() {
-      const currentY = getScrollY();
-      const scrollingDown = currentY > lastScrollY.current;
-      // 4-pixel deadband so tiny jitter (touch inertia, trackpad noise) doesn't
-      // flip state repeatedly. Only care about direction past a real threshold.
-      if (Math.abs(currentY - lastScrollY.current) > 4) {
-        setIsTransparent(scrollingDown && currentY > 80);
-      }
-      lastScrollY.current = currentY;
-      ticking = false;
-    }
-
-    function handleScroll() {
-      if (!ticking) {
-        window.requestAnimationFrame(update);
-        ticking = true;
-      }
-    }
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   return (
     <>
+      {/*
+        Looping announcement marquee — the only animation kept after the rest
+        of the site motion was removed. The mobile-marquee keyframe
+        translates the strip 0 → -50%, so for a seamless loop the strip must
+        contain two identical halves; the second copy is aria-hidden so
+        screen readers only announce it once. will-change promotes the strip
+        to its own compositor layer so the scroll stays smooth.
+      */}
       <div className="fixed inset-x-0 top-0 z-50 h-9 overflow-hidden bg-maroon text-cream">
-        <div className="flex h-full w-max animate-[mobile-marquee_28s_linear_infinite] items-center gap-10 whitespace-nowrap px-4 text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]">
-          <span>slow-made pieces for everyday rituals</span>
-          <span>handcrafted in small batches</span>
-          <span>made to live in slowly</span>
-          <span>slow-made pieces for everyday rituals</span>
+        <div
+          className="flex h-full w-max animate-[mobile-marquee_36s_linear_infinite] items-center gap-14 whitespace-nowrap px-4 text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]"
+          style={{ willChange: "transform" }}
+        >
+          <span>Slow-made pieces for everyday rituals</span>
+          <span>Handcrafted in small batches</span>
+          <span>Made to live in slowly</span>
+          <span aria-hidden="true">Slow-made pieces for everyday rituals</span>
+          <span aria-hidden="true">Handcrafted in small batches</span>
+          <span aria-hidden="true">Made to live in slowly</span>
         </div>
       </div>
 
       <header className="fixed inset-x-0 top-9 z-40 px-3 pt-3 md:px-6 md:pt-4">
         <div
-          // No backdrop-filter — even held constant, compositing a blurred
-          // layer during a transitioning opacity/background/border/shadow was
-          // still glitching on lower-power devices. Swapped to a solid
-          // semi-opaque cream fill (bg-cream/88) so the pill has presence
-          // without any GPU blur cost. Only cheap properties transition
-          // (opacity / transform / bg / border / shadow) and only the ones
-          // listed — never transition-all. will-change hints GPU compositing.
-          style={{ willChange: "opacity, transform" }}
-          className={`mx-auto grid h-[76px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-full px-3 transition-[opacity,transform,background-color,border-color,box-shadow] duration-500 ease-out md:h-16 md:px-5 ${
-            isTransparent
-              ? "border border-transparent bg-transparent shadow-none md:-translate-y-2 md:opacity-0"
-              : "border border-maroon/8 bg-cream/88 opacity-100 shadow-[0_18px_70px_rgba(43,38,35,0.06)] translate-y-0"
-          }`}
+          // Header stays fully visible at all times — the scroll-driven
+          // fade-out has been removed. Solid semi-opaque cream fill, no
+          // backdrop-filter, no state, no scroll listener.
+          className="mx-auto grid h-[76px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-full border border-maroon/8 bg-cream/88 px-3 shadow-[0_18px_70px_rgba(43,38,35,0.06)] md:h-16 md:px-5"
         >
           <div className="flex items-center justify-start md:hidden">
             <button
@@ -158,7 +120,7 @@ export function SiteHeader({
                 href="/shop"
                 className="soft-link py-2 transition duration-700 hover:text-cocoa"
               >
-                wardrobe
+                Wardrobe
               </Link>
               <div className="pointer-events-none absolute left-1/2 top-full w-64 -translate-x-1/2 translate-y-3 border border-maroon/10 bg-cream p-3 opacity-0 shadow-[0_24px_70px_rgba(43,38,35,0.12)] transition duration-700 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100">
                 {categories.length > 0 ? (
@@ -173,7 +135,7 @@ export function SiteHeader({
                   ))
                 ) : (
                   <span className="block px-4 py-3 text-[11px] font-medium uppercase tracking-[0.2em] text-charcoal/42">
-                    wardrobe opening soon
+                    Wardrobe opening soon
                   </span>
                 )}
               </div>
@@ -266,7 +228,7 @@ export function SiteHeader({
                 onClick={() => setMenuOpen(false)}
                 className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
               >
-                {category.name.toLowerCase()}
+                {category.name}
               </Link>
             ))}
             {/* /about link removed for launch — the page hasn't been designed
@@ -276,12 +238,12 @@ export function SiteHeader({
               onClick={() => setMenuOpen(false)}
               className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
             >
-              your account
+              Your account
             </Link>
           </nav>
 
           <div className="mt-auto border-t border-maroon/14 pt-6 text-base leading-7 text-cocoa">
-            <p>made to live in, shared softly, worn your way.</p>
+            <p>Made to live in, shared softly, worn your way.</p>
           </div>
         </div>
       </div>
