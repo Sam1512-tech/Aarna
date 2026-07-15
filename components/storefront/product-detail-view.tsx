@@ -366,14 +366,14 @@ export function ProductDetailView({
             </div>
 
             {/* CTAs */}
-            <div className="mt-8 flex items-stretch gap-3">
+            <div className="mt-8 flex items-stretch gap-2 md:gap-3">
               <button
                 type="button"
                 onClick={handleAddToBag}
                 disabled={!variantSelected || !inStock || isPending}
-                className="group/cta flex min-h-[60px] flex-1 items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)] disabled:opacity-45 disabled:hover:bg-maroon disabled:hover:shadow-[0_18px_40px_rgba(74,31,31,0.22)]"
+                className="group/cta flex min-h-[48px] flex-1 items-center justify-center rounded-2xl bg-maroon px-4 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)] disabled:opacity-45 disabled:hover:bg-maroon disabled:hover:shadow-[0_18px_40px_rgba(74,31,31,0.22)] md:min-h-[60px] md:px-6"
               >
-                <span className="flex items-center gap-3 text-[12px] font-medium uppercase tracking-[0.24em] text-cream">
+                <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-cream md:gap-3 md:text-[12px] md:tracking-[0.24em]">
                   {bagFeedback === "added"
                     ? "added to bag ✓"
                     : bagFeedback === "error"
@@ -393,7 +393,7 @@ export function ProductDetailView({
                 disabled={!variantSelected}
                 aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}
                 aria-pressed={wished}
-                className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-2xl border border-cocoa/22 bg-cream text-maroon transition duration-500 hover:border-cocoa disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-2xl border border-cocoa/22 bg-cream text-maroon transition duration-500 hover:border-cocoa disabled:cursor-not-allowed disabled:opacity-40 md:h-[60px] md:w-[60px]"
               >
                 <Heart
                   className={`h-5 w-5 transition duration-500 ${
