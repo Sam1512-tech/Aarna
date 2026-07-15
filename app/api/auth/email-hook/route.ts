@@ -96,6 +96,16 @@ export async function POST(req: Request): Promise<Response> {
       // "email" / "magiclink" fire from supabase.auth.signInWithOtp — the user
       // types the 6-digit token into the login form. Include both the code and
       // the fallback link so the same email works either way.
+      if (email_data.token.length !== 6) {
+        // Supabase's OTP length is a project-level dashboard setting
+        // (Authentication → Sign In / Providers → Email → OTP Length),
+        // independent of this code — if it ever drifts again, the login
+        // form's 6-box input silently can't fit the code. Log the length
+        // only, never the code itself.
+        console.warn(
+          `[supabase email hook] OTP length is ${email_data.token.length}, expected 6 — check Supabase dashboard OTP Length setting`,
+        );
+      }
       templateKey = "verify_email";
       subject = `Your Aarna login code: ${email_data.token}`;
       data = { name, verifyUrl: actionUrl, code: email_data.token };
