@@ -49,22 +49,30 @@ export function SiteHeader({
       {/*
         Looping announcement marquee — the only animation kept after the rest
         of the site motion was removed. The mobile-marquee keyframe
-        translates the strip 0 → -50%, so for a seamless loop the strip must
-        contain two identical halves; the second copy is aria-hidden so
-        screen readers only announce it once. will-change promotes the strip
-        to its own compositor layer so the scroll stays smooth.
+        translates the strip 0 → -50%, so the strip must be exactly two
+        identical halves: each half wraps its messages and carries its own
+        trailing gap (pr-14 = gap-14) so -50% lands precisely one period
+        ahead — a flex gap between bare spans leaves no gap after the last
+        one and the loop visibly jumps at reset. The second half is
+        aria-hidden so screen readers only announce it once. will-change
+        promotes the strip to its own compositor layer.
       */}
       <div className="fixed inset-x-0 top-0 z-50 h-9 overflow-hidden bg-maroon text-cream">
         <div
-          className="flex h-full w-max animate-[mobile-marquee_36s_linear_infinite] items-center gap-14 whitespace-nowrap px-4 text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]"
+          className="flex h-full w-max animate-[mobile-marquee_36s_linear_infinite] items-center whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]"
           style={{ willChange: "transform" }}
         >
-          <span>Slow-made pieces for everyday rituals</span>
-          <span>Handcrafted in small batches</span>
-          <span>Made to live in slowly</span>
-          <span aria-hidden="true">Slow-made pieces for everyday rituals</span>
-          <span aria-hidden="true">Handcrafted in small batches</span>
-          <span aria-hidden="true">Made to live in slowly</span>
+          {[false, true].map((isClone) => (
+            <div
+              key={isClone ? "clone" : "original"}
+              aria-hidden={isClone || undefined}
+              className="flex items-center gap-14 pr-14"
+            >
+              <span>Slow-made pieces for everyday rituals</span>
+              <span>Handcrafted in small batches</span>
+              <span>Made to live in slowly</span>
+            </div>
+          ))}
         </div>
       </div>
 
