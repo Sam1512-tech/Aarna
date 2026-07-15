@@ -4,6 +4,7 @@ import { nextInvoiceNumber } from "@/lib/invoice/counter";
 import { generateInvoicePdf } from "@/lib/invoice/generate";
 import {
   buildInvoiceData,
+  clearPurchasedCartItems,
   getOrderByRazorpayId,
   markOrderPaid,
   markOrderPaymentFailed,
@@ -41,6 +42,11 @@ export async function POST(req: Request) {
 
       const invoiceNumber = await nextInvoiceNumber();
       await markOrderPaid(order.id, invoiceNumber, payment.id);
+
+      await clearPurchasedCartItems(order).catch((err) => {
+        // Never let a cart-clear failure break payment processing
+        console.error("[razorpay webhook] cart clear failed:", err);
+      });
 
       const invoiceData = buildInvoiceData(order, invoiceNumber);
       const pdfBuffer = await generateInvoicePdf(invoiceData);
