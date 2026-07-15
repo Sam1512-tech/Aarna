@@ -1,9 +1,9 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { InvoiceData } from "@/lib/invoice/generate";
 import { calculateGst, isInterStateOrder } from "@/lib/invoice/generate";
 
-const { orders, orderItems, returns } = schema;
+const { orders, orderItems, returns, carts, cartItems } = schema;
 
 export type OrderRow = typeof orders.$inferSelect;
 export type OrderItemRow = typeof orderItems.$inferSelect;
@@ -45,6 +45,36 @@ export async function markOrderPaid(
       updatedAt: new Date(),
     })
     .where(eq(orders.id, orderId));
+}
+
+/**
+ * Remove the purchased variants from the customer's cart. Checkout snapshots
+ * the cart into order_items but never empties it, so without this the bag
+ * (and the header count badge) keeps showing the items after a successful
+ * payment. Only the ordered variants are removed — anything the customer
+ * added between initiating checkout and the webhook firing stays in the bag.
+ */
+export async function clearPurchasedCartItems(order: OrderWithItems) {
+  if (!order.customerId) return;
+  const variantIds = order.orderItems.map((item) => item.variantId);
+  if (variantIds.length === 0) return;
+
+  const cart = await db
+    .select({ id: carts.id })
+    .from(carts)
+    .where(eq(carts.customerId, order.customerId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+  if (!cart) return;
+
+  await db
+    .delete(cartItems)
+    .where(
+      and(
+        eq(cartItems.cartId, cart.id),
+        inArray(cartItems.variantId, variantIds),
+      ),
+    );
 }
 
 export async function getOrderByRazorpayPaymentId(

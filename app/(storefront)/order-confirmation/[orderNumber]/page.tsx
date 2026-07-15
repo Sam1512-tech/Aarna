@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { CartCountSync } from "@/components/storefront/cart-count-sync";
 import { OrderConfirmationView } from "@/components/storefront/order-confirmation-view";
 import { getMyOrderDetail } from "@/lib/actions/account";
+import { getCart } from "@/lib/actions/cart";
 import type { AddressInput } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -35,12 +37,20 @@ export default async function OrderConfirmationPage({
 
   const shipping = (order?.shippingAddress as AddressInput | undefined) ?? null;
 
+  // Re-sync the header badge with the real cart — the webhook clears the
+  // purchased items a moment after payment, and the soft navigation here
+  // would otherwise leave the badge showing the pre-purchase count.
+  const cart = await getCart().catch(() => ({ itemCount: 0 }));
+
   return (
-    <OrderConfirmationView
-      orderNumber={orderNumber}
-      shipping={shipping}
-      hasDetail={Boolean(order)}
-      paymentStatus={order?.paymentStatus ?? null}
-    />
+    <>
+      <CartCountSync count={cart.itemCount} />
+      <OrderConfirmationView
+        orderNumber={orderNumber}
+        shipping={shipping}
+        hasDetail={Boolean(order)}
+        paymentStatus={order?.paymentStatus ?? null}
+      />
+    </>
   );
 }
