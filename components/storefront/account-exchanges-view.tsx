@@ -90,7 +90,7 @@ export function AccountExchangesView({
           <button
             type="button"
             onClick={() => setFormOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-maroon px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-maroon/90"
+            className="inline-flex items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             request exchange
@@ -312,7 +312,7 @@ function ExchangeRequestForm({
                     onClick={() => setReasonCategory(c.value)}
                     className={`rounded-full border px-3 py-1.5 text-xs lowercase transition duration-500 ${
                       active
-                        ? "border-maroon bg-maroon text-cream"
+                        ? "border-cocoa bg-cocoa text-cream"
                         : "border-cocoa/22 bg-cocoa/6 text-charcoal/72 hover:border-cocoa hover:bg-cocoa/10"
                     }`}
                   >
@@ -381,7 +381,7 @@ function ExchangeRequestForm({
           <button
             type="submit"
             disabled={!canSubmit || pending}
-            className="flex-1 rounded-2xl bg-maroon py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-500 hover:bg-maroon/90 disabled:opacity-50"
+            className="flex-1 rounded-2xl bg-cocoa py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(140,106,90,0.24)] transition duration-500 hover:bg-cocoa/90 disabled:opacity-50"
           >
             {pending ? "requesting…" : "request exchange"}
           </button>
