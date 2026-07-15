@@ -138,7 +138,7 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
                     type="button"
                     onClick={() => moveToBag(row)}
                     disabled={!row.inStock || busy}
-                    className="inline-flex items-center gap-2 rounded-full bg-maroon px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-cream shadow-[0_8px_20px_rgba(74,31,31,0.16)] transition duration-500 hover:bg-maroon/90 disabled:opacity-45 disabled:hover:bg-maroon"
+                    className="inline-flex items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-cream shadow-[0_8px_20px_rgba(140,106,90,0.2)] transition duration-500 hover:bg-cocoa/90 disabled:opacity-45 disabled:hover:bg-cocoa"
                   >
                     <ShoppingBag className="h-3 w-3" aria-hidden="true" />
                     {!row.inStock

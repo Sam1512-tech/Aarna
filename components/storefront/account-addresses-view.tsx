@@ -109,7 +109,7 @@ export function AccountAddressesView({
         <button
           type="button"
           onClick={() => setEditor({ mode: "create" })}
-          className="inline-flex items-center gap-2 rounded-full bg-maroon px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-maroon/90"
+          className="inline-flex items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90"
         >
           <Plus className="h-3.5 w-3.5" aria-hidden="true" />
           Add address
@@ -376,7 +376,7 @@ function AddressEditor({
           <button
             type="submit"
             disabled={!canSave || pending}
-            className="flex-1 rounded-2xl bg-maroon py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-500 hover:bg-maroon/90 disabled:opacity-50"
+            className="flex-1 rounded-2xl bg-cocoa py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(140,106,90,0.24)] transition duration-500 hover:bg-cocoa/90 disabled:opacity-50"
           >
             <span className="inline-flex items-center gap-2">
               {pending ? (
