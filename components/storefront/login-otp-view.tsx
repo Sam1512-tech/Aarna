@@ -23,18 +23,23 @@ type Step = "email" | "otp";
 
 interface LoginOtpViewProps {
   nextPath: string;
+  /** Email a code was already sent to (handed off from /login) — start
+      directly at the code-entry step instead of asking for the email again,
+      which would force a second send straight into Supabase's 60s rate
+      limit. */
+  initialEmail?: string;
 }
 
-export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
+export function LoginOtpView({ nextPath, initialEmail }: LoginOtpViewProps) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("email");
-  const [email, setEmail] = useState("");
+  const [step, setStep] = useState<Step>(initialEmail ? "otp" : "email");
+  const [email, setEmail] = useState(initialEmail ?? "");
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [name, setName] = useState("");
-  const [needsName, setNeedsName] = useState(false);
+  const [needsName, setNeedsName] = useState(Boolean(initialEmail));
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [resendCountdown, setResendCountdown] = useState(0);
+  const [resendCountdown, setResendCountdown] = useState(initialEmail ? 30 : 0);
 
   const emailIsValid = EMAIL_REGEX.test(email);
   const otpJoined = otp.join("");
