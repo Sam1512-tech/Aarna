@@ -14,6 +14,7 @@ import {
   getStoredCoupon,
   setStoredCoupon,
 } from "@/lib/cart/coupon-storage";
+import { useCartCount } from "@/store/cart-count";
 import { useWishlist } from "@/store/wishlist";
 import type { CartLine, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -82,7 +83,9 @@ export function CartView({ initialCart }: CartViewProps) {
   function persistRemoval(variantId: string, optimistic: CartState) {
     startTransition(async () => {
       const next = await removeFromCart(variantId);
-      setCart(next.lines.length > 0 ? next : optimistic);
+      const settled = next.lines.length > 0 ? next : optimistic;
+      setCart(settled);
+      useCartCount.getState().set(settled.itemCount);
     });
   }
 
@@ -107,9 +110,12 @@ export function CartView({ initialCart }: CartViewProps) {
       ),
     );
     setCart(optimistic);
+    useCartCount.getState().set(optimistic.itemCount);
     startTransition(async () => {
       const next = await updateCartItem(line.variantId, nextQty);
-      setCart(next.lines.length > 0 ? next : optimistic);
+      const settled = next.lines.length > 0 ? next : optimistic;
+      setCart(settled);
+      useCartCount.getState().set(settled.itemCount);
     });
   }
 

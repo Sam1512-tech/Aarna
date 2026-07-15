@@ -16,6 +16,7 @@ import {
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { addToCart } from "@/lib/actions/cart";
 import { addToWishlist } from "@/lib/actions/account";
+import { useCartCount } from "@/store/cart-count";
 import type {
   ProductImage as DbProductImage,
   ProductWithVariants,
@@ -139,7 +140,8 @@ export function ProductDetailView({
     setBagFeedback(null);
     startTransition(async () => {
       try {
-        await addToCart(resolvedVariant.id, quantity);
+        const next = await addToCart(resolvedVariant.id, quantity);
+        useCartCount.getState().set(next.itemCount);
         setBagFeedback("added");
         window.setTimeout(() => setBagFeedback(null), 2200);
       } catch {

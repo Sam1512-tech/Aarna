@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useCartCount } from "@/store/cart-count";
 
 interface CategoryLink {
   name: string;
@@ -12,6 +13,10 @@ interface CategoryLink {
 
 interface SiteHeaderProps {
   categories: CategoryLink[];
+  /** Server-fetched cart item count so the badge paints correctly on first
+      load. Once the client hydrates, the store takes over and stays in sync
+      with every cart mutation. */
+  initialCartCount?: number;
 }
 
 // primaryLinks intentionally empty for launch — /shop/new-arrivals and
@@ -20,8 +25,24 @@ interface SiteHeaderProps {
 // once /collections index + a real "new arrivals" filter exist.
 const primaryLinks: { href: string; label: string }[] = [];
 
-export function SiteHeader({ categories }: SiteHeaderProps) {
+export function SiteHeader({
+  categories,
+  initialCartCount = 0,
+}: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Hydrate the client store with the server value on mount so subsequent
+  // navigations + mutations pick up from where the server left off. If the
+  // store is already hydrated (e.g. mid-session re-render), don't clobber it
+  // with a possibly-stale server value.
+  useEffect(() => {
+    if (!useCartCount.getState().hydrated) {
+      useCartCount.getState().set(initialCartCount);
+    }
+  }, [initialCartCount]);
+  const storeCount = useCartCount((s) => s.count);
+  const storeHydrated = useCartCount((s) => s.hydrated);
+  const cartCount = storeHydrated ? storeCount : initialCartCount;
 
   return (
     <>
@@ -131,10 +152,22 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
             </Link>
             <Link
               href="/cart"
-              aria-label="Bag"
-              className="inline-flex h-10 w-10 items-center justify-center transition duration-700 hover:-translate-y-0.5 hover:text-cocoa active:translate-y-0"
+              aria-label={
+                cartCount > 0
+                  ? `Bag · ${cartCount} ${cartCount === 1 ? "item" : "items"}`
+                  : "Bag"
+              }
+              className="relative inline-flex h-10 w-10 items-center justify-center transition duration-700 hover:-translate-y-0.5 hover:text-cocoa active:translate-y-0"
             >
               <ShoppingBag className="h-[18px] w-[18px]" aria-hidden="true" />
+              {cartCount > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-cocoa px-1 text-[10px] font-semibold leading-none text-cream tabular-nums shadow-[0_2px_6px_rgba(140,106,90,0.35)]"
+                >
+                  {cartCount > 9 ? "9+" : cartCount}
+                </span>
+              ) : null}
             </Link>
             <Link
               href="/account"
