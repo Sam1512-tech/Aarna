@@ -5,6 +5,7 @@ import { Heart, ShoppingBag, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { addToCart } from "@/lib/actions/cart";
 import { removeFromWishlist } from "@/lib/actions/account";
+import { useCartCount } from "@/store/cart-count";
 import { formatINR } from "@/lib/utils";
 
 export interface WishlistRow {
@@ -49,7 +50,8 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
     setError(null);
     startTransition(async () => {
       try {
-        await addToCart(row.variantId, 1);
+        const next = await addToCart(row.variantId, 1);
+        useCartCount.getState().set(next.itemCount);
         await removeFromWishlist(row.variantId);
         setMovedId(row.variantId);
         window.setTimeout(() => {
