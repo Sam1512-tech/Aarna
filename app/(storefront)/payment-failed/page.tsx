@@ -3,7 +3,7 @@ import { PaymentFailedView } from "@/components/storefront/payment-failed-view";
 import { getMyOrderDetail } from "@/lib/actions/account";
 
 export const metadata: Metadata = {
-  title: "payment couldn't be completed",
+  title: "Payment couldn't be completed",
   robots: { index: false, follow: false },
 };
 

@@ -3,7 +3,7 @@ import { CartView } from "@/components/storefront/cart-view";
 import { getCart } from "@/lib/actions/cart";
 
 export const metadata: Metadata = {
-  title: "your bag",
+  title: "Your bag",
 };
 
 export default async function CartPage() {

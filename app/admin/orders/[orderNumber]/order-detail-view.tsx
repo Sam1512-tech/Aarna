@@ -10,6 +10,7 @@ import {
   updateOrderFulfillmentStatus,
 } from "@/lib/actions/admin/orders";
 import { formatINR } from "@/lib/utils";
+import { actionErrorMessage } from "@/lib/action-error";
 
 type FulfillmentStatus =
   | "pending"
@@ -20,15 +21,18 @@ type FulfillmentStatus =
   | "cancelled"
   | "returned";
 
-const STATUSES: FulfillmentStatus[] = [
-  "pending",
-  "processing",
-  "shipped",
-  "out_for_delivery",
-  "delivered",
-  "cancelled",
-  "returned",
-];
+// Mirrors FORWARD_TRANSITIONS in lib/actions/admin/orders.ts — the dropdown
+// must only ever offer moves the server will actually accept. "returned"
+// isn't reachable from here at all (it flows through the returns table).
+const FORWARD_TRANSITIONS: Record<FulfillmentStatus, FulfillmentStatus[]> = {
+  pending: ["processing", "cancelled"],
+  processing: ["shipped", "cancelled"],
+  shipped: ["out_for_delivery"],
+  out_for_delivery: ["delivered"],
+  delivered: [],
+  cancelled: [],
+  returned: [],
+};
 
 interface OrderItem {
   id: string;
@@ -121,7 +125,7 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
         announce(`Status set to ${next.replace(/_/g, " ")}.`);
       } catch (err) {
         announce(
-          err instanceof Error ? err.message : "Couldn't update status",
+          actionErrorMessage(err, "Couldn't update status"),
           true,
         );
       }
@@ -142,7 +146,7 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
         }));
         announce(`AWB attached${updated.fulfillmentStatus === "shipped" ? " · status → shipped" : ""}.`);
       } catch (err) {
-        announce(err instanceof Error ? err.message : "Couldn't attach AWB", true);
+        announce(actionErrorMessage(err, "Couldn't attach AWB"), true);
       }
     });
   }
@@ -163,7 +167,7 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
         announce("Shipment created — AWB saved and order moved to shipped.");
       } catch (err) {
         announce(
-          err instanceof Error ? err.message : "Couldn't create shipment",
+          actionErrorMessage(err, "Couldn't create shipment"),
           true,
         );
       }
@@ -295,18 +299,22 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
               onChange={(e) =>
                 handleStatusChange(e.target.value as FulfillmentStatus)
               }
-              disabled={pending}
+              disabled={pending || FORWARD_TRANSITIONS[order.fulfillmentStatus].length === 0}
               className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa disabled:opacity-60"
             >
-              {STATUSES.map((s) => (
+              <option value={order.fulfillmentStatus}>
+                {order.fulfillmentStatus.replaceAll("_", " ")}
+              </option>
+              {FORWARD_TRANSITIONS[order.fulfillmentStatus].map((s) => (
                 <option key={s} value={s}>
                   {s.replaceAll("_", " ")}
                 </option>
               ))}
             </select>
             <p className="mt-1 text-xs text-charcoal/50">
-              Server enforces valid transitions — invalid jumps surface as an
-              error below.
+              {FORWARD_TRANSITIONS[order.fulfillmentStatus].length === 0
+                ? "This is a final status — nothing to move it to from here."
+                : "Only shows moves that are actually valid from here."}
             </p>
           </label>
         </Card>

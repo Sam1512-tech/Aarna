@@ -1,4 +1,5 @@
 import bwipjs from "bwip-js";
+import { ActionError } from "@/lib/action-error";
 
 /**
  * Generates a Code 128 barcode PNG buffer from a string (typically an SKU).
@@ -13,7 +14,7 @@ import bwipjs from "bwip-js";
  * via <Image src={buffer} />.
  */
 export async function generateCode128Png(value: string): Promise<Buffer> {
-  if (!value?.trim()) throw new Error("Barcode value is required");
+  if (!value?.trim()) throw new ActionError("Barcode value is required");
 
   return bwipjs.toBuffer({
     bcid: "code128",

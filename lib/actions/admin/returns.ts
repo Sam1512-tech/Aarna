@@ -9,6 +9,7 @@ import {
   firstNameFromAddress,
   rupees,
 } from "@/lib/whatsapp/notify";
+import { ActionError } from "@/lib/action-error";
 
 const { returns, orderItems, orders } = schema;
 
@@ -80,7 +81,7 @@ export async function updateReturnStatus(returnId: string, status: ReturnStatus)
   await requireAdmin();
 
   if (!RETURN_STATUSES.includes(status)) {
-    throw new Error(`Invalid return status: ${status}`);
+    throw new ActionError(`Invalid return status: ${status}`);
   }
 
   // Pull the return + its order (for the WhatsApp + refund-amount basis).
@@ -99,7 +100,7 @@ export async function updateReturnStatus(returnId: string, status: ReturnStatus)
     .innerJoin(orders, eq(orders.id, orderItems.orderId))
     .where(eq(returns.id, returnId))
     .limit(1);
-  if (!row) throw new Error("Return not found");
+  if (!row) throw new ActionError("Return not found");
 
   // "refunded" is set by the Razorpay refund.processed webhook; "rejected" ends
   // the flow here. Both resolve the return.

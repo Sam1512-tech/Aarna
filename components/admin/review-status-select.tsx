@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { updateReviewStatus } from "@/lib/actions/admin/reviews";
+import { actionErrorMessage } from "@/lib/action-error";
 
 const STATUSES = ["pending", "approved", "rejected"] as const;
 type ReviewStatus = (typeof STATUSES)[number];
@@ -41,7 +42,7 @@ export function ReviewStatusSelect({
         router.refresh();
       } catch (err) {
         setCurrent(previous);
-        setError(err instanceof Error ? err.message : "couldn't update status");
+        setError(actionErrorMessage(err, "couldn't update status"));
       }
     });
   }

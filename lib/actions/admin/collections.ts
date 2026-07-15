@@ -4,6 +4,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
+import { ActionError } from "@/lib/action-error";
 
 const { collections, collectionProducts, products, productImages } = schema;
 
@@ -19,11 +20,11 @@ function normalizeSlug(input: string): string {
 
 function validateSlug(slug: string): string {
   const normalized = normalizeSlug(slug);
-  if (!normalized) throw new Error("Collection slug is required");
+  if (!normalized) throw new ActionError("Collection slug is required");
   if (!SLUG_PATTERN.test(normalized)) {
-    throw new Error("Slug must be lowercase letters, numbers, and hyphens only");
+    throw new ActionError("Slug must be lowercase letters, numbers, and hyphens only");
   }
-  if (normalized.length > 160) throw new Error("Slug is too long (max 160 chars)");
+  if (normalized.length > 160) throw new ActionError("Slug is too long (max 160 chars)");
   return normalized;
 }
 
@@ -133,7 +134,7 @@ export async function createCollection(input: CreateCollectionInput) {
   await requireAdmin();
 
   const name = input.name.trim();
-  if (!name) throw new Error("Collection name is required");
+  if (!name) throw new ActionError("Collection name is required");
   const slug = validateSlug(input.slug);
 
   // Slug uniqueness
@@ -142,7 +143,7 @@ export async function createCollection(input: CreateCollectionInput) {
     .from(collections)
     .where(eq(collections.slug, slug))
     .limit(1);
-  if (existing[0]) throw new Error(`Slug "${slug}" is already taken`);
+  if (existing[0]) throw new ActionError(`Slug "${slug}" is already taken`);
 
   const nextSort =
     input.sortOrder ??
@@ -188,13 +189,13 @@ export async function updateCollection(
     .from(collections)
     .where(eq(collections.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Collection not found");
+  if (!existing[0]) throw new ActionError("Collection not found");
 
   const patch: Partial<typeof collections.$inferInsert> = {};
 
   if (input.name !== undefined) {
     const trimmed = input.name.trim();
-    if (!trimmed) throw new Error("Collection name cannot be empty");
+    if (!trimmed) throw new ActionError("Collection name cannot be empty");
     patch.name = trimmed;
   }
 
@@ -206,7 +207,7 @@ export async function updateCollection(
         .from(collections)
         .where(eq(collections.slug, newSlug))
         .limit(1);
-      if (collision[0]) throw new Error(`Slug "${newSlug}" is already taken`);
+      if (collision[0]) throw new ActionError(`Slug "${newSlug}" is already taken`);
     }
     patch.slug = newSlug;
   }
@@ -235,7 +236,7 @@ export async function toggleCollectionActive(id: string) {
     .from(collections)
     .where(eq(collections.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Collection not found");
+  if (!existing[0]) throw new ActionError("Collection not found");
 
   const [updated] = await db
     .update(collections)
@@ -255,7 +256,7 @@ export async function deleteCollection(id: string): Promise<{ ok: true }> {
     .from(collections)
     .where(eq(collections.id, id))
     .limit(1);
-  if (!existing[0]) throw new Error("Collection not found");
+  if (!existing[0]) throw new ActionError("Collection not found");
 
   // collection_products cascade-deletes via FK ON DELETE CASCADE
   await db.delete(collections).where(eq(collections.id, id));
@@ -278,7 +279,7 @@ export async function addProductsToCollection(
     .from(collections)
     .where(eq(collections.id, collectionId))
     .limit(1);
-  if (!collection[0]) throw new Error("Collection not found");
+  if (!collection[0]) throw new ActionError("Collection not found");
 
   // Find the current max sortOrder so new items go to the end
   const current = await db
@@ -311,7 +312,7 @@ export async function removeProductsFromCollection(
     .from(collections)
     .where(eq(collections.id, collectionId))
     .limit(1);
-  if (!collection[0]) throw new Error("Collection not found");
+  if (!collection[0]) throw new ActionError("Collection not found");
 
   await db
     .delete(collectionProducts)
@@ -338,7 +339,7 @@ export async function reorderProductsInCollection(
     .from(collections)
     .where(eq(collections.id, collectionId))
     .limit(1);
-  if (!collection[0]) throw new Error("Collection not found");
+  if (!collection[0]) throw new ActionError("Collection not found");
 
   await db.transaction(async (tx) => {
     for (const item of items) {

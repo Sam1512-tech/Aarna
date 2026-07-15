@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SignupView } from "@/components/storefront/signup-view";
 
 export const metadata: Metadata = {
-  title: "create account",
+  title: "Create account",
 };
 
 export default async function SignupPage({

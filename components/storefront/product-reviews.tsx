@@ -49,7 +49,7 @@ export function ProductReviews({
         <div className="flex flex-wrap items-end justify-between gap-5 pb-10">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-              reviews
+              Reviews
             </p>
             <div className="mt-3 flex items-center gap-3">
               <Stars rating={Math.round(average)} />
@@ -68,7 +68,7 @@ export function ProductReviews({
             <li key={r.id} className="border-b border-cocoa/8 pb-8">
               <div className="flex items-center justify-between gap-4">
                 <Stars rating={r.rating} />
-                <span className="text-xs lowercase text-charcoal/50">
+                <span className="text-xs text-charcoal/50">
                   {fmtDate(r.createdAt)}
                 </span>
               </div>

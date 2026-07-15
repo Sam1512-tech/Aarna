@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { db, schema } from "@/lib/db";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { CartLine, CartState } from "@/lib/types";
+import { ActionError } from "@/lib/action-error";
 
 const {
   carts,
@@ -97,6 +98,7 @@ async function hydrateCart(cartId: string): Promise<CartState> {
       variantId: cartItems.variantId,
       quantity: cartItems.quantity,
       productId: products.id,
+      productSlug: products.slug,
       productTitle: products.title,
       size: productVariants.size,
       color: productVariants.color,
@@ -132,6 +134,7 @@ async function hydrateCart(cartId: string): Promise<CartState> {
   const lines: CartLine[] = rows.map((r) => ({
     variantId: r.variantId,
     productId: r.productId,
+    productSlug: r.productSlug,
     productTitle: r.productTitle,
     variantLabel: [r.size, r.color].filter(Boolean).join(" / "),
     imageUrl: imageByProduct.get(r.productId) ?? null,
@@ -165,7 +168,7 @@ export async function addToCart(
   variantId: string,
   quantity: number,
 ): Promise<CartState> {
-  if (quantity <= 0) throw new Error("Quantity must be positive");
+  if (quantity <= 0) throw new ActionError("Quantity must be positive");
 
   // Verify variant exists and is active
   const variant = await db
@@ -174,11 +177,11 @@ export async function addToCart(
     .where(eq(productVariants.id, variantId))
     .limit(1);
   if (!variant[0] || !variant[0].isActive) {
-    throw new Error("Variant not available");
+    throw new ActionError("Variant not available");
   }
 
   const cartId = await resolveOrCreateCartId({ createIfMissing: true });
-  if (!cartId) throw new Error("Could not resolve cart");
+  if (!cartId) throw new ActionError("Could not resolve cart");
 
   // Upsert — if line exists, increment quantity; else insert
   await db

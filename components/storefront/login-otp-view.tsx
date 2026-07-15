@@ -59,7 +59,7 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
     try {
       const result = await sendEmailOtp(email);
       if (!result.ok) {
-        setError(result.message ?? "couldn't send code. please try again.");
+        setError(result.message ?? "Couldn't send code. Please try again.");
         return;
       }
       // We can't know from the server whether the email is a new account (to
@@ -69,7 +69,7 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
       setStep("otp");
       setResendCountdown(30);
     } catch {
-      setError("couldn't send code. please try again.");
+      setError("Couldn't send code. Please try again.");
     } finally {
       setPending(false);
     }
@@ -87,14 +87,14 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
         fullName: needsName ? name.trim() : undefined,
       });
       if (!result.ok) {
-        setError(result.message ?? "that code didn't work. please try again.");
+        setError(result.message ?? "That code didn't work. Please try again.");
         setPending(false);
         return;
       }
       // Preserve cart and continue directly to checkout (or wherever ?next=).
       router.push(nextPath);
     } catch {
-      setError("that code didn't work. please try again.");
+      setError("That code didn't work. Please try again.");
       setPending(false);
     }
   }
@@ -106,7 +106,7 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
     try {
       const result = await sendEmailOtp(email);
       if (!result.ok) {
-        setError(result.message ?? "couldn't send code. please try again.");
+        setError(result.message ?? "Couldn't send code. Please try again.");
         return;
       }
       setResendCountdown(30);
@@ -133,13 +133,13 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
         },
       });
       if (oauthError) {
-        setError("couldn't open google sign-in. please try again.");
+        setError("Couldn't open google sign-in. Please try again.");
         setPending(false);
       }
       // On success, supabase.auth.signInWithOAuth performs a top-level
       // navigation to Google — no need to setPending(false) on the happy path.
     } catch {
-      setError("couldn't open google sign-in. please try again.");
+      setError("Couldn't open google sign-in. Please try again.");
       setPending(false);
     }
   }
@@ -163,12 +163,12 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
         </h1>
         <p className="mt-3 max-w-xs text-center text-sm leading-6 text-charcoal/60">
           {step === "email"
-            ? "enter your email — we'll send a one-time code to verify it."
+            ? "Enter your email — we'll send a one-time code to verify it."
             : `we sent a 6-digit code to ${email}.`}
         </p>
 
         {step === "email" ? (
-          <div className="fade-rise mt-9 w-full">
+          <div className="mt-9 w-full">
             <button
               type="button"
               onClick={signInWithGoogle}
@@ -177,14 +177,14 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
             >
               <GoogleGlyph />
               <span className="text-[12px] font-medium uppercase tracking-[0.18em] text-charcoal/85">
-                continue with google
+                Continue with google
               </span>
             </button>
 
             <div className="my-6 flex items-center gap-4">
               <span className="h-px flex-1 bg-cocoa/15" aria-hidden="true" />
               <span className="text-[10px] font-medium uppercase tracking-[0.24em] text-charcoal/45">
-                or continue with email
+                Or continue with email
               </span>
               <span className="h-px flex-1 bg-cocoa/15" aria-hidden="true" />
             </div>
@@ -192,7 +192,7 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
             <form onSubmit={handleSendOtp} className="space-y-4" noValidate>
             <label className="block">
               <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                email address
+                Email address
               </span>
               <div className="mt-2 flex items-center gap-3 rounded-xl border border-cocoa/20 bg-cream px-4 py-3 transition duration-500 focus-within:border-cocoa">
                 <Mail
@@ -205,7 +205,7 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="You@example.com"
                   className="w-full bg-transparent text-base text-charcoal outline-none placeholder:text-charcoal/35"
                   aria-label="Email address"
                   autoFocus
@@ -215,23 +215,23 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
 
             <SubmitButton
               disabled={!emailIsValid || pending}
-              label={pending ? "sending code…" : "send code"}
+              label={pending ? "Sending code…" : "Send code"}
             />
 
             {error ? (
-              <p className="text-center text-xs lowercase text-burnt-red">
+              <p className="text-center text-xs text-burnt-red">
                 {error}
               </p>
             ) : null}
 
-            <p className="pt-2 text-center text-xs lowercase leading-6 text-charcoal/45">
-              by continuing, you agree to our{" "}
+            <p className="pt-2 text-center text-xs leading-6 text-charcoal/45">
+              By continuing, you agree to our{" "}
               <Link href="/terms" className="soft-link">
-                terms
+                Terms
               </Link>{" "}
               and{" "}
               <Link href="/privacy-policy" className="soft-link">
-                privacy policy
+                Privacy policy
               </Link>
               .
             </p>
@@ -240,20 +240,20 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
         ) : (
           <form
             onSubmit={handleVerifyOtp}
-            className="fade-rise mt-9 w-full space-y-5"
+            className="mt-9 w-full space-y-5"
             noValidate
           >
             {needsName ? (
               <label className="block">
                 <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                  your name
+                  Your name
                 </span>
                 <input
                   type="text"
                   autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="how should we address you?"
+                  placeholder="How should we address you?"
                   className="mt-2 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-3 text-base text-charcoal outline-none transition duration-500 placeholder:text-charcoal/35 focus:border-cocoa"
                 />
               </label>
@@ -261,7 +261,7 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
 
             <div>
               <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                verification code
+                Verification code
               </span>
               <OtpInput
                 value={otp}
@@ -288,24 +288,24 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
                 pending
                   ? "verifying…"
                   : needsName
-                    ? "create account & continue"
-                    : "verify & continue"
+                    ? "Create account & continue"
+                    : "Verify & continue"
               }
             />
 
             {error ? (
-              <p className="text-center text-xs lowercase text-burnt-red">
+              <p className="text-center text-xs text-burnt-red">
                 {error}
               </p>
             ) : null}
 
-            <div className="flex items-center justify-between text-xs lowercase text-charcoal/55">
+            <div className="flex items-center justify-between text-xs text-charcoal/55">
               <button
                 type="button"
                 onClick={changeEmail}
                 className="soft-link"
               >
-                change email
+                Change email
               </button>
               <button
                 type="button"
@@ -315,15 +315,15 @@ export function LoginOtpView({ nextPath }: LoginOtpViewProps) {
               >
                 {resendCountdown > 0
                   ? `resend in ${resendCountdown}s`
-                  : "resend code"}
+                  : "Resend code"}
               </button>
             </div>
           </form>
         )}
 
-        <div className="mt-10 flex items-center gap-2 text-xs lowercase text-charcoal/45">
+        <div className="mt-10 flex items-center gap-2 text-xs text-charcoal/45">
           <ShieldCheck className="h-3.5 w-3.5 text-cocoa" aria-hidden="true" />
-          secure sign-in · we never store your code
+          Secure sign-in · we never store your code
         </div>
 
       </div>

@@ -18,8 +18,8 @@ import { useWishlist } from "@/store/wishlist";
 import type { CartLine, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
-const SHIPPING_NOTE = "calculated at checkout";
-const TAX_NOTE = "inclusive of taxes";
+const SHIPPING_NOTE = "Calculated at checkout";
+const TAX_NOTE = "Inclusive of taxes";
 const EXIT_MS = 320;
 
 function recalc(lines: CartLine[]): CartState {
@@ -146,7 +146,7 @@ export function CartView({ initialCart }: CartViewProps) {
       setCouponMsg(null);
       clearStoredCoupon();
       persistRemoval(line.variantId, optimistic);
-      flashToast("moved to wishlist");
+      flashToast("Moved to wishlist");
     });
   }
 
@@ -156,7 +156,7 @@ export function CartView({ initialCart }: CartViewProps) {
     if (!code) return;
     startTransition(async () => {
       const res = await applyCoupon(code);
-      setCouponMsg({ ok: res.ok, text: res.message.toLowerCase() });
+      setCouponMsg({ ok: res.ok, text: res.message });
       setDiscount(res.ok ? res.discount : 0);
       if (res.ok) {
         setStoredCoupon(code);
@@ -175,21 +175,21 @@ export function CartView({ initialCart }: CartViewProps) {
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[132px] md:px-6 md:pb-32 md:pt-36">
       <div className="mx-auto max-w-7xl">
-        <header className="fade-rise border-b border-maroon/12 pb-8">
+        <header className="border-b border-maroon/12 pb-8">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            your bag
+            Your bag
           </p>
-          <h1 className="mt-4 font-display text-[44px] lowercase leading-[1.05] text-maroon md:text-6xl">
-            a few things you&rsquo;re carrying.
+          <h1 className="mt-4 font-display text-[44px] leading-[1.05] text-maroon md:text-6xl">
+            A few things you&rsquo;re carrying.
           </h1>
-          <p className="mt-4 text-base lowercase leading-7 text-charcoal/60">
+          <p className="mt-4 text-base leading-7 text-charcoal/60">
             {cart.itemCount} {cart.itemCount === 1 ? "piece" : "pieces"} held for you.
           </p>
         </header>
 
         <div className="grid gap-10 pt-12 lg:grid-cols-[1.55fr_0.9fr] lg:gap-20 md:pt-14">
           {/* Items */}
-          <div className="fade-rise">
+          <div>
             <ul>
               {cart.lines.map((line) => {
                 const isLeaving = removing.has(line.variantId);
@@ -225,15 +225,15 @@ export function CartView({ initialCart }: CartViewProps) {
               className="soft-link mt-3 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa"
             >
               <ArrowRight className="h-3.5 w-3.5 rotate-180" aria-hidden="true" />
-              continue shopping
+              Continue shopping
             </Link>
           </div>
 
           {/* Summary */}
-          <aside className="fade-rise-late lg:sticky lg:top-36 lg:self-start">
+          <aside className="lg:sticky lg:top-36 lg:self-start">
             <div className="rounded-[28px] border border-cocoa/12 bg-cream/80 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:p-8">
-              <h2 className="font-display text-3xl lowercase leading-tight text-maroon">
-                order summary
+              <h2 className="font-display text-3xl leading-tight text-maroon">
+                Order summary
               </h2>
 
               <form
@@ -247,20 +247,20 @@ export function CartView({ initialCart }: CartViewProps) {
                   id="coupon"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
-                  placeholder="coupon code"
-                  className="min-h-12 rounded-xl border border-cocoa/18 bg-cream px-4 text-base lowercase text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
+                  placeholder="Coupon code"
+                  className="min-h-12 rounded-xl border border-cocoa/18 bg-cream px-4 text-base text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
                 />
                 <button
                   type="submit"
                   disabled={isPending || !couponCode.trim()}
-                  className="min-h-12 rounded-xl bg-cocoa px-6 text-xs font-medium lowercase tracking-[0.22em] text-white transition duration-700 hover:bg-cocoa/85 disabled:opacity-45"
+                  className="min-h-12 rounded-xl bg-cocoa px-6 text-xs font-medium tracking-[0.22em] text-white transition duration-700 hover:bg-cocoa/85 disabled:opacity-45"
                 >
-                  apply
+                  Apply
                 </button>
               </form>
               {couponMsg ? (
                 <p
-                  className={`mt-3 text-xs lowercase tracking-wide ${
+                  className={`mt-3 text-xs tracking-wide ${
                     couponMsg.ok ? "text-cocoa" : "text-burnt-red"
                   }`}
                 >
@@ -269,23 +269,23 @@ export function CartView({ initialCart }: CartViewProps) {
               ) : null}
 
               <dl className="mt-7 space-y-4 border-t border-maroon/10 pt-7 text-base text-charcoal/70">
-                <SummaryRow label="subtotal" value={formatINR(cart.subtotal)} />
+                <SummaryRow label="Subtotal" value={formatINR(cart.subtotal)} />
                 {discount > 0 ? (
                   <SummaryRow
-                    label="discount"
+                    label="Discount"
                     value={`−${formatINR(discount)}`}
                     accent
                   />
                 ) : null}
-                <SummaryRow label="shipping" note={SHIPPING_NOTE} />
-                <SummaryRow label="taxes" note={TAX_NOTE} />
+                <SummaryRow label="Shipping" note={SHIPPING_NOTE} />
+                <SummaryRow label="Taxes" note={TAX_NOTE} />
               </dl>
 
               <div className="mt-7 flex items-baseline justify-between border-t border-maroon/10 pt-7">
                 <span className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-                  total
+                  Total
                 </span>
-                <span className="font-display text-3xl lowercase text-maroon">
+                <span className="text-lg font-semibold tabular-nums text-maroon">
                   {formatINR(total)}
                 </span>
               </div>
@@ -295,8 +295,8 @@ export function CartView({ initialCart }: CartViewProps) {
                 aria-disabled={isPending}
                 className="group/cta mt-7 flex min-h-[58px] items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)]"
               >
-                <span className="flex items-center gap-3 text-xs font-medium lowercase tracking-[0.24em] text-cream">
-                  proceed to checkout
+                <span className="flex items-center gap-3 text-xs font-medium tracking-[0.24em] text-cream">
+                  Proceed to checkout
                   <ArrowRight
                     className="h-4 w-4 transition-transform duration-500 group-hover/cta:translate-x-1"
                     aria-hidden="true"
@@ -304,8 +304,8 @@ export function CartView({ initialCart }: CartViewProps) {
                 </span>
               </Link>
 
-              <p className="mt-5 text-center text-xs lowercase leading-6 text-charcoal/48">
-                secure payment via razorpay · delivered across india
+              <p className="mt-5 text-center text-xs leading-6 text-charcoal/48">
+                Secure payment via razorpay · delivered across india
               </p>
             </div>
           </aside>
@@ -320,7 +320,7 @@ export function CartView({ initialCart }: CartViewProps) {
         }`}
       >
         {toast ? (
-          <div className="flex items-center gap-2 rounded-full border border-maroon/10 bg-cream/95 px-5 py-3 text-xs lowercase tracking-wide text-maroon shadow-[0_18px_50px_rgba(43,38,35,0.16)] backdrop-blur-xl">
+          <div className="flex items-center gap-2 rounded-full border border-maroon/10 bg-cream/95 px-5 py-3 text-xs tracking-wide text-maroon shadow-[0_18px_50px_rgba(43,38,35,0.16)] backdrop-blur-xl">
             <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
             {toast}
           </div>
@@ -355,7 +355,11 @@ function CartItemCard({
         leaving ? "translate-x-3" : ""
       }`}
     >
-      <div className="relative h-[108px] w-[82px] shrink-0 overflow-hidden rounded-[16px] md:h-[128px] md:w-[96px]">
+      <Link
+        href={`/product/${line.productSlug}`}
+        aria-label={line.productTitle}
+        className="relative block h-[108px] w-[82px] shrink-0 overflow-hidden rounded-[16px] md:h-[128px] md:w-[96px]"
+      >
         {line.imageUrl ? (
           <Image
             src={line.imageUrl}
@@ -367,21 +371,26 @@ function CartItemCard({
         ) : (
           <div className="cloth-window h-full w-full transition duration-700 group-hover:scale-[1.05]" />
         )}
-      </div>
+      </Link>
 
       <div className="flex flex-1 flex-col">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-display text-xl lowercase leading-tight text-maroon md:text-2xl">
-              {line.productTitle.toLowerCase()}
+            <h2 className="font-display text-xl leading-tight text-maroon md:text-2xl">
+              <Link
+                href={`/product/${line.productSlug}`}
+                className="transition duration-500 hover:text-burnt-red"
+              >
+                {line.productTitle}
+              </Link>
             </h2>
             <div className="mt-2.5 flex flex-wrap items-center gap-2">
-              {size ? <VariantChip label="size" value={size} /> : null}
-              {color ? <VariantChip label="colour" value={color} /> : null}
+              {size ? <VariantChip label="Size" value={size} /> : null}
+              {color ? <VariantChip label="Colour" value={color} /> : null}
             </div>
             {!line.inStock ? (
               <p className="mt-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-burnt-red">
-                low stock — review at checkout
+                Low stock — review at checkout
               </p>
             ) : null}
           </div>
@@ -408,12 +417,12 @@ function CartItemCard({
             <div className="text-right">
               <p
                 key={line.quantity}
-                className="qty-pop text-lg text-charcoal"
+                className="text-lg text-charcoal"
               >
                 {formatINR(line.unitPrice * line.quantity)}
               </p>
               {line.quantity > 1 ? (
-                <p className="mt-0.5 text-xs lowercase text-charcoal/45">
+                <p className="mt-0.5 text-xs text-charcoal/45">
                   {formatINR(line.unitPrice)} each
                 </p>
               ) : null}
@@ -430,7 +439,7 @@ function CartItemCard({
               className="h-3.5 w-3.5 transition-transform duration-500 group-hover/wish:scale-110"
               aria-hidden="true"
             />
-            move to wishlist
+            Move to wishlist
           </button>
         </div>
       </div>
@@ -441,7 +450,7 @@ function CartItemCard({
 function VariantChip({ label, value }: { label: string; value: string }) {
   return (
     <span className="inline-flex items-baseline gap-1.5 rounded-full border border-cocoa/15 bg-cocoa/5 px-3 py-1 text-[11px] text-charcoal/70">
-      <span className="lowercase text-charcoal/45">{label}</span>
+      <span className="text-charcoal/45">{label}</span>
       <span className="font-medium text-charcoal/85">{value}</span>
     </span>
   );
@@ -471,7 +480,7 @@ function QtyStepper({
       </button>
       <span
         key={quantity}
-        className="qty-pop min-w-8 text-center text-sm tabular-nums"
+        className="min-w-8 text-center text-sm tabular-nums"
       >
         {quantity}
       </span>
@@ -501,11 +510,11 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <dt className="lowercase">{label}</dt>
+      <dt>{label}</dt>
       <dd
         className={
           note
-            ? "text-sm lowercase text-charcoal/50"
+            ? "text-sm text-charcoal/50"
             : accent
               ? "text-cocoa"
               : "text-charcoal"
@@ -520,13 +529,13 @@ function SummaryRow({
 function EmptyBag() {
   return (
     <section className="paper-grain flex min-h-screen flex-col items-center bg-cream px-5 pb-24 pt-[150px] text-center md:pt-48">
-      <div className="fade-rise flex max-w-md flex-col items-center">
+      <div className="flex max-w-md flex-col items-center">
         <BagIllustration />
         <p className="mt-9 text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-          your bag
+          Your bag
         </p>
-        <h1 className="mt-4 font-display text-[46px] lowercase leading-[1.04] text-maroon md:text-6xl">
-          your bag is empty for now
+        <h1 className="mt-4 font-display text-[46px] leading-[1.04] text-maroon md:text-6xl">
+          Your bag is empty for now
         </h1>
         <p className="mt-5 max-w-sm text-base leading-7 text-charcoal/60">
           Looks like you haven&rsquo;t added anything yet. Discover pieces
@@ -534,9 +543,9 @@ function EmptyBag() {
         </p>
         <Link
           href="/shop"
-          className="mt-9 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold lowercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
+          className="mt-9 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-7 py-4 text-[11px] font-bold tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"
         >
-          enter the wardrobe
+          Enter the wardrobe
         </Link>
       </div>
     </section>
@@ -554,7 +563,7 @@ function BagIllustration() {
         viewBox="0 0 120 120"
         role="img"
         aria-label="An empty shopping bag"
-        className="fade-rise relative h-32 w-32 text-cocoa/85 md:h-36 md:w-36"
+        className="relative h-32 w-32 text-cocoa/85 md:h-36 md:w-36"
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"

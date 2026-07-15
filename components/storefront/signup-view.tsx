@@ -50,12 +50,12 @@ export function SignupView({ nextPath }: SignupViewProps) {
           fullName: fullName.trim(),
         });
         if (!result.ok) {
-          setError(result.message ?? "couldn't create account. please try again.");
+          setError(result.message ?? "Couldn't create account. Please try again.");
           return;
         }
         router.push(nextPath);
       } catch {
-        setError("couldn't create account. please try again.");
+        setError("Couldn't create account. Please try again.");
       }
     });
   }
@@ -78,34 +78,34 @@ export function SignupView({ nextPath }: SignupViewProps) {
           CREATE ACCOUNT
         </h1>
         <p className="mt-3 max-w-xs text-center text-sm leading-6 text-charcoal/60">
-          welcome to aarna — a few details to get you started.
+          Welcome to aarna — a few details to get you started.
         </p>
 
-        <div className="fade-rise mt-10 w-full space-y-6">
+        <div className="mt-10 w-full space-y-6">
           <GoogleSignInButton
             nextPath={nextPath}
-            label="sign up with google"
+            label="Sign up with google"
             onError={setError}
           />
 
-          <Divider label="or sign up with email" />
+          <Divider label="Or sign up with email" />
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <Field
-              label="full name"
+              label="Full name"
               Icon={User}
               inputProps={{
                 type: "text",
                 autoComplete: "name",
                 value: fullName,
                 onChange: (e) => setFullName(e.target.value),
-                placeholder: "how should we address you?",
+                placeholder: "How should we address you?",
                 autoFocus: true,
                 "aria-label": "Full name",
               }}
             />
             <Field
-              label="email address"
+              label="Email address"
               Icon={Mail}
               inputProps={{
                 type: "email",
@@ -119,7 +119,7 @@ export function SignupView({ nextPath }: SignupViewProps) {
             />
             <div>
               <Field
-                label="password"
+                label="Password"
                 Icon={Lock}
                 inputProps={{
                   type: showPassword ? "text" : "password",
@@ -147,47 +147,47 @@ export function SignupView({ nextPath }: SignupViewProps) {
                   </button>
                 }
               />
-              <p className="mt-1.5 pl-1 text-xs lowercase text-charcoal/50">
+              <p className="mt-1.5 pl-1 text-xs text-charcoal/50">
                 at least {MIN_PASSWORD} characters
               </p>
             </div>
 
             <SubmitButton
               disabled={!canSubmit}
-              label={pending ? "creating account…" : "create account"}
+              label={pending ? "Creating account…" : "Create account"}
             />
 
             {error ? (
-              <p className="text-center text-xs lowercase text-burnt-red">
+              <p className="text-center text-xs text-burnt-red">
                 {error}
               </p>
             ) : null}
           </form>
         </div>
 
-        <div className="mt-10 flex items-center gap-2 text-xs lowercase text-charcoal/45">
+        <div className="mt-10 flex items-center gap-2 text-xs text-charcoal/45">
           <ShieldCheck className="h-3.5 w-3.5 text-cocoa" aria-hidden="true" />
-          secure sign-up · we never share your details
+          Secure sign-up · we never share your details
         </div>
 
-        <p className="mt-6 text-center text-xs lowercase text-charcoal/50">
+        <p className="mt-6 text-center text-xs text-charcoal/50">
           already have an account?{" "}
           <Link
             href={`/login?next=${encodeURIComponent(nextPath)}`}
             className="soft-link text-cocoa"
           >
-            sign in
+            Sign in
           </Link>
         </p>
 
-        <p className="mt-6 text-center text-xs lowercase leading-6 text-charcoal/40">
+        <p className="mt-6 text-center text-xs leading-6 text-charcoal/40">
           by creating an account, you agree to our{" "}
           <Link href="/terms" className="soft-link">
-            terms
+            Terms
           </Link>{" "}
           and{" "}
           <Link href="/privacy-policy" className="soft-link">
-            privacy policy
+            Privacy policy
           </Link>
           .
         </p>

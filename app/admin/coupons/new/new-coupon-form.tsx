@@ -12,6 +12,7 @@ import {
   TextInput,
 } from "@/components/admin/admin-form";
 import { createCoupon } from "@/lib/actions/admin/coupons";
+import { actionErrorMessage } from "@/lib/action-error";
 
 type CouponType = "flat" | "percent";
 
@@ -71,7 +72,7 @@ export function NewCouponForm() {
         router.refresh();
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "couldn't create coupon.",
+          actionErrorMessage(err, "couldn't create coupon."),
         );
       }
     });

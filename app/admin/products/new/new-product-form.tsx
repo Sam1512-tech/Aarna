@@ -14,6 +14,7 @@ import {
   slugify,
 } from "@/components/admin/admin-form";
 import { createProduct } from "@/lib/actions/admin/products";
+import { actionErrorMessage } from "@/lib/action-error";
 
 interface CategoryOption {
   id: string;
@@ -81,7 +82,7 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
         router.refresh();
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "couldn't create product.",
+          actionErrorMessage(err, "couldn't create product."),
         );
       }
     });

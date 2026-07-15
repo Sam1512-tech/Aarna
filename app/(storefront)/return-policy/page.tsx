@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LegalList, LegalPage } from "@/components/storefront/legal-page";
 
 export const metadata: Metadata = {
-  title: "return & exchange policy",
+  title: "Return & exchange policy",
   description:
     "Aarna's return and exchange terms — how the return window works and what makes a piece eligible.",
 };

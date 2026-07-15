@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gt, ilike, inArray, lte, or, sql } from "drizzle-or
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
+import { ActionError } from "@/lib/action-error";
 
 const { productVariants, products, inventoryMovements, productImages } = schema;
 
@@ -201,7 +202,7 @@ export async function adjustStock(input: AdjustStockInput) {
   await requireAdmin();
 
   if (!Number.isInteger(input.delta) || input.delta === 0) {
-    throw new Error("Delta must be a non-zero integer");
+    throw new ActionError("Delta must be a non-zero integer");
   }
 
   // Atomic update + audit log inside one transaction
@@ -212,11 +213,11 @@ export async function adjustStock(input: AdjustStockInput) {
       .where(eq(productVariants.id, input.variantId))
       .limit(1);
 
-    if (!variant[0]) throw new Error("Variant not found");
+    if (!variant[0]) throw new ActionError("Variant not found");
 
     const newStock = variant[0].stock + input.delta;
     if (newStock < 0) {
-      throw new Error(
+      throw new ActionError(
         `Cannot reduce stock below 0 (current: ${variant[0].stock}, delta: ${input.delta})`,
       );
     }
@@ -253,7 +254,7 @@ export async function bulkAdjustStock(
   await db.transaction(async (tx) => {
     for (const item of items) {
       if (!Number.isInteger(item.delta) || item.delta === 0) {
-        throw new Error(`Invalid delta for variant ${item.variantId}`);
+        throw new ActionError(`Invalid delta for variant ${item.variantId}`);
       }
 
       const variant = await tx
@@ -261,11 +262,11 @@ export async function bulkAdjustStock(
         .from(productVariants)
         .where(eq(productVariants.id, item.variantId))
         .limit(1);
-      if (!variant[0]) throw new Error(`Variant ${item.variantId} not found`);
+      if (!variant[0]) throw new ActionError(`Variant ${item.variantId} not found`);
 
       const newStock = variant[0].stock + item.delta;
       if (newStock < 0) {
-        throw new Error(
+        throw new ActionError(
           `Cannot reduce stock below 0 for variant ${item.variantId}`,
         );
       }

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { X } from "lucide-react";
 import { StatusPill, tableClasses } from "@/components/admin/admin-primitives";
 import { adjustStock } from "@/lib/actions/admin/inventory";
+import { actionErrorMessage } from "@/lib/action-error";
 
 const LOW_STOCK_THRESHOLD = 5;
 
@@ -151,7 +152,7 @@ function AdjustModal({
         });
         onAdjusted(row.variantId, projected);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't adjust stock");
+        setError(actionErrorMessage(err, "couldn't adjust stock"));
       }
     });
   }
