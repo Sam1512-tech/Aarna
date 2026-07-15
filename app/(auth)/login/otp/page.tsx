@@ -8,8 +8,10 @@ export const metadata: Metadata = {
 export default async function LoginOtpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; email?: string }>;
 }) {
-  const { next } = await searchParams;
-  return <LoginOtpView nextPath={next ?? "/checkout"} />;
+  const { next, email } = await searchParams;
+  return (
+    <LoginOtpView nextPath={next ?? "/checkout"} initialEmail={email || undefined} />
+  );
 }
