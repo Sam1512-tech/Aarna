@@ -83,6 +83,16 @@ export async function POST(req: Request) {
       const payment = event.payload?.payment?.entity;
       if (!payment?.order_id) break;
 
+      // Razorpay's own decline reason — log it, since without this the only
+      // trace of a failed payment is "it failed", with no way to tell a
+      // genuine card decline from a config problem on our side.
+      console.warn(
+        "[razorpay webhook] payment.failed:",
+        payment.order_id,
+        payment.error_code,
+        payment.error_description,
+      );
+
       // Mark the order failed (no-op if it was already captured). We do NOT
       // email the customer — Razorpay Checkout already surfaces the failure in
       // real time, and payment-failed isn't one of Aarna's customer emails.
