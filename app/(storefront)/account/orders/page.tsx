@@ -2,9 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, PackageOpen } from "lucide-react";
 import { RateProductButton } from "@/components/storefront/rate-product-button";
-import { getMyOrders } from "@/lib/actions/account";
+import { ReturnExchangeItemButton } from "@/components/storefront/return-exchange-item-button";
+import { getMyOrders, getMyReturns } from "@/lib/actions/account";
 import { getReviewableItems } from "@/lib/actions/reviews";
 import { formatINR } from "@/lib/utils";
+
+const RETURN_WINDOW_DAYS = 3;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export const metadata: Metadata = {
   title: "Your orders",
@@ -38,9 +42,10 @@ function fmtDate(d: Date | string | null) {
 }
 
 export default async function AccountOrdersPage() {
-  const [orders, reviewableItems] = await Promise.all([
+  const [orders, reviewableItems, existingReturns] = await Promise.all([
     getMyOrders().catch(() => []),
     getReviewableItems().catch(() => []),
+    getMyReturns().catch(() => []),
   ]);
 
   if (orders.length === 0) {
@@ -50,6 +55,27 @@ export default async function AccountOrdersPage() {
   const reviewableByItemId = new Map(
     reviewableItems.map((r) => [r.orderItemId, r]),
   );
+
+  // Match by (orderNumber + productTitle + variantLabel) — same shape the
+  // returns page uses; getMyReturns() doesn't expose the raw orderItemId.
+  const alreadyRequested = new Set(
+    existingReturns.map(
+      (r) => `${r.orderNumber}|${r.productTitle}|${r.variantLabel ?? ""}`,
+    ),
+  );
+
+  // Server component — Date.now() at request time is intentional and stable
+  // for this render. react-hooks/purity targets client hooks.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  function isWithinWindow(placedAt: Date | string | null): boolean {
+    if (!placedAt) return false;
+    const t =
+      typeof placedAt === "string"
+        ? new Date(placedAt).getTime()
+        : placedAt.getTime();
+    return (now - t) / MS_PER_DAY <= RETURN_WINDOW_DAYS;
+  }
 
   return (
     <div>
@@ -106,12 +132,17 @@ export default async function AccountOrdersPage() {
               <ul className="divide-y divide-cocoa/8 px-5 py-1">
                 {order.items.slice(0, 3).map((it) => {
                   const reviewable = reviewableByItemId.get(it.id);
+                  const key = `${order.orderNumber}|${it.productTitleSnapshot}|${it.variantLabelSnapshot ?? ""}`;
+                  const returnable =
+                    order.fulfillmentStatus === "delivered" &&
+                    isWithinWindow(order.placedAt) &&
+                    !alreadyRequested.has(key);
                   return (
                     <li
                       key={it.id}
-                      className="flex items-center justify-between gap-4 py-3 text-sm"
+                      className="flex flex-wrap items-center justify-between gap-4 py-3 text-sm"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate font-display text-base text-maroon">
                           {it.productTitleSnapshot}
                         </p>
@@ -126,7 +157,19 @@ export default async function AccountOrdersPage() {
                           </p>
                         )}
                       </div>
-                      <div className="flex shrink-0 items-center gap-4">
+                      <div className="flex shrink-0 flex-wrap items-center gap-3">
+                        {returnable ? (
+                          <ReturnExchangeItemButton
+                            item={{
+                              orderItemId: it.id,
+                              orderNumber: order.orderNumber,
+                              productTitle: it.productTitleSnapshot,
+                              variantLabel: it.variantLabelSnapshot,
+                              quantity: it.quantity,
+                              lineTotal: it.lineTotal,
+                            }}
+                          />
+                        ) : null}
                         {reviewable ? (
                           <RateProductButton
                             orderItemId={reviewable.orderItemId}

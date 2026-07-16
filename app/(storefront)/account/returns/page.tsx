@@ -1,26 +1,23 @@
 import type { Metadata } from "next";
 import { AccountReturnsView } from "@/components/storefront/account-returns-view";
 import { getMyOrders, getMyReturns } from "@/lib/actions/account";
-import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
 
 export const metadata: Metadata = {
-  title: "Your returns",
+  title: "Returns & exchanges",
 };
 
 const RETURN_WINDOW_DAYS = 3;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export default async function AccountReturnsPage() {
-  const [allReturns, orders] = await Promise.all([
+  const [returns, orders] = await Promise.all([
     getMyReturns().catch(() => []),
     getMyOrders().catch(() => []),
   ]);
-  const returns = allReturns.filter(
-    (r) => !r.reason?.startsWith(EXCHANGE_REASON_PREFIX),
-  );
 
-  // Backend enforces (delivered + within 3 days + no duplicate). We pre-filter
-  // to the same set so the picker only shows genuinely-actionable items.
+  // Returns + exchanges are unified in the view. Eligibility uses ALL rows
+  // (return or exchange) as the "already requested" set — one request per
+  // delivered item, regardless of type.
   const alreadyReturnedIds = new Set(
     returns.map((r) => `${r.orderNumber}|${r.productTitle}|${r.variantLabel}`),
   );
