@@ -346,9 +346,13 @@ export function CartView({ initialCart }: CartViewProps) {
       {/* Wishlist confirmation */}
       <div
         aria-live="polite"
-        className={`pointer-events-none fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4 transition-all duration-500 ${
+        // bottom-6 plus the iPhone home-indicator safe area — the layout
+        // opts into viewport-fit=cover (app/layout.tsx), so a plain
+        // bottom-6 can render partly behind the home indicator on iPhone X+.
+        className={`pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4 transition-all duration-500 ${
           toast ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
         }`}
+        style={{ bottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
       >
         {toast ? (
           <div className="flex items-center gap-2 rounded-full border border-maroon/10 bg-cream/95 px-5 py-3 text-xs tracking-wide text-maroon shadow-[0_18px_50px_rgba(43,38,35,0.16)] backdrop-blur-xl">

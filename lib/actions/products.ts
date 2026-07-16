@@ -3,6 +3,7 @@
 import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { isVideoUrl } from "@/lib/media";
+import { sortBySize } from "@/lib/sizes";
 import type {
   Category,
   Collection,
@@ -199,12 +200,12 @@ export async function getProductBySlug(
 
   if (!product) return null;
 
-  const [variants, images, category] = await Promise.all([
+  const [variantRows, images, category] = await Promise.all([
     db
       .select()
       .from(productVariants)
       .where(eq(productVariants.productId, product.id))
-      .orderBy(asc(productVariants.size)),
+      .orderBy(asc(productVariants.createdAt)),
     db
       .select()
       .from(productImages)
@@ -218,6 +219,10 @@ export async function getProductBySlug(
           .then((rows) => rows[0] ?? null)
       : Promise.resolve(null),
   ]);
+
+  // Garment size order (XS, S, M, L, XL, XXL), not the alphabetical order a
+  // plain DB sort on the "size" column gives (which puts L before S).
+  const variants = sortBySize(variantRows);
 
   return { ...product, variants, images, category };
 }
