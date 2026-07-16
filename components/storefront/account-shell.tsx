@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Heart,
   LogOut,
@@ -19,6 +19,9 @@ interface NavItem {
   label: string;
   Icon: typeof User;
   exact?: boolean;
+  // Optional query-string tab this item points at. Used so /account/returns
+  // and /account/returns?tab=exchanges highlight the correct sidebar row.
+  tab?: string;
 }
 
 const NAV: NavItem[] = [
@@ -26,8 +29,13 @@ const NAV: NavItem[] = [
   { href: "/account/orders", label: "Orders", Icon: ShoppingBag },
   { href: "/account/wishlist", label: "Wishlist", Icon: Heart },
   { href: "/account/addresses", label: "Addresses", Icon: MapPin },
-  { href: "/account/exchanges", label: "Exchanges", Icon: Repeat },
-  { href: "/account/returns", label: "Returns", Icon: RotateCcw },
+  {
+    href: "/account/returns?tab=exchanges",
+    label: "Exchanges",
+    Icon: Repeat,
+    tab: "exchanges",
+  },
+  { href: "/account/returns", label: "Returns", Icon: RotateCcw, tab: "" },
 ];
 
 interface AccountShellProps {
@@ -37,6 +45,7 @@ interface AccountShellProps {
 
 export function AccountShell({ displayName, children }: AccountShellProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
 
   function handleSignOut() {
@@ -46,8 +55,18 @@ export function AccountShell({ displayName, children }: AccountShellProps) {
     });
   }
 
-  function isActive(href: string, exact = false) {
-    return exact ? pathname === href : pathname.startsWith(href);
+  function isActive(item: NavItem) {
+    // Items with a `tab` distinguish sibling links that share a pathname —
+    // e.g. Returns (tab: "") and Exchanges (tab: "exchanges") both live at
+    // /account/returns. Match on tab equality; strip the query from href
+    // for the path check.
+    const path = item.href.split("?")[0];
+    const pathMatches = item.exact
+      ? pathname === path
+      : pathname.startsWith(path);
+    if (!pathMatches) return false;
+    if (item.tab === undefined) return true;
+    return (searchParams.get("tab") ?? "") === item.tab;
   }
 
   return (
@@ -88,7 +107,7 @@ export function AccountShell({ displayName, children }: AccountShellProps) {
               className="flex flex-wrap gap-2 pb-2 lg:hidden"
             >
               {NAV.map((item) => {
-                const active = isActive(item.href, item.exact);
+                const active = isActive(item);
                 return (
                   <Link
                     key={item.href}
@@ -112,7 +131,7 @@ export function AccountShell({ displayName, children }: AccountShellProps) {
               className="hidden flex-col gap-1 lg:flex"
             >
               {NAV.map((item) => {
-                const active = isActive(item.href, item.exact);
+                const active = isActive(item);
                 return (
                   <Link
                     key={item.href}
