@@ -43,9 +43,21 @@ export const returnStatus = pgEnum("return_status", [
   "approved",
   "rejected",
   "picked",
+  "in_transit_to_seller",
   "received",
+  "qc_failed",
   "refunded",
+  "exchange_shipped",
+  "exchange_delivered",
 ]);
+
+// Split "return vs exchange" onto a dedicated column so it doesn't have to be
+// inferred from reason-text prefixes anymore.
+export const returnType = pgEnum("return_type", ["return", "exchange"]);
+
+// QC outcome recorded when the returned piece arrives at the studio and is
+// inspected before we refund / dispatch the swap.
+export const qcOutcome = pgEnum("qc_outcome", ["pass", "fail"]);
 
 export const reviewStatus = pgEnum("review_status", [
   "pending",
@@ -306,6 +318,10 @@ export const orders = pgTable("orders", {
   delhiveryOrderId: varchar("delhivery_order_id", { length: 60 }),
   notes: text("notes"),
   placedAt: timestamp("placed_at", { withTimezone: true }),
+  // Written by the Delhivery status webhook when the shipment lands. Anchor
+  // for the 3-day return/exchange window (not placedAt — a slow-shipped order
+  // still deserves a full window after it arrives).
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -370,14 +386,36 @@ export const returns = pgTable("returns", {
   orderItemId: uuid("order_item_id")
     .notNull()
     .references(() => orderItems.id, { onDelete: "cascade" }),
+  // Was inferred from a "Exchange requested." prefix in the reason string —
+  // now a dedicated column. Existing rows get backfilled by the migration
+  // script; new inserts must set it explicitly.
+  type: returnType("type").default("return").notNull(),
   reason: varchar("reason", { length: 200 }).notNull(),
   reasonCategory: varchar("reason_category", { length: 60 }),
   status: returnStatus("status").default("requested").notNull(),
+  // Which size/colour the customer wants instead. Only meaningful when
+  // type = "exchange"; ignored for straight returns.
+  desiredVariantId: uuid("desired_variant_id").references(
+    () => productVariants.id,
+    { onDelete: "set null" },
+  ),
+  // Cloudinary URLs the customer uploaded to prove the fault / condition.
+  // Capped to 3 client-side; server re-validates on the upload route.
+  photos: jsonb("photos").$type<string[]>().default([]).notNull(),
   refundAmount: integer("refund_amount"),
   razorpayRefundId: varchar("razorpay_refund_id", { length: 60 }),
   delhiveryReversePickupId: varchar("delhivery_reverse_pickup_id", {
     length: 60,
   }),
+  // Reverse pickup AWB (studio ← customer) and, for exchanges, the outbound
+  // AWB (studio → customer) so we can render both legs in the timeline.
+  reverseAwb: varchar("reverse_awb", { length: 60 }),
+  outboundAwb: varchar("outbound_awb", { length: 60 }),
+  // Filled by the admin when marking approved/rejected/qc_failed so the
+  // customer sees a human reason, not a bare status pill.
+  rejectionReason: text("rejection_reason"),
+  adminNote: text("admin_note"),
+  qcOutcome: qcOutcome("qc_outcome"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
