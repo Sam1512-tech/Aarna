@@ -5,6 +5,7 @@ import { isVideoUrl, videoPosterUrl } from "@/lib/media";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ChevronLeft,
   ChevronRight,
   Heart,
   Lock,
@@ -13,7 +14,7 @@ import {
   Star,
   Truck,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { addToCart, getCart } from "@/lib/actions/cart";
 import { addToWishlist } from "@/lib/actions/account";
 import { useCartCount } from "@/store/cart-count";
@@ -526,6 +527,15 @@ function Gallery({
   onSelect: (i: number) => void;
   altFallback: string;
 }) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+  // While a goTo()-triggered smooth scroll is in flight, handleRailScroll's
+  // own scroll-position → index math would otherwise fire on the animation's
+  // intermediate frames and stomp the index goTo just set (e.g. clicking
+  // "next" could get silently undone by a mid-animation reading of 0).
+  const programmaticScrollRef = useRef(false);
+  const programmaticTimeoutRef = useRef<number | null>(null);
+
   if (images.length === 0) {
     return (
       <div>
@@ -534,22 +544,62 @@ function Gallery({
     );
   }
 
-  const active = images[Math.min(activeIdx, images.length - 1)] ?? images[0];
+  const safeIdx = Math.min(activeIdx, images.length - 1);
+  const active = images[safeIdx] ?? images[0];
+  const hasMultiple = images.length > 1;
+
+  function goTo(i: number) {
+    const next = Math.max(0, Math.min(images.length - 1, i));
+    onSelect(next);
+    // Keep the mobile rail's scroll position in sync when navigating via
+    // arrows/thumbnails rather than swiping.
+    const item = railRef.current?.children[next] as HTMLElement | undefined;
+    if (item) {
+      programmaticScrollRef.current = true;
+      if (programmaticTimeoutRef.current !== null) {
+        window.clearTimeout(programmaticTimeoutRef.current);
+      }
+      programmaticTimeoutRef.current = window.setTimeout(() => {
+        programmaticScrollRef.current = false;
+      }, 500);
+      item.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    }
+  }
+
+  // Mobile rail: derive the active index from scroll position so arrows,
+  // the counter, and swipe gestures all stay in sync with each other —
+  // swiping never leaves the counter/dots pointing at the wrong image.
+  function handleRailScroll() {
+    if (programmaticScrollRef.current) return;
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const rail = railRef.current;
+      if (!rail) return;
+      const step = rail.scrollWidth / images.length;
+      const i = Math.round(rail.scrollLeft / (step || 1));
+      onSelect(Math.max(0, Math.min(images.length - 1, i)));
+    });
+  }
 
   return (
     <div className="md:grid md:grid-cols-[80px_1fr] md:gap-4">
       {/* Thumbnail strip — vertical on desktop, hidden on mobile (uses snap rail instead) */}
-      {images.length > 1 ? (
+      {hasMultiple ? (
         <div className="hidden h-fit flex-col gap-3 md:flex">
           {images.map((img, i) => (
             <button
               key={img.id}
               type="button"
-              onClick={() => onSelect(i)}
+              onClick={() => goTo(i)}
               aria-label={`View image ${i + 1}`}
-              aria-current={i === activeIdx}
+              aria-current={i === safeIdx}
               className={`relative aspect-[3/4] overflow-hidden rounded-xl border transition duration-500 ${
-                i === activeIdx
+                i === safeIdx
                   ? "border-maroon"
                   : "border-cocoa/14 hover:border-cocoa/40"
               }`}
@@ -568,35 +618,50 @@ function Gallery({
 
       {/* Main image — single on desktop, swipe rail on mobile */}
       <div className="md:contents">
-        {/* Mobile: horizontal scroll-snap rail showing all images */}
-        <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
-          {images.map((img) => (
-            <div
-              key={img.id}
-              className="relative aspect-[3/4] w-[88vw] shrink-0 snap-center overflow-hidden rounded-[20px] bg-cream shadow-[0_18px_55px_rgba(43,38,35,0.06)]"
-            >
-              {isVideoUrl(img.url) ? (
-                <video
-                  src={img.url}
-                  poster={videoPosterUrl(img.url)}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              ) : (
-                <Image
-                  src={img.url}
-                  alt={img.altText ?? altFallback}
-                  fill
-                  sizes="88vw"
-                  priority
-                  className="object-cover"
-                />
-              )}
-            </div>
-          ))}
+        {/* Mobile: horizontal scroll-snap rail showing all images.
+            touch-action: pan-y tells the browser a vertical swipe that
+            starts over this rail should scroll the PAGE, not get captured
+            by the rail's own horizontal scroll-snap — without it, a swipe
+            that isn't perfectly horizontal can hijack the gesture and the
+            gallery appears to "jump" while the customer is trying to
+            scroll past it. */}
+        <div className="relative md:hidden">
+          <div
+            ref={railRef}
+            onScroll={handleRailScroll}
+            className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [touch-action:pan-y] [&::-webkit-scrollbar]:hidden"
+          >
+            {images.map((img) => (
+              <div
+                key={img.id}
+                className="relative aspect-[3/4] w-[88vw] shrink-0 snap-center overflow-hidden rounded-[20px] bg-cream shadow-[0_18px_55px_rgba(43,38,35,0.06)]"
+              >
+                {isVideoUrl(img.url) ? (
+                  <video
+                    src={img.url}
+                    poster={videoPosterUrl(img.url)}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : (
+                  <Image
+                    src={img.url}
+                    alt={img.altText ?? altFallback}
+                    fill
+                    sizes="88vw"
+                    priority
+                    className="object-cover"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+          {hasMultiple ? (
+            <GalleryCounter index={safeIdx} total={images.length} />
+          ) : null}
         </div>
 
         {/* Desktop: single large active image (or inline video) */}
@@ -622,9 +687,85 @@ function Gallery({
               className="object-cover"
             />
           )}
+          {hasMultiple ? (
+            <GalleryArrow
+              direction="prev"
+              onClick={() => goTo(safeIdx - 1)}
+              disabled={safeIdx === 0}
+            />
+          ) : null}
+          {hasMultiple ? (
+            <GalleryArrow
+              direction="next"
+              onClick={() => goTo(safeIdx + 1)}
+              disabled={safeIdx === images.length - 1}
+            />
+          ) : null}
+          {hasMultiple ? (
+            <GalleryCounter index={safeIdx} total={images.length} />
+          ) : null}
         </div>
+
+        {/* Arrows above the mobile rail too — swipe still works, but this
+            gives a deterministic way to page through without relying on
+            gesture detection at all. */}
+        {hasMultiple ? (
+          <div className="mt-3 flex items-center justify-center gap-3 md:hidden">
+            <GalleryArrow
+              direction="prev"
+              variant="inline"
+              onClick={() => goTo(safeIdx - 1)}
+              disabled={safeIdx === 0}
+            />
+            <GalleryArrow
+              direction="next"
+              variant="inline"
+              onClick={() => goTo(safeIdx + 1)}
+              disabled={safeIdx === images.length - 1}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+function GalleryArrow({
+  direction,
+  onClick,
+  disabled,
+  variant = "overlay",
+}: {
+  direction: "prev" | "next";
+  onClick: () => void;
+  disabled: boolean;
+  variant?: "overlay" | "inline";
+}) {
+  const Icon = direction === "prev" ? ChevronLeft : ChevronRight;
+  const overlayPosition =
+    direction === "prev" ? "left-3" : "right-3";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={direction === "prev" ? "Previous image" : "Next image"}
+      className={
+        variant === "overlay"
+          ? `absolute top-1/2 z-10 -translate-y-1/2 ${overlayPosition} grid h-10 w-10 place-items-center rounded-full border border-cream/42 bg-cream/70 text-maroon shadow-[0_12px_34px_rgba(43,38,35,0.12)] backdrop-blur-xl transition duration-500 hover:bg-cream/90 disabled:pointer-events-none disabled:opacity-0`
+          : "grid h-9 w-9 place-items-center rounded-full border border-cocoa/22 bg-cream text-maroon shadow-[0_6px_18px_rgba(43,38,35,0.06)] transition duration-500 hover:border-cocoa disabled:opacity-30"
+      }
+    >
+      <Icon className="h-4 w-4" aria-hidden="true" />
+    </button>
+  );
+}
+
+function GalleryCounter({ index, total }: { index: number; total: number }) {
+  return (
+    <span className="pointer-events-none absolute bottom-4 right-4 rounded-full border border-cream/50 bg-charcoal/45 px-2.5 py-1 text-[11px] font-medium tabular-nums text-cream backdrop-blur-md">
+      {index + 1} / {total}
+    </span>
   );
 }
 
