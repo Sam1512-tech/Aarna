@@ -36,7 +36,7 @@ export default async function AdminDashboardPage() {
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
           overview · last {DAYS} days
         </p>
-        <h1 className="mt-2 font-display text-4xl lowercase leading-tight text-maroon">
+        <h1 className="mt-2 font-display text-4xl uppercase leading-tight text-maroon">
           dashboard
         </h1>
       </header>
@@ -83,7 +83,7 @@ export default async function AdminDashboardPage() {
       {counts ? (
         <section className="mt-10 rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_10px_28px_rgba(43,38,35,0.04)]">
           <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-cocoa/10 pb-4">
-            <h2 className="font-display text-2xl lowercase text-maroon">
+            <h2 className="font-display text-2xl uppercase text-maroon">
               fulfillment breakdown
             </h2>
             <Link
@@ -114,7 +114,7 @@ export default async function AdminDashboardPage() {
       {lowStock.length > 0 ? (
         <section className="mt-6 rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_10px_28px_rgba(43,38,35,0.04)]">
           <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-cocoa/10 pb-4">
-            <h2 className="font-display text-2xl lowercase text-maroon">
+            <h2 className="font-display text-2xl uppercase text-maroon">
               running low
             </h2>
             <Link
@@ -152,7 +152,7 @@ export default async function AdminDashboardPage() {
           <span className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-cocoa/20 text-cocoa">
             <Box className="h-5 w-5" aria-hidden="true" />
           </span>
-          <h2 className="mt-5 font-display text-2xl lowercase text-maroon">
+          <h2 className="mt-5 font-display text-2xl uppercase text-maroon">
             all clear
           </h2>
           <p className="mt-2 max-w-md text-sm text-charcoal/60">

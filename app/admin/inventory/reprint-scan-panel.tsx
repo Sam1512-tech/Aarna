@@ -126,7 +126,7 @@ export function ReprintScanPanel() {
     <AdminCard>
       <div className="flex items-center gap-2 border-b border-cocoa/10 pb-4">
         <ScanLine className="h-5 w-5 text-cocoa" aria-hidden="true" />
-        <h2 className="font-display text-xl lowercase text-maroon">
+        <h2 className="font-display text-xl uppercase text-maroon">
           reprint tags
         </h2>
       </div>

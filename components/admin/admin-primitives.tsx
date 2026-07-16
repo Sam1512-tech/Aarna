@@ -25,7 +25,7 @@ export function AdminPageHeader({
             {eyebrow}
           </p>
         ) : null}
-        <h1 className="mt-2 font-display text-3xl lowercase leading-tight text-maroon md:text-4xl">
+        <h1 className="mt-2 font-display text-3xl uppercase leading-tight text-maroon md:text-4xl">
           {title}
         </h1>
         {intro ? (
@@ -111,7 +111,7 @@ export function AdminEmpty({
 }) {
   return (
     <div className="flex flex-col items-center rounded-2xl border border-cocoa/12 bg-cream/70 py-14 text-center">
-      <h2 className="font-display text-2xl lowercase text-maroon">{title}</h2>
+      <h2 className="font-display text-2xl uppercase text-maroon">{title}</h2>
       <p className="mt-2 max-w-md px-6 text-sm text-charcoal/60">
         {description}
       </p>

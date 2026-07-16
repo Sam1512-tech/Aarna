@@ -63,7 +63,7 @@ export function AdminShell({ displayName, children }: AdminShellProps) {
     <div className="grid min-h-screen bg-cream text-charcoal md:grid-cols-[240px_1fr]">
       <aside className="border-b border-cocoa/12 bg-cream md:border-b-0 md:border-r">
         <div className="flex items-center justify-between px-4 py-5 md:px-5 md:py-6">
-          <p className="font-display text-2xl lowercase leading-none text-maroon">
+          <p className="font-display text-2xl uppercase leading-none text-maroon">
             aarna admin
           </p>
           <Link

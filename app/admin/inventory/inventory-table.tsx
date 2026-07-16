@@ -172,7 +172,7 @@ function AdjustModal({
             </p>
             <h3
               id="adjust-title"
-              className="mt-1 truncate font-display text-xl lowercase text-maroon"
+              className="mt-1 truncate font-display text-xl uppercase text-maroon"
             >
               {row.productTitle}
             </h3>
