@@ -20,7 +20,7 @@ export default async function AdminOrderDetailPage({
       <AdminPageHeader
         eyebrow="commerce · orders"
         title={`order ${order.orderNumber}`}
-        intro={`placed ${new Date(order.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`}
+        intro={`placed ${new Date(order.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })} IST`}
       />
       <OrderDetailView order={order} />
     </div>

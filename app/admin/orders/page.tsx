@@ -31,13 +31,21 @@ const FULFILLMENT_STATUSES = [
 type Payment = (typeof PAYMENT_STATUSES)[number];
 type Fulfillment = (typeof FULFILLMENT_STATUSES)[number];
 
+// Admin dates render in IST regardless of the server clock. Vercel functions
+// default to UTC even in the bom1 region (region controls latency, not local
+// time), so without `timeZone: 'Asia/Kolkata'` an order placed at 4 am IST
+// on Aug 15 would render as "Aug 14" in the queue — off by up to 5:30 h.
 function fmtDate(d: Date | string | null) {
   if (!d) return "—";
   const dt = typeof d === "string" ? new Date(d) : d;
-  return dt.toLocaleDateString("en-IN", {
+  return dt.toLocaleString("en-IN", {
     day: "numeric",
     month: "short",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
   });
 }
 
