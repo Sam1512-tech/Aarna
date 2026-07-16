@@ -50,6 +50,11 @@ export function CartView({ initialCart }: CartViewProps) {
   const [removing, setRemoving] = useState<Set<string>>(new Set());
   const [discount, setDiscount] = useState(0);
   const [couponCode, setCouponCode] = useState("");
+  // The last successfully-applied code (distinct from the input's live text,
+  // which the customer may keep editing after applying). Used to silently
+  // re-validate the discount whenever the cart's subtotal changes, since the
+  // discount amount is derived server-side from the subtotal.
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [couponMsg, setCouponMsg] = useState<{ ok: boolean; text: string } | null>(
     null,
   );
@@ -70,6 +75,7 @@ export function CartView({ initialCart }: CartViewProps) {
       const res = await applyCoupon(saved);
       if (res.ok) {
         setCouponCode(saved);
+        setAppliedCode(saved);
         setDiscount(res.discount);
       } else {
         clearStoredCoupon();
@@ -116,6 +122,21 @@ export function CartView({ initialCart }: CartViewProps) {
       const settled = next.lines.length > 0 ? next : optimistic;
       setCart(settled);
       useCartCount.getState().set(settled.itemCount);
+
+      // The discount is derived server-side from the subtotal, so a coupon
+      // applied before this quantity change can be stale now (percentage
+      // coupons scale with subtotal; flat coupons can drop below
+      // minOrderAmount). Re-validate instead of leaving the old amount on
+      // screen until a manual refresh.
+      if (appliedCode) {
+        const res = await applyCoupon(appliedCode);
+        setDiscount(res.ok ? res.discount : 0);
+        if (!res.ok) {
+          setCouponMsg({ ok: false, text: res.message });
+          setAppliedCode(null);
+          clearStoredCoupon();
+        }
+      }
     });
   }
 
@@ -127,6 +148,7 @@ export function CartView({ initialCart }: CartViewProps) {
       setCart(optimistic);
       setDiscount(0);
       setCouponCode("");
+      setAppliedCode(null);
       setCouponMsg(null);
       clearStoredCoupon();
       persistRemoval(line.variantId, optimistic);
@@ -149,6 +171,7 @@ export function CartView({ initialCart }: CartViewProps) {
       setCart(optimistic);
       setDiscount(0);
       setCouponCode("");
+      setAppliedCode(null);
       setCouponMsg(null);
       clearStoredCoupon();
       persistRemoval(line.variantId, optimistic);
@@ -165,8 +188,10 @@ export function CartView({ initialCart }: CartViewProps) {
       setCouponMsg({ ok: res.ok, text: res.message });
       setDiscount(res.ok ? res.discount : 0);
       if (res.ok) {
+        setAppliedCode(code);
         setStoredCoupon(code);
       } else {
+        setAppliedCode(null);
         clearStoredCoupon();
       }
     });

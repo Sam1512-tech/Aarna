@@ -13,8 +13,8 @@ import {
   Star,
   Truck,
 } from "lucide-react";
-import { useCallback, useMemo, useState, useTransition } from "react";
-import { addToCart } from "@/lib/actions/cart";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { addToCart, getCart } from "@/lib/actions/cart";
 import { addToWishlist } from "@/lib/actions/account";
 import { useCartCount } from "@/store/cart-count";
 import type {
@@ -134,6 +134,26 @@ export function ProductDetailView({
   const [bagFeedback, setBagFeedback] = useState<null | "added" | "error">(null);
   const [wished, setWished] = useState(false);
   const [wishError, setWishError] = useState<string | null>(null);
+  // Quantity of THIS exact variant (size + colour) already sitting in the
+  // customer's bag — lets "add to bag" tell them it's already there instead
+  // of silently incrementing with no feedback.
+  const [cartQty, setCartQty] = useState(0);
+
+  useEffect(() => {
+    // No sync setState here for the "no variant selected" case — the render
+    // below already hides the note when resolvedVariant is null, so there's
+    // nothing to reset.
+    if (!resolvedVariant) return;
+    let cancelled = false;
+    getCart().then((cart) => {
+      if (cancelled) return;
+      const line = cart.lines.find((l) => l.variantId === resolvedVariant.id);
+      setCartQty(line?.quantity ?? 0);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedVariant]);
 
   const handleAddToBag = useCallback(() => {
     if (!resolvedVariant || !inStock || isPending) return;
@@ -142,6 +162,8 @@ export function ProductDetailView({
       try {
         const next = await addToCart(resolvedVariant.id, quantity);
         useCartCount.getState().set(next.itemCount);
+        const line = next.lines.find((l) => l.variantId === resolvedVariant.id);
+        setCartQty(line?.quantity ?? quantity);
         setBagFeedback("added");
         window.setTimeout(() => setBagFeedback(null), 2200);
       } catch {
@@ -367,6 +389,12 @@ export function ProductDetailView({
                 </p>
               ) : null}
             </div>
+
+            {resolvedVariant && cartQty > 0 ? (
+              <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa">
+                {cartQty} {cartQty === 1 ? "piece" : "pieces"} already in your bag
+              </p>
+            ) : null}
 
             {/* CTAs */}
             <div className="mt-8 flex items-stretch gap-2 md:gap-3">
