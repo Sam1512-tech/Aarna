@@ -1,13 +1,14 @@
 "use client";
 
 import { Check, MapPin, Pencil, Plus, Star, Trash2, X } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   createAddress,
   deleteAddress,
   setDefaultAddress,
   updateAddress,
 } from "@/lib/actions/account";
+import { checkPincodeServiceability } from "@/lib/actions/checkout";
 import type { AddressInput } from "@/lib/types";
 
 export interface AddressRow extends AddressInput {
@@ -255,17 +256,61 @@ function AddressEditor({
     pincode: initial?.pincode ?? "",
     isDefault: initial?.isDefault ?? false,
   });
+
+  // Pincode serviceability — debounced on change, mirrors the checkout
+  // flow. We never let the customer save an address we can't deliver to.
+  const [pincodeStatus, setPincodeStatus] = useState<
+    null | { serviceable: boolean; checking: boolean; etaDays?: number }
+  >(null);
+  const lastPin = useRef<string>("");
+
+  useEffect(() => {
+    if (!/^\d{6}$/.test(form.pincode)) {
+      setPincodeStatus(null);
+      lastPin.current = "";
+      return;
+    }
+    if (form.pincode === lastPin.current) return;
+    lastPin.current = form.pincode;
+    setPincodeStatus({ serviceable: false, checking: true });
+    const handle = window.setTimeout(async () => {
+      try {
+        const res = await checkPincodeServiceability(form.pincode);
+        if (lastPin.current === form.pincode) {
+          setPincodeStatus({ ...res, checking: false });
+        }
+      } catch {
+        // Fail-open here — the belt-and-braces server re-check inside
+        // handleSubmit stops a bad save from actually landing. This just
+        // keeps the UI from lying about a transient network blip.
+        if (lastPin.current === form.pincode) {
+          setPincodeStatus({ serviceable: true, checking: false });
+        }
+      }
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [form.pincode]);
+
   const canSave =
     form.fullName.trim().length >= 2 &&
     /^\d{10}$/.test(form.phone) &&
     form.line1.trim().length >= 3 &&
     form.city.trim().length >= 2 &&
     form.state.trim().length >= 2 &&
-    /^\d{6}$/.test(form.pincode);
+    /^\d{6}$/.test(form.pincode) &&
+    pincodeStatus?.serviceable === true &&
+    !pincodeStatus.checking;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSave) return;
+    // Belt-and-braces: re-verify at submit in case the debounce hasn't
+    // landed or the user tampered with the disabled state.
+    const gate = await checkPincodeServiceability(form.pincode);
+    if (!gate.serviceable) {
+      setPincodeStatus({ serviceable: false, checking: false });
+      return;
+    }
     onSave(form);
   }
 
@@ -351,6 +396,23 @@ function AddressEditor({
             inputMode="numeric"
             maxLength={6}
           />
+          {pincodeStatus ? (
+            <p
+              className={`text-xs lowercase leading-6 ${
+                pincodeStatus.checking
+                  ? "text-charcoal/55"
+                  : pincodeStatus.serviceable
+                    ? "text-cocoa"
+                    : "text-burnt-red"
+              }`}
+            >
+              {pincodeStatus.checking
+                ? "checking serviceability…"
+                : pincodeStatus.serviceable
+                  ? `we deliver here${pincodeStatus.etaDays ? ` · around ${pincodeStatus.etaDays} days` : ""}.`
+                  : "sorry — we don't deliver to this pin code yet."}
+            </p>
+          ) : null}
         </div>
 
         <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm lowercase text-charcoal/70">

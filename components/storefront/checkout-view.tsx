@@ -258,6 +258,17 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
     setSubmitError(null);
     setSubmitting(true);
     try {
+      // Belt-and-braces: re-verify serviceability at submit time in case the
+      // debounced check hasn't landed or the user bypassed the disabled state.
+      // We never rely purely on client gating for something that would
+      // otherwise let an unfulfillable order through.
+      const gate = await checkPincodeServiceability(data.pincode);
+      if (!gate.serviceable) {
+        setPincodeStatus({ serviceable: false, checking: false });
+        throw new Error(
+          "sorry — we don't deliver to that pin code yet.",
+        );
+      }
       const { razorpay } = await initCheckout({
         email: data.email,
         shippingAddress: {
