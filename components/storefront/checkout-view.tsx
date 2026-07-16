@@ -20,20 +20,78 @@ import { actionErrorMessage } from "@/lib/action-error";
 const FREE_SHIPPING_THRESHOLD = 299900; // ₹2,999 (matches backend)
 const FORM_DRAFT_KEY = "aarna-checkout-draft";
 
+// Strong validators — block gibberish before it hits the DB. Every rule here
+// exists because a real customer's typo shouldn't slip through, but a bot or
+// mash-of-keys should.
 const shippingSchema = z.object({
-  fullName: z.string().trim().min(2, "Please enter your full name").max(100),
+  fullName: z
+    .string()
+    .trim()
+    .min(3, "Please enter your full name")
+    .max(100)
+    .regex(/^[a-zA-Z][a-zA-Z\s.'\-]*$/, "Letters only, please")
+    .refine((v) => /\s/.test(v.trim()), "Please enter first and last name")
+    .refine(
+      (v) => !/^(.)\1+$/.test(v.trim().replace(/\s/g, "")),
+      "Please enter a real name",
+    ),
   phone: z
     .string()
     .trim()
-    .regex(/^\d{10}$/, "10-digit phone number"),
+    .regex(/^[6-9]\d{9}$/, "10-digit Indian mobile (starts 6-9)"),
   email: z.string().trim().email("Valid email address required"),
-  line1: z.string().trim().min(3, "Address line 1 required").max(200),
+  line1: z
+    .string()
+    .trim()
+    .min(5, "Please add more detail")
+    .max(200)
+    .refine(
+      (v) => (v.match(/[a-zA-Z]/g) || []).length >= 3,
+      "Include street or area name",
+    ),
   line2: z.string().trim().max(200).optional().or(z.literal("")),
-  city: z.string().trim().min(2, "City required").max(100),
+  city: z
+    .string()
+    .trim()
+    .min(2, "City required")
+    .max(100)
+    .regex(/^[a-zA-Z][a-zA-Z\s.\-]*$/, "Letters only"),
   state: z.string().trim().min(2, "State required").max(60),
-  pincode: z.string().trim().regex(/^\d{6}$/, "6-digit PIN code"),
+  pincode: z
+    .string()
+    .trim()
+    .regex(/^[1-9]\d{5}$/, "6-digit PIN code"),
   whatsappOptIn: z.boolean(),
 });
+
+// ── India Post postal DB lookup ───────────────────────────────────────────────
+// Free, public, no auth. If the pincode isn't in this DB it isn't a real
+// pincode — hard-block. If it is, the record's district/state auto-fills the
+// form so users can't type gibberish for those either.
+interface PostalRecord {
+  district: string;
+  state: string;
+}
+async function fetchIndiaPostal(pincode: string): Promise<PostalRecord | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(
+      `https://api.postalpincode.in/pincode/${pincode}`,
+      { signal: controller.signal },
+    );
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const record = Array.isArray(data) ? data[0] : null;
+    if (!record || record.Status !== "Success") return null;
+    const po = record.PostOffice?.[0];
+    if (!po?.District || !po?.State) return null;
+    return { district: String(po.District), state: String(po.State) };
+  } catch {
+    return null;
+  }
+}
 
 type ShippingForm = z.infer<typeof shippingSchema>;
 
@@ -73,7 +131,14 @@ interface CheckoutViewProps {
 export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
   const router = useRouter();
   const [pincodeStatus, setPincodeStatus] = useState<
-    null | { serviceable: boolean; checking: boolean; etaDays?: number }
+    null | {
+      serviceable: boolean;
+      checking: boolean;
+      verified: boolean;
+      postalHint: string | null;
+      etaDays?: number;
+      reason?: string;
+    }
   >(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -160,7 +225,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
   const pincode = watch("pincode");
   const lastPin = useRef<string>("");
   useEffect(() => {
-    if (!/^\d{6}$/.test(pincode)) {
+    if (!/^[1-9]\d{5}$/.test(pincode)) {
       setPincodeStatus(null);
       lastPin.current = "";
       return;
@@ -168,24 +233,59 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
     if (pincode === lastPin.current) return;
     lastPin.current = pincode;
     let cancelled = false;
-    setPincodeStatus({ serviceable: false, checking: true });
+    setPincodeStatus({
+      serviceable: false,
+      checking: true,
+      verified: false,
+      postalHint: null,
+    });
     const t = window.setTimeout(async () => {
-      try {
-        const res = await checkPincodeServiceability(pincode);
-        if (!cancelled) {
-          setPincodeStatus({ ...res, checking: false });
-        }
-      } catch {
-        if (!cancelled) {
-          setPincodeStatus({ serviceable: true, checking: false });
-        }
+      const [postal, delhivery] = await Promise.all([
+        fetchIndiaPostal(pincode),
+        checkPincodeServiceability(pincode).catch(() => ({
+          serviceable: false,
+        })),
+      ]);
+      if (cancelled) return;
+
+      // Not in the postal DB → not a real pincode. Hard block.
+      if (!postal) {
+        setPincodeStatus({
+          serviceable: false,
+          checking: false,
+          verified: false,
+          postalHint: null,
+          reason: "This pincode isn't in the postal database",
+        });
+        return;
       }
+
+      // Auto-fill from the postal record: state is 1:1 with pincode so we
+      // always overwrite; city we only fill if empty (users often use a
+      // locality name that differs from the postal district).
+      setValue("state", postal.state, { shouldValidate: true });
+      if (!watch("city")?.trim()) {
+        setValue("city", postal.district, { shouldValidate: true });
+      }
+
+      setPincodeStatus({
+        serviceable: delhivery.serviceable,
+        checking: false,
+        verified: true,
+        postalHint: `${postal.district}, ${postal.state}`,
+        etaDays: delhivery.serviceable
+          ? (delhivery as { etaDays?: number }).etaDays
+          : undefined,
+        reason: delhivery.serviceable
+          ? undefined
+          : "We don't deliver to this pincode yet",
+      });
     }, 350);
     return () => {
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [pincode]);
+  }, [pincode, setValue, watch]);
 
   // Estimated shipping fee for the summary preview. Backend re-computes the
   // authoritative number when initCheckout runs.
@@ -262,6 +362,37 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
     setSubmitError(null);
     setSubmitting(true);
     try {
+      // Belt-and-braces: at submit time, re-verify the pincode is REAL AND
+      // serviceable in case the debounced check hasn't landed or the user
+      // bypassed the disabled state. We never trust client gating for
+      // something that would let a gibberish/unfulfillable order through.
+      const [postal, gate] = await Promise.all([
+        fetchIndiaPostal(data.pincode),
+        checkPincodeServiceability(data.pincode),
+      ]);
+      if (!postal) {
+        setPincodeStatus({
+          serviceable: false,
+          checking: false,
+          verified: false,
+          postalHint: null,
+          reason: "This pincode isn't in the postal database",
+        });
+        throw new Error("Please enter a valid Indian pincode.");
+      }
+      if (!gate.serviceable) {
+        setPincodeStatus({
+          serviceable: false,
+          checking: false,
+          verified: true,
+          postalHint: `${postal.district}, ${postal.state}`,
+          reason: "We don't deliver to this pincode yet",
+        });
+        throw new Error(
+          "Sorry — we don't deliver to that pincode yet.",
+        );
+      }
+
       const { razorpay } = await initCheckout({
         email: data.email,
         shippingAddress: {
@@ -344,7 +475,15 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
             </fieldset>
 
             <fieldset className="space-y-5">
-              <Legend>Shipping address</Legend>
+              <div className="flex items-center gap-3">
+                <Legend>Shipping address</Legend>
+                {pincodeStatus?.verified && pincodeStatus.serviceable ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-cocoa/30 bg-cocoa/6 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-cocoa">
+                    <Check className="h-2.5 w-2.5" aria-hidden="true" />
+                    verified
+                  </span>
+                ) : null}
+              </div>
               <Field
                 label="Full name"
                 error={errors.fullName?.message}
@@ -392,16 +531,28 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                     className={`mt-2 text-xs tracking-wide ${
                       pincodeStatus.checking
                         ? "text-charcoal/55"
-                        : pincodeStatus.serviceable
+                        : pincodeStatus.verified && pincodeStatus.serviceable
                           ? "text-cocoa"
                           : "text-burnt-red"
                     }`}
                   >
                     {pincodeStatus.checking
-                      ? "Checking serviceability…"
-                      : pincodeStatus.serviceable
-                        ? "We deliver to this pincode"
-                        : "sorry, we don't deliver here yet"}
+                      ? "Verifying address…"
+                      : !pincodeStatus.verified
+                        ? (pincodeStatus.reason ??
+                          "We couldn't verify this pincode")
+                        : !pincodeStatus.serviceable
+                          ? (pincodeStatus.reason ??
+                            "Sorry, we don't deliver here yet")
+                          : `✓ Verified${
+                              pincodeStatus.postalHint
+                                ? ` · ${pincodeStatus.postalHint}`
+                                : ""
+                            }${
+                              pincodeStatus.etaDays
+                                ? ` · ~${pincodeStatus.etaDays} days`
+                                : ""
+                            }`}
                   </p>
                 ) : null}
               </div>
@@ -415,9 +566,10 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                 disabled={
                   submitting ||
                   !isValid ||
-                  (pincodeStatus !== null &&
-                    !pincodeStatus.checking &&
-                    !pincodeStatus.serviceable)
+                  !pincodeStatus ||
+                  pincodeStatus.checking ||
+                  !pincodeStatus.verified ||
+                  !pincodeStatus.serviceable
                 }
                 className="group/cta flex min-h-[60px] w-full items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)] disabled:opacity-50 disabled:hover:bg-maroon disabled:hover:shadow-[0_18px_40px_rgba(74,31,31,0.22)]"
               >
