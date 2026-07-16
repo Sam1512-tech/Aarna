@@ -405,7 +405,7 @@ function Card({ children }: { children: React.ReactNode }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-display text-xl lowercase text-maroon">{children}</h2>
+    <h2 className="font-display text-xl uppercase text-maroon">{children}</h2>
   );
 }
 

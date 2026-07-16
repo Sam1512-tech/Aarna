@@ -39,7 +39,7 @@ export function FormSection({
   return (
     <section className="rounded-2xl border border-cocoa/12 bg-cream p-5 shadow-[0_10px_28px_rgba(43,38,35,0.04)] md:p-6">
       <header className="mb-5">
-        <h2 className="font-display text-xl lowercase text-maroon">
+        <h2 className="font-display text-xl uppercase text-maroon">
           {title}
         </h2>
         {description ? (

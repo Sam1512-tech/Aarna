@@ -320,7 +320,7 @@ function VariantsSection({
   return (
     <section className="rounded-2xl border border-cocoa/12 bg-cream p-5 shadow-[0_10px_28px_rgba(43,38,35,0.04)] md:p-6">
       <div className="border-b border-cocoa/10 pb-4">
-        <h2 className="font-display text-xl lowercase text-maroon">sizes &amp; tags</h2>
+        <h2 className="font-display text-xl uppercase text-maroon">sizes &amp; tags</h2>
         <p className="mt-1 text-xs text-charcoal/55">
           Click a size to add it on its own — nothing else gets added automatically.
           Each size manages its own tags independently.
@@ -725,7 +725,7 @@ function ImagesSection({
 
   return (
     <section className="rounded-2xl border border-cocoa/12 bg-cream p-5 shadow-[0_10px_28px_rgba(43,38,35,0.04)] md:p-6">
-      <h2 className="border-b border-cocoa/10 pb-4 font-display text-xl lowercase text-maroon">
+      <h2 className="border-b border-cocoa/10 pb-4 font-display text-xl uppercase text-maroon">
         images
       </h2>
 
@@ -844,7 +844,7 @@ function PrintTagsCard({
 
   return (
     <section className="rounded-2xl border border-cocoa/12 bg-cream p-5 shadow-[0_10px_28px_rgba(43,38,35,0.04)] md:p-6">
-      <h2 className="border-b border-cocoa/10 pb-4 font-display text-xl lowercase text-maroon">
+      <h2 className="border-b border-cocoa/10 pb-4 font-display text-xl uppercase text-maroon">
         hang tags
       </h2>
       <p className="mt-3 text-sm text-charcoal/60">
