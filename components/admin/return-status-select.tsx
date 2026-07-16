@@ -1,0 +1,97 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { updateReturnStatus } from "@/lib/actions/admin/returns";
+import { actionErrorMessage } from "@/lib/action-error";
+
+const STATUSES = [
+  "requested",
+  "approved",
+  "rejected",
+  "picked",
+  "received",
+  "refunded",
+] as const;
+type ReturnStatus = (typeof STATUSES)[number];
+
+const TONE_CLASS: Record<ReturnStatus, string> = {
+  requested: "border-cocoa/22 bg-cream text-charcoal/70",
+  approved: "border-cocoa/25 bg-cocoa/8 text-cocoa",
+  rejected: "border-burnt-red/30 bg-burnt-red/8 text-burnt-red",
+  picked: "border-cocoa/25 bg-cocoa/8 text-cocoa",
+  received: "border-cocoa/25 bg-cocoa/8 text-cocoa",
+  refunded: "border-cocoa/30 bg-cocoa/12 text-cocoa",
+};
+
+const LABEL: Record<ReturnStatus, string> = {
+  requested: "requested",
+  approved: "approved",
+  rejected: "rejected",
+  picked: "picked up",
+  received: "received",
+  refunded: "refunded",
+};
+
+/**
+ * Live status control — changing calls updateReturnStatus immediately.
+ * Optimistic update, rolled back on failure. Guards destructive transitions
+ * (reject) with a browser confirm.
+ */
+export function ReturnStatusSelect({
+  returnId,
+  status,
+}: {
+  returnId: string;
+  status: ReturnStatus;
+}) {
+  const router = useRouter();
+  const [current, setCurrent] = useState<ReturnStatus>(status);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleChange(next: ReturnStatus) {
+    if (next === current) return;
+    if (next === "rejected") {
+      const ok = window.confirm(
+        "Reject this request? The customer will see a rejection callout on their account. This can't be undone from here.",
+      );
+      if (!ok) return;
+    }
+    const previous = current;
+    setCurrent(next);
+    setError(null);
+    startTransition(async () => {
+      try {
+        await updateReturnStatus(returnId, next);
+        router.refresh();
+      } catch (err) {
+        setCurrent(previous);
+        setError(actionErrorMessage(err, "couldn't update status"));
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <select
+        value={current}
+        disabled={pending}
+        onChange={(e) => handleChange(e.target.value as ReturnStatus)}
+        aria-label="return status"
+        className={`rounded-full border px-3 py-1 text-[10px] font-medium uppercase tracking-[0.16em] outline-none transition duration-300 disabled:opacity-50 ${TONE_CLASS[current]}`}
+      >
+        {STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {LABEL[s]}
+          </option>
+        ))}
+      </select>
+      {error ? (
+        <p className="max-w-40 text-right text-[10px] text-burnt-red">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
