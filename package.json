@@ -11,7 +11,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
     "db:rls": "tsx scripts/apply-rls.ts",
-    "db:apply-returns-v2": "tsx scripts/apply-returns-schema-v2.ts",
+    "db:apply-returns-v2": "tsx scripts/apply-returns-v2-schema.ts",
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit"
   },

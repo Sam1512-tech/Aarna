@@ -389,10 +389,6 @@ export const returns = pgTable("returns", {
   orderItemId: uuid("order_item_id")
     .notNull()
     .references(() => orderItems.id, { onDelete: "cascade" }),
-  // Was inferred from a "Exchange requested." prefix in the reason string —
-  // now a dedicated column. Existing rows get backfilled by the migration
-  // script; new inserts must set it explicitly.
-  type: returnType("type").default("return").notNull(),
   reason: varchar("reason", { length: 200 }).notNull(),
   reasonCategory: varchar("reason_category", { length: 60 }),
   status: returnStatus("status").default("requested").notNull(),

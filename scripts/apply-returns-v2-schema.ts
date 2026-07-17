@@ -13,6 +13,9 @@
  *   - returns.type, desired_variant_id, photos, outbound_awb,
  *     rejection_reason, admin_note, qc_outcome
  *   - enums return_type, return_qc_outcome
+ *   - return_status gains 4 values for the fuller state machine PR 2/5 will
+ *     drive: in_transit_to_seller, qc_failed, exchange_shipped,
+ *     exchange_delivered (unused until that wiring lands — additive only)
  *
  * Backfills:
  *   - orders.delivered_at from updated_at, for orders already delivered
@@ -76,6 +79,21 @@ async function main() {
     EXCEPTION WHEN duplicate_object THEN null;
     END $$;
   `);
+
+  console.log("📐 Extending return_status for the fuller state machine...");
+  // ADD VALUE IF NOT EXISTS — no DO/EXCEPTION wrapper needed, this variant
+  // already no-ops safely on a rerun. Unused until PR 2/5 wires a richer
+  // status flow than the 5-step timeline the account UI ships with today.
+  for (const value of [
+    "in_transit_to_seller",
+    "qc_failed",
+    "exchange_shipped",
+    "exchange_delivered",
+  ]) {
+    await sql.unsafe(
+      `ALTER TYPE return_status ADD VALUE IF NOT EXISTS '${value}'`,
+    );
+  }
 
   console.log("📐 Adding orders.delivered_at...");
   await sql.unsafe(
