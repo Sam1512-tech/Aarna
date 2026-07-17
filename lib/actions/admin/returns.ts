@@ -27,6 +27,7 @@ type ReturnStatus = (typeof RETURN_STATUSES)[number];
 
 export interface AdminReturnFilters {
   status?: ReturnStatus;
+  type?: "return" | "exchange";
   page?: number;
   pageSize?: number;
 }
@@ -40,6 +41,7 @@ export async function getAdminReturns(filters: AdminReturnFilters = {}) {
 
   const conditions = [];
   if (filters.status) conditions.push(eq(returns.status, filters.status));
+  if (filters.type) conditions.push(eq(returns.type, filters.type));
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [items, totalRows] = await Promise.all([
@@ -47,6 +49,7 @@ export async function getAdminReturns(filters: AdminReturnFilters = {}) {
       .select({
         id: returns.id,
         status: returns.status,
+        type: returns.type,
         reason: returns.reason,
         reasonCategory: returns.reasonCategory,
         refundAmount: returns.refundAmount,

@@ -7,7 +7,6 @@ import {
   ReturnExchangeModal,
   type SubmittedRow,
 } from "@/components/storefront/return-exchange-modal";
-import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
 import { formatINR } from "@/lib/utils";
 
 export interface ReturnRow {
@@ -17,6 +16,7 @@ export interface ReturnRow {
   variantLabel: string | null;
   quantity: number;
   reason: string;
+  type: "return" | "exchange";
   status: string;
   refundAmount: number | null;
   createdAt: Date | string;
@@ -65,17 +65,6 @@ function stepLabel(step: (typeof STEPS)[number], type: Type): string {
   }
 }
 
-function inferType(reason: string): Type {
-  return reason.startsWith(EXCHANGE_REASON_PREFIX) ? "exchange" : "return";
-}
-
-function cleanReasonText(reason: string): string {
-  if (reason.startsWith(EXCHANGE_REASON_PREFIX)) {
-    return reason.slice(EXCHANGE_REASON_PREFIX.length).trim();
-  }
-  return reason;
-}
-
 function fmtDate(d: Date | string) {
   const dt = typeof d === "string" ? new Date(d) : d;
   return dt.toLocaleDateString("en-IN", {
@@ -110,22 +99,17 @@ export function AccountReturnsView({
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
-  const withType = useMemo(
-    () => rows.map((r) => ({ ...r, type: inferType(r.reason) })),
-    [rows],
-  );
-
   const filtered = useMemo(() => {
-    if (tab === "all") return withType;
-    if (tab === "returns") return withType.filter((r) => r.type === "return");
-    return withType.filter((r) => r.type === "exchange");
-  }, [withType, tab]);
+    if (tab === "all") return rows;
+    if (tab === "returns") return rows.filter((r) => r.type === "return");
+    return rows.filter((r) => r.type === "exchange");
+  }, [rows, tab]);
 
   const counts = useMemo(() => {
-    const returns = withType.filter((r) => r.type === "return").length;
-    const exchanges = withType.filter((r) => r.type === "exchange").length;
-    return { all: withType.length, returns, exchanges };
-  }, [withType]);
+    const returnCount = rows.filter((r) => r.type === "return").length;
+    const exchangeCount = rows.filter((r) => r.type === "exchange").length;
+    return { all: rows.length, returns: returnCount, exchanges: exchangeCount };
+  }, [rows]);
 
   function handleSubmitted(row: SubmittedRow) {
     setRows((prev) => [
@@ -136,6 +120,7 @@ export function AccountReturnsView({
         variantLabel: row.variantLabel,
         quantity: row.quantity,
         reason: row.reason,
+        type: row.type,
         status: row.status,
         refundAmount: row.refundAmount,
         createdAt: row.createdAt,
@@ -275,12 +260,12 @@ function RequestCard({
   row,
   type,
 }: {
-  row: ReturnRow & { type: Type };
+  row: ReturnRow;
   type: Type;
 }) {
   const isRejected = row.status === "rejected";
   const currentIdx = STEPS.findIndex((s) => s === row.status);
-  const displayReason = cleanReasonText(row.reason);
+  const displayReason = row.reason;
 
   return (
     <li className="rounded-2xl border border-cocoa/12 bg-cream p-5 shadow-[0_10px_28px_rgba(43,38,35,0.04)] md:p-6">

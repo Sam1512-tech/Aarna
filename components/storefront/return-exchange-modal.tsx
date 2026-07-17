@@ -139,7 +139,10 @@ export function ReturnExchangeModal({
           productTitle: chosen.productTitle,
           variantLabel: chosen.variantLabel,
           quantity: chosen.quantity,
-          reason,
+          // The optimistic row shows the same clean text the server stores
+          // (requestReturn strips the marker before saving) — trimmedDetail
+          // is that text pre-prefix, no need to re-strip it here.
+          reason: trimmedDetail,
           status: "requested",
           refundAmount: intent === "return" ? chosen.lineTotal : null,
           createdAt: new Date(),

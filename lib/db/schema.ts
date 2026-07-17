@@ -55,9 +55,10 @@ export const returnStatus = pgEnum("return_status", [
 // inferred from reason-text prefixes anymore.
 export const returnType = pgEnum("return_type", ["return", "exchange"]);
 
-// QC outcome recorded when the returned piece arrives at the studio and is
-// inspected before we refund / dispatch the swap.
-export const qcOutcome = pgEnum("qc_outcome", ["pass", "fail"]);
+// Set at status='received' when admin inspects the returned/exchanged piece.
+// A "fail" can still carry a partial refund — qcOutcome and refundAmount are
+// independent columns, not mutually exclusive with a completed refund.
+export const returnQcOutcome = pgEnum("return_qc_outcome", ["pass", "fail"]);
 
 export const reviewStatus = pgEnum("review_status", [
   "pending",
@@ -318,9 +319,11 @@ export const orders = pgTable("orders", {
   delhiveryOrderId: varchar("delhivery_order_id", { length: 60 }),
   notes: text("notes"),
   placedAt: timestamp("placed_at", { withTimezone: true }),
-  // Written by the Delhivery status webhook when the shipment lands. Anchor
-  // for the 3-day return/exchange window (not placedAt — a slow-shipped order
-  // still deserves a full window after it arrives).
+  // Set once, when fulfillmentStatus transitions to "delivered" (Delhivery
+  // webhook or admin manual override) — the real source of truth for the
+  // return window, replacing the old `updatedAt` proxy (any order edit bumps
+  // updatedAt, not just delivery, so it could silently stretch or shrink the
+  // customer's return window).
   deliveredAt: timestamp("delivered_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
@@ -393,29 +396,39 @@ export const returns = pgTable("returns", {
   reason: varchar("reason", { length: 200 }).notNull(),
   reasonCategory: varchar("reason_category", { length: 60 }),
   status: returnStatus("status").default("requested").notNull(),
-  // Which size/colour the customer wants instead. Only meaningful when
-  // type = "exchange"; ignored for straight returns.
+  // "return" | "exchange" — replaces the old convention of prefixing `reason`
+  // with "Exchange requested." to fake a type (see lib/exchange.ts history).
+  type: returnType("type").default("return").notNull(),
+  // Exchange target — which variant the customer wants instead. Null for
+  // plain returns, and null for exchanges until the customer picks one via
+  // ExchangeVariantChooser (PR 2). set null on delete: losing the specific
+  // variant shouldn't block resolving an otherwise-valid request.
   desiredVariantId: uuid("desired_variant_id").references(
     () => productVariants.id,
     { onDelete: "set null" },
   ),
-  // Cloudinary URLs the customer uploaded to prove the fault / condition.
-  // Capped to 3 client-side; server re-validates on the upload route.
-  photos: jsonb("photos").$type<string[]>().default([]).notNull(),
+  // Customer-submitted evidence photos (damage, wrong item, etc.) — Cloudinary
+  // URLs, 0-3 per request. See components/storefront/return-photo-uploader.tsx.
+  photos: jsonb("photos").$type<string[]>().default(sql`'[]'::jsonb`).notNull(),
   refundAmount: integer("refund_amount"),
   razorpayRefundId: varchar("razorpay_refund_id", { length: 60 }),
+  // Reverse pickup AWB (studio ← customer) — pre-existing column, covers what
+  // would otherwise be a duplicate "reverseAwb".
   delhiveryReversePickupId: varchar("delhivery_reverse_pickup_id", {
     length: 60,
   }),
-  // Reverse pickup AWB (studio ← customer) and, for exchanges, the outbound
-  // AWB (studio → customer) so we can render both legs in the timeline.
-  reverseAwb: varchar("reverse_awb", { length: 60 }),
+  // Outbound swap shipment AWB (exchange only) — distinct from
+  // delhiveryReversePickupId, which tracks the *original* piece coming back.
   outboundAwb: varchar("outbound_awb", { length: 60 }),
-  // Filled by the admin when marking approved/rejected/qc_failed so the
-  // customer sees a human reason, not a bare status pill.
-  rejectionReason: text("rejection_reason"),
+  // Structured reason code from ReturnRejectPicker's REJECT_REASONS (e.g.
+  // "window_expired") — a plain varchar like reasonCategory above, not a DB
+  // enum, so the admin-facing reason list can grow without a migration.
+  rejectionReason: varchar("rejection_reason", { length: 60 }),
+  // Free-text note visible to the customer — populated from either the
+  // reject picker's "other" note or the QC panel's fail note (the two are
+  // mutually exclusive: a rejected request never reaches QC, and vice versa).
   adminNote: text("admin_note"),
-  qcOutcome: qcOutcome("qc_outcome"),
+  qcOutcome: returnQcOutcome("qc_outcome"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
