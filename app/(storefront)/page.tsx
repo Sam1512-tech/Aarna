@@ -9,6 +9,19 @@ import { isVideoUrl, videoPosterUrl } from "@/lib/media";
 import type { Product } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
+// Fisher-Yates shuffle → take `count`. Runs in the server component on every
+// request, so the featured pick changes for every visitor without any client
+// hydration cost.
+function pickRandom<T>(pool: T[], count: number): T[] {
+  if (pool.length <= count) return pool;
+  const copy = [...pool];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, count);
+}
+
 function productColor(product: Product) {
   if (
     product.metadata &&
@@ -34,11 +47,17 @@ const rituals = [
 ];
 
 export default async function HomePage() {
-  const [categories, products, banners] = await Promise.all([
+  // Featured collection: pull the last 20 arrivals so we have a real pool to
+  // shuffle from, then randomise on every request and take 4. Every visitor
+  // sees a different pick; keeps the homepage feeling alive without any admin
+  // work. (Once `getNewArrivals` accepts `{ inStockOnly }` we should pass it
+  // here — at launch scale of 16 mostly-in-stock products this doesn't bite.)
+  const [categories, arrivalPool, banners] = await Promise.all([
     getCategories(),
-    getNewArrivals(4),
+    getNewArrivals(20),
     getActiveBanners(),
   ]);
+  const products = pickRandom(arrivalPool, 4);
 
   const carouselBanners = banners.map((b) => ({
     id: b.id,
