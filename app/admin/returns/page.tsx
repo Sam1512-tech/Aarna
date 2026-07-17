@@ -6,7 +6,6 @@ import {
 } from "@/components/admin/admin-primitives";
 import { ReturnStatusSelect } from "@/components/admin/return-status-select";
 import { getAdminReturns } from "@/lib/actions/admin/returns";
-import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
 import { formatINR } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "admin · returns" };
@@ -49,18 +48,6 @@ function hoursSince(d: Date | string): number {
   return (Date.now() - t) / (MS_PER_DAY / 24);
 }
 
-function inferType(reason: string | null): "return" | "exchange" {
-  if (!reason) return "return";
-  return reason.startsWith(EXCHANGE_REASON_PREFIX) ? "exchange" : "return";
-}
-
-function cleanReason(reason: string | null): string {
-  if (!reason) return "";
-  return reason.startsWith(EXCHANGE_REASON_PREFIX)
-    ? reason.slice(EXCHANGE_REASON_PREFIX.length).trim()
-    : reason;
-}
-
 const CATEGORY_LABEL: Record<string, string> = {
   size_fit: "size or fit",
   quality: "quality issue",
@@ -96,11 +83,7 @@ export default async function AdminReturnsPage({
     pageSize: 60,
   }).catch(() => ({ items: [], total: 0, page: 1, pageSize: 60 }));
 
-  const enriched = result.items.map((r) => ({
-    ...r,
-    type: inferType(r.reason),
-    reasonClean: cleanReason(r.reason),
-  }));
+  const enriched = result.items.map((r) => ({ ...r, reasonClean: r.reason }));
 
   const filtered =
     typeFilter === "all"

@@ -29,11 +29,17 @@ export default async function AccountReturnsPage() {
   const eligibleItems = orders
     .filter((o) => o.fulfillmentStatus === "delivered")
     .filter((o) => {
-      const placed =
-        typeof o.placedAt === "string"
-          ? new Date(o.placedAt).getTime()
-          : (o.placedAt?.getTime() ?? 0);
-      return (now - placed) / MS_PER_DAY <= RETURN_WINDOW_DAYS;
+      // deliveredAt, not placedAt — a slow delivery (placed 10 days ago,
+      // delivered yesterday) would otherwise show as ineligible here while
+      // requestReturn's own deliveredAt-based check would still allow it,
+      // silently hiding a legitimate return from the picker. Falls back to
+      // placedAt only for orders delivered before this column existed.
+      const deliveredOrPlaced = o.deliveredAt ?? o.placedAt;
+      const reference =
+        typeof deliveredOrPlaced === "string"
+          ? new Date(deliveredOrPlaced).getTime()
+          : (deliveredOrPlaced?.getTime() ?? 0);
+      return (now - reference) / MS_PER_DAY <= RETURN_WINDOW_DAYS;
     })
     .flatMap((o) =>
       o.items
@@ -62,6 +68,7 @@ export default async function AccountReturnsPage() {
         variantLabel: r.variantLabel,
         quantity: r.quantity,
         reason: r.reason,
+        type: r.type,
         status: r.status,
         refundAmount: r.refundAmount,
         createdAt: r.createdAt,

@@ -262,7 +262,15 @@ export async function updateOrderFulfillmentStatus(
 
   const [updated] = await db
     .update(orders)
-    .set({ fulfillmentStatus: newStatus, updatedAt: new Date() })
+    .set({
+      fulfillmentStatus: newStatus,
+      updatedAt: new Date(),
+      // coalesce — delivered: [] in FORWARD_TRANSITIONS means this can only
+      // be reached once per order, but coalesce keeps it safe regardless.
+      ...(newStatus === "delivered"
+        ? { deliveredAt: sql`coalesce(${orders.deliveredAt}, now())` }
+        : {}),
+    })
     .where(eq(orders.id, orderId))
     .returning();
 

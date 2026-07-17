@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { mapDelhiveryStatus } from "@/lib/delhivery";
 import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
@@ -52,7 +52,16 @@ export async function POST(req: Request) {
   if (next) {
     await db
       .update(orders)
-      .set({ fulfillmentStatus: next, updatedAt: new Date() })
+      .set({
+        fulfillmentStatus: next,
+        updatedAt: new Date(),
+        // coalesce, not an unconditional set — Delhivery can push "delivered"
+        // more than once (retries), and a repeat push must not push the
+        // return window's start date forward.
+        ...(next === "delivered"
+          ? { deliveredAt: sql`coalesce(${orders.deliveredAt}, now())` }
+          : {}),
+      })
       .where(eq(orders.awbNumber, awb));
 
     // In-transit / shipped / out-for-delivery updates are left to Delhivery's own

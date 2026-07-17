@@ -3,6 +3,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { getCurrentCustomer } from "@/lib/actions/auth";
+import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
 import type { AddressInput } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 
@@ -318,6 +319,7 @@ export async function requestReturn(input: ReturnRequestInput) {
       customerId: orders.customerId,
       fulfillmentStatus: orders.fulfillmentStatus,
       placedAt: orders.placedAt,
+      deliveredAt: orders.deliveredAt,
       updatedAt: orders.updatedAt,
       lineTotal: orderItems.lineTotal,
     })
@@ -334,8 +336,12 @@ export async function requestReturn(input: ReturnRequestInput) {
     throw new ActionError("Returns can only be requested after delivery");
   }
 
-  // Use the last updatedAt as a proxy for delivery date (set by webhook)
-  const deliveredAt = row[0].updatedAt ?? row[0].placedAt ?? new Date();
+  // orders.deliveredAt is the real signal (set once, when fulfillmentStatus
+  // moves to "delivered"). updatedAt is only a fallback for legacy orders
+  // delivered before that column existed — any later edit to the order also
+  // bumps updatedAt, so trusting it as primary would let unrelated admin
+  // edits silently stretch or shrink the return window.
+  const deliveredAt = row[0].deliveredAt ?? row[0].updatedAt ?? row[0].placedAt ?? new Date();
   const daysSinceDelivery =
     (Date.now() - new Date(deliveredAt).getTime()) / MS_PER_DAY;
   if (daysSinceDelivery > RETURN_WINDOW_DAYS) {
@@ -350,13 +356,25 @@ export async function requestReturn(input: ReturnRequestInput) {
     .limit(1);
   if (existing[0]) throw new ActionError("A return has already been requested for this item");
 
+  // The modal still packs intent into `reason` via EXCHANGE_REASON_PREFIX
+  // (see components/storefront/return-exchange-modal.tsx) until PR 2 gives it
+  // a real `type` param — derive `type` from that same convention here AND
+  // strip the marker before storing, so `reason` is always display-ready
+  // (account-returns-view.tsx and admin/returns/page.tsx render it as-is,
+  // same as the migration backfill did for historical rows).
+  const isExchange = input.reason.startsWith(EXCHANGE_REASON_PREFIX);
+  const storedReason = isExchange
+    ? input.reason.slice(EXCHANGE_REASON_PREFIX.length).trim()
+    : input.reason;
+
   const [created] = await db
     .insert(returns)
     .values({
       orderItemId: input.orderItemId,
-      reason: input.reason,
+      reason: storedReason,
       reasonCategory: input.reasonCategory,
       refundAmount: row[0].lineTotal,
+      type: isExchange ? "exchange" : "return",
     })
     .returning();
 
@@ -370,6 +388,7 @@ export async function getMyReturns() {
     .select({
       returnId: returns.id,
       reason: returns.reason,
+      type: returns.type,
       status: returns.status,
       refundAmount: returns.refundAmount,
       createdAt: returns.createdAt,
