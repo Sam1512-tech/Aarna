@@ -27,6 +27,9 @@ type TypeFilter = (typeof TYPES)[number];
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const STALE_THRESHOLD_HOURS = 24; // Anything unresolved past this shows an aging flag.
 
+// Vercel functions default to UTC even in bom1 — pin every admin date to IST
+// so timestamps never drift by up to 5:30 h relative to what the client sees
+// on their phone clock.
 function fmtDateTime(d: Date | string | null) {
   if (!d) return "—";
   const dt = typeof d === "string" ? new Date(d) : d;
@@ -36,6 +39,8 @@ function fmtDateTime(d: Date | string | null) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
   });
 }
 

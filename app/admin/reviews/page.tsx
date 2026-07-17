@@ -14,13 +14,19 @@ export const metadata: Metadata = { title: "admin · reviews" };
 const STATUSES = ["pending", "approved", "rejected"] as const;
 type ReviewStatus = (typeof STATUSES)[number];
 
+// Vercel functions default to UTC even in bom1 — pin every admin date to IST
+// so timestamps match the client's phone clock.
 function fmtDate(d: Date | string | null) {
   if (!d) return "—";
   const dt = typeof d === "string" ? new Date(d) : d;
-  return dt.toLocaleDateString("en-IN", {
+  return dt.toLocaleString("en-IN", {
     day: "numeric",
     month: "short",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
   });
 }
 
