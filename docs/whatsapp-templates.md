@@ -196,11 +196,13 @@ Reply here or reach out at hello@shopaarna.in if you'd like to discuss.
 
 **Body**
 ```
-Hi {{1}}, we've inspected the item from order *{{2}}*.
+Hi {{1}}, our team has finished inspecting the item you returned from order *{{2}}*.
 
-{{3}}
+Here's what we found: {{3}}
 
 {{4}}
+
+Thank you for your patience while we reviewed this — reach out at hello@shopaarna.in with any questions.
 ```
 **Footer:** `Aarna by Arpitha Abhishek`
 
@@ -216,14 +218,23 @@ covers both a partial refund and a full deduction (previously a full-deduction
 fail sent no WhatsApp message at all; a QC **pass** still sends `refund_processed`
 as before).
 
+**Submission note:** the first draft of this body (just the 4 variables with
+minimal surrounding text) was rejected by Meta's own pre-validation with
+"Parameters words ratio exceeds limit" — templates that are almost entirely
+variables get flagged since they could be used to send arbitrary content.
+Padded with more literal text around the same 4 variables and it submitted
+clean.
+
 ---
 
-## Still blocked / remaining
+## Status — all 8 submitted (Jul 18)
 
-- **Client:** Facebook Business Manager + a spare phone number (the WhatsApp
-  sender number can't be one already on personal WhatsApp).
-- **You:** add these 8 templates in Interakt, submit to Meta. The original 4
-  are already Approved; the 4 new ones above still need submitting.
+- **All 8 templates created and submitted in Interakt.** `order_placed`,
+  `delivered`, `return_received`, `refund_processed`, `return_approved`,
+  `return_rejected` are **Approved**. `return_requested` and
+  `return_qc_failed` are **Pending** Meta review (this account's templates
+  have been clearing in under a minute in some cases, up to 24h in others —
+  check Interakt → Market → Templates → Active for current status).
 - **Code:** ✅ done — `sendTemplate()` (Interakt) + all 8 trigger points are
   wired, opt-in gated, and log to `message_log`. Graceful no-op for any
   template Meta hasn't approved yet, so each one activates on its own the
