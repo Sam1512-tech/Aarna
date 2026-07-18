@@ -11,14 +11,12 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://shopaarna.in";
  * - Static high-value pages (home, shop, legal, faq)
  * - Every active product (uses updatedAt as lastModified)
  * - Every category (slug-based shop pages)
+ * - Every active collection (slug-based collection pages)
  *
  * Excludes admin, account, cart, checkout, auth (handled by robots.txt).
- * Collections are excluded until the /collections routes actually exist —
- * advertising them here fed 404s straight to crawlers. Restore the
- * collections query + page block when the route ships.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [products, categories] = await Promise.all([
+  const [products, categories, collections] = await Promise.all([
     db
       .select({
         slug: schema.products.slug,
@@ -31,6 +29,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         slug: schema.categories.slug,
       })
       .from(schema.categories),
+    db
+      .select({
+        slug: schema.collections.slug,
+      })
+      .from(schema.collections)
+      .where(eq(schema.collections.isActive, true)),
   ]);
 
   const now = new Date();
@@ -61,5 +65,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticPages, ...categoryPages, ...productPages];
+  const collectionPages: MetadataRoute.Sitemap = collections.map((c) => ({
+    url: `${APP_URL}/collections/${c.slug}`,
+    lastModified: now,
+    changeFrequency: "daily" as const,
+    priority: 0.6,
+  }));
+
+  return [
+    ...staticPages,
+    { url: `${APP_URL}/collections`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
+    ...categoryPages,
+    ...collectionPages,
+    ...productPages,
+  ];
 }

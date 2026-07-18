@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { createPortal } from "react-dom";
 import { isVideoUrl, videoPosterUrl } from "@/lib/media";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,6 +14,8 @@ import {
   Plus,
   Star,
   Truck,
+  X,
+  ZoomIn,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { addToCart, getCart } from "@/lib/actions/cart";
@@ -535,6 +538,20 @@ function Gallery({
   // "next" could get silently undone by a mid-animation reading of 0).
   const programmaticScrollRef = useRef(false);
   const programmaticTimeoutRef = useRef<number | null>(null);
+  const [zoomOpen, setZoomOpen] = useState(false);
+  // Cursor position (as a % of the image box) driving the hover-magnify
+  // effect on desktop; null means "not hovering" (magnified layer hidden).
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+
+  function handleMagnifyMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoverPos({
+      x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
+    });
+  }
 
   if (images.length === 0) {
     return (
@@ -647,14 +664,21 @@ function Gallery({
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                 ) : (
-                  <Image
-                    src={img.url}
-                    alt={img.altText ?? altFallback}
-                    fill
-                    sizes="88vw"
-                    priority
-                    className="object-cover"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setZoomOpen(true)}
+                    aria-label="Open full-screen image"
+                    className="absolute inset-0"
+                  >
+                    <Image
+                      src={img.url}
+                      alt={img.altText ?? altFallback}
+                      fill
+                      sizes="88vw"
+                      priority
+                      className="object-cover"
+                    />
+                  </button>
                 )}
               </div>
             ))}
@@ -687,7 +711,7 @@ function Gallery({
         </div>
 
         {/* Desktop: single large active image (or inline video) */}
-        <div className="relative hidden aspect-[3/4] overflow-hidden rounded-[22px] bg-cream shadow-[0_22px_60px_rgba(43,38,35,0.08)] md:block">
+        <div className="group relative hidden aspect-[3/4] overflow-hidden rounded-[22px] bg-cream shadow-[0_22px_60px_rgba(43,38,35,0.08)] md:block">
           {isVideoUrl(active.url) ? (
             <video
               key={active.id}
@@ -700,14 +724,49 @@ function Gallery({
               className="absolute inset-0 h-full w-full object-cover"
             />
           ) : (
-            <Image
-              src={active.url}
-              alt={active.altText ?? altFallback}
-              fill
-              sizes="(min-width: 1024px) 50vw, 100vw"
-              priority
-              className="object-cover"
-            />
+            <div
+              className="absolute inset-0 cursor-zoom-in"
+              onMouseEnter={handleMagnifyMove}
+              onMouseMove={handleMagnifyMove}
+              onMouseLeave={() => setHoverPos(null)}
+              onClick={() => setZoomOpen(true)}
+              role="button"
+              tabIndex={0}
+              aria-label="Zoom image"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") setZoomOpen(true);
+              }}
+            >
+              <Image
+                src={active.url}
+                alt={active.altText ?? altFallback}
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                priority
+                className="object-cover"
+              />
+              {/* Cursor-following magnified layer — same image, scaled and
+                  offset by hover position, so hovering the product photo
+                  reveals fabric/stitching detail without a click. */}
+              <Image
+                src={active.url}
+                alt=""
+                aria-hidden="true"
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover transition-opacity duration-150"
+                style={{
+                  opacity: hoverPos ? 1 : 0,
+                  transform: "scale(2.2)",
+                  transformOrigin: hoverPos
+                    ? `${hoverPos.x}% ${hoverPos.y}%`
+                    : "center",
+                }}
+              />
+              <span className="pointer-events-none absolute bottom-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-charcoal/40 text-cream opacity-0 backdrop-blur transition duration-300 group-hover:opacity-100">
+                <ZoomIn className="h-4 w-4" aria-hidden="true" />
+              </span>
+            </div>
           )}
           {hasMultiple ? (
             <GalleryArrow
@@ -739,7 +798,148 @@ function Gallery({
           />
         ) : null}
       </div>
+
+      {zoomOpen ? (
+        <ImageLightbox
+          images={images}
+          index={safeIdx}
+          altFallback={altFallback}
+          onNavigate={goTo}
+          onClose={() => setZoomOpen(false)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function ImageLightbox({
+  images,
+  index,
+  altFallback,
+  onNavigate,
+  onClose,
+}: {
+  images: DbProductImage[];
+  index: number;
+  altFallback: string;
+  onNavigate: (i: number) => void;
+  onClose: () => void;
+}) {
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const active = images[index] ?? images[0];
+  const hasMultiple = images.length > 1;
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") onNavigate(index - 1);
+      if (e.key === "ArrowRight") onNavigate(index + 1);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [index, onNavigate, onClose]);
+
+  if (!active || isVideoUrl(active.url)) return null;
+
+  // Portal to document.body — the gallery sits deep inside the page tree,
+  // and a fixed-position ancestor further up (any of transform/filter/
+  // will-change on the way to <body>) can silently make itself the
+  // containing block for position:fixed descendants, which broke z-index
+  // stacking against the site header. Escaping to body sidesteps that
+  // entirely regardless of what's up the tree.
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Zoomed product image"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-charcoal/95 backdrop-blur"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close zoomed image"
+        className="absolute inset-0"
+      />
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-cream/12 text-cream backdrop-blur transition duration-300 hover:bg-cream/20 md:right-6 md:top-6"
+      >
+        <X className="h-4 w-4" aria-hidden="true" />
+      </button>
+
+      {/* Pinch-to-zoom on mobile is handled by the browser's own viewport
+          zoom (maximumScale 5 set site-wide in app/layout.tsx) — this just
+          needs to render the image large enough to be worth zooming into.
+          Desktop gets the same cursor-magnify as the inline gallery. */}
+      <div
+        className="relative z-0 h-[80vh] w-[90vw] max-w-4xl cursor-zoom-in md:h-[85vh]"
+        onMouseEnter={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setHoverPos({
+            x: ((e.clientX - rect.left) / rect.width) * 100,
+            y: ((e.clientY - rect.top) / rect.height) * 100,
+          });
+        }}
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setHoverPos({
+            x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
+            y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
+          });
+        }}
+        onMouseLeave={() => setHoverPos(null)}
+      >
+        <Image
+          src={active.url}
+          alt={active.altText ?? altFallback}
+          fill
+          sizes="100vw"
+          quality={90}
+          className="object-contain"
+        />
+        <Image
+          src={active.url}
+          alt=""
+          aria-hidden="true"
+          fill
+          sizes="100vw"
+          quality={90}
+          className="object-contain transition-opacity duration-150"
+          style={{
+            opacity: hoverPos ? 1 : 0,
+            transform: "scale(2.4)",
+            transformOrigin: hoverPos
+              ? `${hoverPos.x}% ${hoverPos.y}%`
+              : "center",
+          }}
+        />
+      </div>
+
+      {hasMultiple ? (
+        <>
+          <GalleryArrow
+            direction="prev"
+            onClick={() => onNavigate(index - 1)}
+            disabled={index === 0}
+            variant="overlay"
+          />
+          <GalleryArrow
+            direction="next"
+            onClick={() => onNavigate(index + 1)}
+            disabled={index === images.length - 1}
+            variant="overlay"
+          />
+          <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full bg-cream/12 px-4 py-1.5 text-xs uppercase tracking-[0.16em] text-cream backdrop-blur">
+            {index + 1} / {images.length}
+          </div>
+        </>
+      ) : null}
+    </div>,
+    document.body,
   );
 }
 
