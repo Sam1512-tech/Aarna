@@ -4,7 +4,11 @@ import { Feather, Infinity, ShieldCheck, Sparkles } from "lucide-react";
 import { HomepageCarousel } from "@/components/storefront/homepage-carousel";
 import { ScrollRail } from "@/components/storefront/scroll-rail";
 import { getActiveBanners } from "@/lib/actions/banners";
-import { getCategories, getNewArrivals } from "@/lib/actions/products";
+import {
+  getCategories,
+  getHomepageFeaturedCollection,
+  getNewArrivals,
+} from "@/lib/actions/products";
 import { isVideoUrl, videoPosterUrl } from "@/lib/media";
 import type { Product } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -47,17 +51,23 @@ const rituals = [
 ];
 
 export default async function HomePage() {
-  // Featured collection: pull the last 20 arrivals so we have a real pool to
-  // shuffle from, then randomise on every request and take 4. Every visitor
-  // sees a different pick; keeps the homepage feeling alive without any admin
-  // work. (Once `getNewArrivals` accepts `{ inStockOnly }` we should pass it
-  // here — at launch scale of 16 mostly-in-stock products this doesn't bite.)
-  const [categories, arrivalPool, banners] = await Promise.all([
+  // Featured collection: if the client has picked one in admin
+  // (isHomepageFeature), show its real products under its own name. Otherwise
+  // fall back to shuffling 4 in-stock items out of the last 20 arrivals so
+  // the section never sits static without any admin work.
+  const [categories, featured, arrivalPool, banners] = await Promise.all([
     getCategories(),
-    getNewArrivals(20),
+    getHomepageFeaturedCollection(4),
+    getNewArrivals({ limit: 20, inStockOnly: true }),
     getActiveBanners(),
   ]);
-  const products = pickRandom(arrivalPool, 4);
+  const products = featured?.products.length
+    ? featured.products
+    : pickRandom(arrivalPool, 4);
+  const featuredEyebrow = featured ? featured.collection.name : "Featured collection";
+  const featuredHeading = featured
+    ? (featured.collection.description ?? "A closer look at this chapter.")
+    : "Slow essentials, taking shape for the first chapter.";
 
   const carouselBanners = banners.map((b) => ({
     id: b.id,
@@ -104,23 +114,38 @@ export default async function HomePage() {
             {(categories.length > 0
               ? categories
               : [
-                  { name: "Wardrobe", slug: "shop" },
-                  { name: "Slow essentials", slug: "shop" },
+                  { name: "Wardrobe", slug: "shop", imageMobileUrl: null, imageUrl: null },
+                  { name: "Slow essentials", slug: "shop", imageMobileUrl: null, imageUrl: null },
                 ]
-            ).map((category) => (
-              <Link
-                key={category.slug}
-                href={
-                  category.slug === "shop" ? "/shop" : `/shop/${category.slug}`
-                }
-                className="group block"
-              >
-                <div className="cloth-window aspect-[3/4] rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]" />
-                <p className="mt-3 font-display text-2xl leading-tight text-maroon">
-                  {category.name}
-                </p>
-              </Link>
-            ))}
+            ).map((category) => {
+              const tileImage = category.imageMobileUrl ?? category.imageUrl;
+              return (
+                <Link
+                  key={category.slug}
+                  href={
+                    category.slug === "shop" ? "/shop" : `/shop/${category.slug}`
+                  }
+                  className="group block"
+                >
+                  {tileImage ? (
+                    <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]">
+                      <Image
+                        src={tileImage}
+                        alt={category.name}
+                        fill
+                        sizes="50vw"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="cloth-window aspect-[3/4] rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]" />
+                  )}
+                  <p className="mt-3 font-display text-2xl leading-tight text-maroon">
+                    {category.name}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </section>
 
@@ -160,7 +185,7 @@ export default async function HomePage() {
 
         <section className="bg-cocoa/10 px-5 py-20">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            Featured collection
+            {featuredEyebrow}
           </p>
           <ScrollRail className="mt-8">
             {(products.length > 0 ? products : [0, 1, 2]).map((item, index) => {
@@ -292,7 +317,19 @@ export default async function HomePage() {
                   href={`/shop/${category.slug}`}
                   className="group block"
                 >
-                  <div className="cloth-window aspect-[4/5] shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]" />
+                  {category.imageUrl ? (
+                    <div className="relative aspect-[4/5] overflow-hidden shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]">
+                      <Image
+                        src={category.imageUrl}
+                        alt={category.name}
+                        fill
+                        sizes="(min-width: 1024px) 25vw, 50vw"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="cloth-window aspect-[4/5] shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]" />
+                  )}
                   <p className="mt-4 font-display text-3xl leading-tight text-maroon">
                     {category.name}
                   </p>
@@ -314,10 +351,10 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-              Featured collection
+              {featuredEyebrow}
             </p>
             <h2 className="mt-4 font-display text-[42px] leading-[1.1] text-maroon">
-              Slow essentials, taking shape for the first chapter.
+              {featuredHeading}
             </h2>
           </div>
 

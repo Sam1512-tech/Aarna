@@ -93,6 +93,10 @@ export const categories = pgTable("categories", {
   slug: varchar("slug", { length: 140 }).notNull().unique(),
   parentId: uuid("parent_id"),
   sortOrder: integer("sort_order").default(0).notNull(),
+  // Homepage "wardrobe paths" tile image. Nullable — categories without one
+  // fall back to the existing cloth-window placeholder gradient.
+  imageUrl: text("image_url"),
+  imageMobileUrl: text("image_mobile_url"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -126,6 +130,11 @@ export const collections = pgTable("collections", {
   heroImageUrl: text("hero_image_url"),
   isActive: boolean("is_active").default(true).notNull(),
   sortOrder: integer("sort_order").default(0).notNull(),
+  // Admin-picked "show this on the homepage" flag. At most one collection
+  // can have this set — enforced by a partial unique index (see
+  // scripts/apply-p1-unblockers-schema.ts), not a DB-level constraint
+  // Drizzle can express declaratively.
+  isHomepageFeature: boolean("is_homepage_feature").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

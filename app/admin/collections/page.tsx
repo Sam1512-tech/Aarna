@@ -6,6 +6,7 @@ import {
   tableClasses,
 } from "@/components/admin/admin-primitives";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { HomepageFeatureToggle } from "@/components/admin/homepage-feature-toggle";
 import {
   deleteCollection,
   getAdminCollections,
@@ -46,6 +47,7 @@ export default async function AdminCollectionsPage() {
                   <th className={t.th}>slug</th>
                   <th className={t.th}>products</th>
                   <th className={t.th}>status</th>
+                  <th className={t.th}>homepage</th>
                   <th className={t.th}></th>
                 </tr>
               </thead>
@@ -68,6 +70,13 @@ export default async function AdminCollectionsPage() {
                       <StatusPill
                         label={c.isActive ? "active" : "inactive"}
                         tone={c.isActive ? "ok" : "muted"}
+                      />
+                    </td>
+                    <td className={t.td}>
+                      <HomepageFeatureToggle
+                        id={c.id}
+                        name={c.name}
+                        featured={c.isHomepageFeature}
                       />
                     </td>
                     <td className={t.td}>

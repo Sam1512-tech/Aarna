@@ -48,6 +48,7 @@ export async function getAdminCollections() {
       description: collections.description,
       heroImageUrl: collections.heroImageUrl,
       isActive: collections.isActive,
+      isHomepageFeature: collections.isHomepageFeature,
       sortOrder: collections.sortOrder,
       createdAt: collections.createdAt,
       productCount: sql<number>`count(${collectionProducts.productId})::int`.as(
@@ -246,6 +247,49 @@ export async function toggleCollectionActive(id: string) {
 
   revalidateCollectionConsumers(existing[0].slug);
   return updated;
+}
+
+/**
+ * Sets (or clears) whether a collection is the one featured on the homepage.
+ * At most one collection can be featured — turning this on for one
+ * atomically turns it off for any other (also enforced by a partial unique
+ * index at the DB level as a backstop). Turning it off with no other
+ * collection featured reverts the homepage to its randomised-arrivals
+ * fallback.
+ */
+export async function setHomepageFeatureCollection(
+  id: string,
+  featured: boolean,
+): Promise<{ ok: true }> {
+  await requireAdmin();
+
+  const existing = await db
+    .select({ id: collections.id })
+    .from(collections)
+    .where(eq(collections.id, id))
+    .limit(1);
+  if (!existing[0]) throw new ActionError("Collection not found");
+
+  if (featured) {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(collections)
+        .set({ isHomepageFeature: false })
+        .where(eq(collections.isHomepageFeature, true));
+      await tx
+        .update(collections)
+        .set({ isHomepageFeature: true })
+        .where(eq(collections.id, id));
+    });
+  } else {
+    await db
+      .update(collections)
+      .set({ isHomepageFeature: false })
+      .where(eq(collections.id, id));
+  }
+
+  revalidateCollectionConsumers();
+  return { ok: true };
 }
 
 export async function deleteCollection(id: string): Promise<{ ok: true }> {
