@@ -1,14 +1,19 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown, RotateCcw, Repeat, X } from "lucide-react";
 import { requestReturn } from "@/lib/actions/account";
-import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
+import { getVariantsInStockForProduct } from "@/lib/actions/products";
+import { ExchangeVariantChooser, type VariantOption } from "@/components/storefront/exchange-variant-chooser";
+import { ReturnPhotoUploader } from "@/components/storefront/return-photo-uploader";
+import { uploadReturnPhoto } from "@/lib/cloudinary/upload-return-photo";
 import { formatINR } from "@/lib/utils";
 
 export interface RequestableItem {
   orderItemId: string;
   orderNumber: string;
+  productId: string;
+  variantId: string;
   productTitle: string;
   variantLabel: string | null;
   quantity: number;
@@ -75,6 +80,10 @@ export function ReturnExchangeModal({
   );
   const [category, setCategory] = useState<string>("");
   const [detail, setDetail] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [desiredVariantId, setDesiredVariantId] = useState<string | null>(null);
+  const [variantOptions, setVariantOptions] = useState<VariantOption[]>([]);
+  const [variantsLoading, startVariantsTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -83,16 +92,53 @@ export function ReturnExchangeModal({
     [eligibleItems, orderItemId],
   );
 
+  // Fetch exchange targets whenever the chosen item or intent changes —
+  // covers landing on step 2 with "exchange" already picked and switching
+  // items/intent mid-flow. Not requested for "return" (nothing to show).
+  // startTransition's own pending flag tracks loading, so no manual
+  // setState fires synchronously in the effect body.
+  useEffect(() => {
+    if (intent !== "exchange" || !chosen) {
+      return;
+    }
+    let cancelled = false;
+    startVariantsTransition(async () => {
+      const options = await getVariantsInStockForProduct(
+        chosen.productId,
+        chosen.variantId,
+      );
+      if (!cancelled) {
+        setVariantOptions(options);
+        setDesiredVariantId(null);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [intent, chosen]);
+
   const categories = intent === "exchange" ? EXCHANGE_CATEGORIES : RETURN_CATEGORIES;
   const detailLen = detail.trim().length;
+  const photosRequired = category === "damaged";
+  const photosOk = !photosRequired || photos.length > 0;
+  const variantOk =
+    intent === "return" || variantOptions.length === 0 || !!desiredVariantId;
   const canSubmit =
-    !!chosen && !!category && detailLen >= MIN_DETAIL_LEN && detailLen <= MAX_DETAIL_LEN;
+    !!chosen &&
+    !!category &&
+    detailLen >= MIN_DETAIL_LEN &&
+    detailLen <= MAX_DETAIL_LEN &&
+    photosOk &&
+    variantOk;
 
   function reset() {
     setStep(1);
     setIntent("return");
     setCategory("");
     setDetail("");
+    setPhotos([]);
+    setDesiredVariantId(null);
+    setVariantOptions([]);
     setError(null);
   }
 
@@ -114,23 +160,18 @@ export function ReturnExchangeModal({
     e.preventDefault();
     if (!chosen || !canSubmit) return;
 
-    // Pack for the current backend contract:
-    //  - `reasonCategory` carries the category enum value
-    //  - `reason` carries the detail text, prefixed with the exchange marker
-    //    when intent = exchange (backend today has no `type` column; PR 2
-    //    will replace this hack with a real column and migrate the prefix out)
     const trimmedDetail = detail.trim();
-    const reason =
-      intent === "exchange"
-        ? `${EXCHANGE_REASON_PREFIX} ${trimmedDetail}`
-        : trimmedDetail;
 
     startTransition(async () => {
       try {
         await requestReturn({
           orderItemId: chosen.orderItemId,
-          reason,
+          reason: trimmedDetail,
           reasonCategory: category,
+          type: intent,
+          desiredVariantId:
+            intent === "exchange" ? (desiredVariantId ?? undefined) : undefined,
+          photos,
         });
         onSubmitted({
           id: `pending-${Date.now()}`,
@@ -139,9 +180,6 @@ export function ReturnExchangeModal({
           productTitle: chosen.productTitle,
           variantLabel: chosen.variantLabel,
           quantity: chosen.quantity,
-          // The optimistic row shows the same clean text the server stores
-          // (requestReturn strips the marker before saving) — trimmedDetail
-          // is that text pre-prefix, no need to re-strip it here.
           reason: trimmedDetail,
           status: "requested",
           refundAmount: intent === "return" ? chosen.lineTotal : null,
@@ -222,6 +260,13 @@ export function ReturnExchangeModal({
               detail={detail}
               setDetail={setDetail}
               detailLen={detailLen}
+              photos={photos}
+              setPhotos={setPhotos}
+              photosRequired={photosRequired}
+              desiredVariantId={desiredVariantId}
+              setDesiredVariantId={setDesiredVariantId}
+              variantOptions={variantOptions}
+              variantsLoading={variantsLoading}
             />
           )}
 
@@ -446,6 +491,13 @@ interface StepReasonProps {
   detail: string;
   setDetail: (v: string) => void;
   detailLen: number;
+  photos: string[];
+  setPhotos: (v: string[]) => void;
+  photosRequired: boolean;
+  desiredVariantId: string | null;
+  setDesiredVariantId: (v: string) => void;
+  variantOptions: VariantOption[];
+  variantsLoading: boolean;
 }
 
 function StepReason({
@@ -457,11 +509,18 @@ function StepReason({
   detail,
   setDetail,
   detailLen,
+  photos,
+  setPhotos,
+  photosRequired,
+  desiredVariantId,
+  setDesiredVariantId,
+  variantOptions,
+  variantsLoading,
 }: StepReasonProps) {
   const detailShort = detailLen > 0 && detailLen < MIN_DETAIL_LEN;
   const detailPromptCopy =
     intent === "exchange"
-      ? "which size or piece would you like instead? add any notes."
+      ? "anything else we should know? add any notes."
       : "describe the issue so our team can help quickly.";
 
   return (
@@ -506,6 +565,34 @@ function StepReason({
             );
           })}
         </div>
+      </div>
+
+      {intent === "exchange" ? (
+        <div>
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
+            swap for
+          </p>
+          <ExchangeVariantChooser
+            variants={variantOptions}
+            selectedVariantId={desiredVariantId}
+            onSelect={setDesiredVariantId}
+            loading={variantsLoading}
+          />
+        </div>
+      ) : null}
+
+      <div>
+        <ReturnPhotoUploader
+          photos={photos}
+          onChange={setPhotos}
+          uploadPhoto={uploadReturnPhoto}
+          required={photosRequired}
+          hint={
+            photosRequired
+              ? "a photo of the damage helps us process this faster."
+              : "optional — a quick photo helps us process this faster."
+          }
+        />
       </div>
 
       <div>
