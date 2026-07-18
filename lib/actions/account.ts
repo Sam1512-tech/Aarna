@@ -3,7 +3,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { getCurrentCustomer } from "@/lib/actions/auth";
-import { EXCHANGE_REASON_PREFIX } from "@/lib/exchange";
 import type { AddressInput } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 
@@ -40,11 +39,25 @@ export async function getMyOrders() {
 
   if (rows.length === 0) return [];
 
-  // Fetch items for all orders in one query
+  // Fetch items for all orders in one query. productId comes along via a
+  // join — ReturnExchangeItemButton needs it to fetch exchange-target
+  // variants for the product being returned.
   const orderIds = rows.map((o) => o.id);
   const items = await db
-    .select()
+    .select({
+      id: orderItems.id,
+      orderId: orderItems.orderId,
+      variantId: orderItems.variantId,
+      productId: productVariants.productId,
+      productTitleSnapshot: orderItems.productTitleSnapshot,
+      variantLabelSnapshot: orderItems.variantLabelSnapshot,
+      skuSnapshot: orderItems.skuSnapshot,
+      unitPriceSnapshot: orderItems.unitPriceSnapshot,
+      quantity: orderItems.quantity,
+      lineTotal: orderItems.lineTotal,
+    })
     .from(orderItems)
+    .innerJoin(productVariants, eq(productVariants.id, orderItems.variantId))
     .where(inArray(orderItems.orderId, orderIds));
 
   const itemsByOrder = new Map<string, typeof items>();
@@ -308,13 +321,7 @@ export interface ReturnRequestInput {
   orderItemId: string;
   reason: string;
   reasonCategory?: string;
-  /**
-   * Explicit type — the new contract PR 4's rewritten modal will pass. When
-   * omitted (today's modal, see components/storefront/return-exchange-modal.tsx),
-   * falls back to the legacy EXCHANGE_REASON_PREFIX convention so existing
-   * callers keep working unchanged until that rewrite lands.
-   */
-  type?: "return" | "exchange";
+  type: "return" | "exchange";
   /** Exchange target variant. Ignored for type "return". */
   desiredVariantId?: string;
   /** Cloudinary URLs already uploaded via POST /api/uploads/return-photo. */
@@ -370,18 +377,7 @@ export async function requestReturn(input: ReturnRequestInput) {
     .limit(1);
   if (existing[0]) throw new ActionError("A return has already been requested for this item");
 
-  // The modal still packs intent into `reason` via EXCHANGE_REASON_PREFIX
-  // (see components/storefront/return-exchange-modal.tsx) until PR 4 gives it
-  // a real `type` param — derive `type` from that same convention here AND
-  // strip the marker before storing, so `reason` is always display-ready
-  // (account-returns-view.tsx and admin/returns/page.tsx render it as-is,
-  // same as the migration backfill did for historical rows).
-  const legacyIsExchange = input.reason.startsWith(EXCHANGE_REASON_PREFIX);
-  const type = input.type ?? (legacyIsExchange ? "exchange" : "return");
-  const storedReason =
-    input.type === undefined && legacyIsExchange
-      ? input.reason.slice(EXCHANGE_REASON_PREFIX.length).trim()
-      : input.reason;
+  const type = input.type;
 
   if (input.photos && input.photos.length > MAX_RETURN_PHOTOS) {
     throw new ActionError(`Up to ${MAX_RETURN_PHOTOS} photos`);
@@ -412,7 +408,7 @@ export async function requestReturn(input: ReturnRequestInput) {
     .insert(returns)
     .values({
       orderItemId: input.orderItemId,
-      reason: storedReason,
+      reason: input.reason,
       reasonCategory: input.reasonCategory,
       refundAmount: row[0].lineTotal,
       type,

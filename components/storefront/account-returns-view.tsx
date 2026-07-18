@@ -25,6 +25,8 @@ export interface ReturnRow {
 export interface EligibleItem {
   orderItemId: string;
   orderNumber: string;
+  productId: string;
+  variantId: string;
   productTitle: string;
   variantLabel: string | null;
   quantity: number;

@@ -5,6 +5,9 @@ import {
   AdminPageHeader,
 } from "@/components/admin/admin-primitives";
 import { ReturnStatusSelect } from "@/components/admin/return-status-select";
+import { ReturnPhotoGrid } from "@/components/admin/return-photo-grid";
+import { ReturnQcTrigger } from "@/components/admin/return-qc-trigger";
+import { REJECT_REASONS } from "@/lib/returns/reject-reasons";
 import { getAdminReturns } from "@/lib/actions/admin/returns";
 import { formatINR } from "@/lib/utils";
 
@@ -58,6 +61,10 @@ const CATEGORY_LABEL: Record<string, string> = {
   style: "different style",
 };
 
+const REJECT_REASON_LABEL: Record<string, string> = Object.fromEntries(
+  REJECT_REASONS.map((r) => [r.value, r.label]),
+);
+
 export default async function AdminReturnsPage({
   searchParams,
 }: {
@@ -74,9 +81,11 @@ export default async function AdminReturnsPage({
     ? (params.type as TypeFilter)
     : "all";
 
-  // Pull a big page so we can filter by type client-side without leaking the
-  // marker-prefix hack into the SQL query (Sam's PR 2 replaces this with a
-  // real `type` column and the filter can push down).
+  // One query, filtered by status only — type is filtered client-side from
+  // this same batch so the tab counts stay a single round-trip (the dev
+  // pooler is prone to timing out extra queries; splitting counts into
+  // separate calls silently showed "0" on a transient failure instead of
+  // real data). Fine at launch scale (pageSize covers the full queue).
   const result = await getAdminReturns({
     status,
     page,
@@ -279,6 +288,29 @@ export default async function AdminReturnsPage({
                       {r.reasonClean || "—"}
                     </p>
                   </div>
+
+                  <ReturnPhotoGrid photos={r.photos} />
+
+                  {r.status === "rejected" && r.rejectionReason ? (
+                    <div className="mt-4 rounded-xl border border-burnt-red/20 bg-burnt-red/4 px-4 py-3">
+                      <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-burnt-red">
+                        rejected · {REJECT_REASON_LABEL[r.rejectionReason] ?? r.rejectionReason}
+                      </p>
+                      {r.adminNote ? (
+                        <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6 text-charcoal/70">
+                          {r.adminNote}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {r.status === "received" ? (
+                    <ReturnQcTrigger
+                      returnId={r.id}
+                      refundAmount={r.refundAmount ?? r.lineTotal}
+                      type={r.type as "return" | "exchange"}
+                    />
+                  ) : null}
 
                   {/* Meta footer */}
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-cocoa/8 pt-3 text-xs text-charcoal/55">

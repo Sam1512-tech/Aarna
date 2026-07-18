@@ -163,6 +163,8 @@ export default async function AccountOrdersPage() {
                             item={{
                               orderItemId: it.id,
                               orderNumber: order.orderNumber,
+                              productId: it.productId,
+                              variantId: it.variantId,
                               productTitle: it.productTitleSnapshot,
                               variantLabel: it.variantLabelSnapshot,
                               quantity: it.quantity,
