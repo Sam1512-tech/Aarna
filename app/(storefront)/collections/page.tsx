@@ -1,0 +1,67 @@
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { getCollections } from "@/lib/actions/products";
+
+export const metadata: Metadata = {
+  title: "Collections",
+  description: "Explore curated collections from Aarna by Arpitha Abhishek.",
+};
+
+export default async function CollectionsPage() {
+  const collections = await getCollections();
+
+  return (
+    <section className="bg-cream px-6 py-16 md:py-24">
+      <div className="mx-auto max-w-7xl">
+        <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
+          Curated for you
+        </p>
+        <h1 className="mt-4 font-display text-[42px] leading-[1.1] text-maroon">
+          Collections
+        </h1>
+
+        {collections.length > 0 ? (
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {collections.map((collection) => (
+              <Link
+                key={collection.slug}
+                href={`/collections/${collection.slug}`}
+                className="group block"
+              >
+                {collection.heroImageUrl ? (
+                  <div className="relative aspect-[4/5] overflow-hidden shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]">
+                    <Image
+                      src={collection.heroImageUrl}
+                      alt={collection.name}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, 50vw"
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="cloth-window aspect-[4/5] shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]" />
+                )}
+                <p className="mt-4 font-display text-3xl leading-tight text-maroon">
+                  {collection.name}
+                </p>
+                {collection.description ? (
+                  <p className="mt-1 text-sm leading-6 text-charcoal/60">
+                    {collection.description}
+                  </p>
+                ) : null}
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-10 border border-cocoa/12 bg-cocoa/10 px-6 py-10 text-charcoal/64">
+            <p className="max-w-xl text-base leading-8">
+              Collections will appear here once they&apos;re published from
+              the admin.
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}

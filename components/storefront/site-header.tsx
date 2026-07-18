@@ -19,11 +19,12 @@ interface SiteHeaderProps {
   initialCartCount?: number;
 }
 
-// primaryLinks intentionally empty for launch — /shop/new-arrivals and
-// /collections/slow-essentials weren't real routes and dropped 404s. The
-// dropdown "wardrobe" nav already covers browsing. Add curated links back
-// once /collections index + a real "new arrivals" filter exist.
-const primaryLinks: { href: string; label: string }[] = [];
+// /shop/new-arrivals still isn't a real route (no dedicated "new arrivals"
+// filter exists yet) — only add links here once they resolve to something
+// real. /collections shipped, so it's back.
+const primaryLinks: { href: string; label: string }[] = [
+  { href: "/collections", label: "collections" },
+];
 
 export function SiteHeader({
   categories,

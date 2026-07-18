@@ -92,6 +92,17 @@ export async function getCollections(): Promise<Collection[]> {
     .orderBy(asc(collections.sortOrder));
 }
 
+export async function getCollectionBySlug(
+  slug: string,
+): Promise<Collection | null> {
+  const [row] = await db
+    .select()
+    .from(collections)
+    .where(and(eq(collections.slug, slug), eq(collections.isActive, true)))
+    .limit(1);
+  return row ?? null;
+}
+
 export interface HomepageFeature {
   collection: Collection;
   products: CardProduct[];
