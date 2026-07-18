@@ -56,8 +56,8 @@ export default async function CollectionsPage() {
         ) : (
           <div className="mt-10 border border-cocoa/12 bg-cocoa/10 px-6 py-10 text-charcoal/64">
             <p className="max-w-xl text-base leading-8">
-              Collections will appear here once they&apos;re published from
-              the admin.
+              The first collections are being pieced together by hand —
+              check back soon.
             </p>
           </div>
         )}
