@@ -763,7 +763,7 @@ function Gallery({
                     : "center",
                 }}
               />
-              <span className="pointer-events-none absolute bottom-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-charcoal/40 text-cream opacity-0 backdrop-blur transition duration-300 group-hover:opacity-100">
+              <span className="pointer-events-none absolute bottom-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-charcoal/60 text-cream opacity-0 transition duration-300 group-hover:opacity-100">
                 <ZoomIn className="h-4 w-4" aria-hidden="true" />
               </span>
             </div>
@@ -828,6 +828,15 @@ function ImageLightbox({
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(
     null,
   );
+  // Touch devices have no hover — skip mounting the cursor-magnify layer
+  // there entirely rather than just leaving it permanently opacity-0, so
+  // there's one fewer stacked full-size image for a mobile browser to
+  // composite in the fixed/portaled overlay. Lazy-initialized (not an
+  // effect) since this component only ever mounts client-side, after the
+  // user opens it — window is always available by then.
+  const [canHover] = useState(
+    () => window.matchMedia("(hover: hover) and (pointer: fine)").matches,
+  );
   const active = images[index] ?? images[0];
   const hasMultiple = images.length > 1;
 
@@ -854,7 +863,7 @@ function ImageLightbox({
       role="dialog"
       aria-modal="true"
       aria-label="Zoomed product image"
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-charcoal/95 backdrop-blur"
+      className="fixed inset-0 z-[90] bg-charcoal"
     >
       <button
         type="button"
@@ -866,7 +875,7 @@ function ImageLightbox({
         type="button"
         onClick={onClose}
         aria-label="Close"
-        className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-cream/12 text-cream backdrop-blur transition duration-300 hover:bg-cream/20 md:right-6 md:top-6"
+        className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-cream/20 text-cream transition duration-300 hover:bg-cream/30 md:right-6 md:top-6"
       >
         <X className="h-4 w-4" aria-hidden="true" />
       </button>
@@ -874,16 +883,23 @@ function ImageLightbox({
       {/* Pinch-to-zoom on mobile is handled by the browser's own viewport
           zoom (maximumScale 5 set site-wide in app/layout.tsx) — this just
           needs to render the image large enough to be worth zooming into.
-          Desktop gets the same cursor-magnify as the inline gallery. */}
+          Desktop gets the same cursor-magnify as the inline gallery.
+
+          Positioned via absolute inset-* directly against the dialog
+          (which always has a definite size — fixed inset-0 resolves to the
+          real viewport) rather than flexbox. A flex child whose only
+          children are next/image `fill` (position:absolute) elements has
+          nothing to establish its own auto height from, so with flex-1 in
+          a flex-col + justify-center parent it silently collapsed to zero
+          height — the image, being absolutely positioned inside a
+          zero-height box, never painted, while sibling absolute elements
+          (close button, arrows, counter) rendered fine since they're
+          positioned against the dialog itself, not this box. That's what
+          was actually behind the "black screen, no image" report — vh
+          units and backdrop-filter reliability were real fixes too, but
+          this was the one actually hiding the image. */}
       <div
-        className="relative z-0 h-[80vh] w-[90vw] max-w-4xl cursor-zoom-in md:h-[85vh]"
-        onMouseEnter={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          setHoverPos({
-            x: ((e.clientX - rect.left) / rect.width) * 100,
-            y: ((e.clientY - rect.top) / rect.height) * 100,
-          });
-        }}
+        className="absolute inset-6 z-0 cursor-zoom-in md:inset-10 lg:inset-x-24"
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           setHoverPos({
@@ -901,22 +917,24 @@ function ImageLightbox({
           quality={90}
           className="object-contain"
         />
-        <Image
-          src={active.url}
-          alt=""
-          aria-hidden="true"
-          fill
-          sizes="100vw"
-          quality={90}
-          className="object-contain transition-opacity duration-150"
-          style={{
-            opacity: hoverPos ? 1 : 0,
-            transform: "scale(2.4)",
-            transformOrigin: hoverPos
-              ? `${hoverPos.x}% ${hoverPos.y}%`
-              : "center",
-          }}
-        />
+        {canHover ? (
+          <Image
+            src={active.url}
+            alt=""
+            aria-hidden="true"
+            fill
+            sizes="100vw"
+            quality={90}
+            className="object-contain transition-opacity duration-150"
+            style={{
+              opacity: hoverPos ? 1 : 0,
+              transform: "scale(2.4)",
+              transformOrigin: hoverPos
+                ? `${hoverPos.x}% ${hoverPos.y}%`
+                : "center",
+            }}
+          />
+        ) : null}
       </div>
 
       {hasMultiple ? (
@@ -933,7 +951,7 @@ function ImageLightbox({
             disabled={index === images.length - 1}
             variant="overlay"
           />
-          <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full bg-cream/12 px-4 py-1.5 text-xs uppercase tracking-[0.16em] text-cream backdrop-blur">
+          <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full bg-cream/20 px-4 py-1.5 text-xs uppercase tracking-[0.16em] text-cream">
             {index + 1} / {images.length}
           </div>
         </>
