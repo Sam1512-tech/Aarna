@@ -11,6 +11,7 @@ import {
   firstNameFromAddress,
   rupees,
 } from "@/lib/whatsapp/notify";
+import { REJECT_REASONS } from "@/lib/returns/reject-reasons";
 import type { AddressInput } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 
@@ -116,6 +117,7 @@ export async function updateReturnStatus(
   const [row] = await db
     .select({
       status: returns.status,
+      type: returns.type,
       refundAmount: returns.refundAmount,
       razorpayPaymentId: orders.razorpayPaymentId,
       lineTotal: orderItems.lineTotal,
@@ -181,6 +183,33 @@ export async function updateReturnStatus(
 
   revalidatePath("/admin/returns");
   revalidatePath("/account/returns");
+
+  if (status === "approved" && row.status !== "approved") {
+    await notifyWhatsApp({
+      orderId: row.orderId,
+      phone: row.phone,
+      whatsappOptIn: row.whatsappOptIn,
+      templateKey: "return_approved",
+      bodyValues: [firstNameFromAddress(row.shippingAddress), row.type, row.orderNumber],
+    });
+  }
+
+  if (status === "rejected" && row.status !== "rejected") {
+    const reasonLabel =
+      REJECT_REASONS.find((r) => r.value === details?.rejectionReason)?.label ??
+      details?.rejectionReason ??
+      "Not eligible for return";
+    const reasonText = details?.adminNote
+      ? `${reasonLabel} — ${details.adminNote}`
+      : reasonLabel;
+    await notifyWhatsApp({
+      orderId: row.orderId,
+      phone: row.phone,
+      whatsappOptIn: row.whatsappOptIn,
+      templateKey: "return_rejected",
+      bodyValues: [firstNameFromAddress(row.shippingAddress), row.type, row.orderNumber, reasonText],
+    });
+  }
 
   if (status === "received") {
     // Refund amount may not be set yet — fall back to the returned item's total.
@@ -285,11 +314,28 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
   revalidatePath("/admin/returns");
   revalidatePath("/account/returns");
 
-  // Reuse the existing (approved, live) refund_processed template — the
-  // dedicated QC-stage templates in PR 3 aren't approved by Meta yet. Only
-  // for an actual refund; a full-pass exchange (finalRefund 0) ships a swap
-  // instead, nothing to notify about here yet.
-  if (finalRefund > 0) {
+  if (input.outcome === "fail") {
+    // Covers both a partial refund and a full deduction — previously a full
+    // deduction (finalRefund 0) sent no WhatsApp message at all.
+    const refundLine =
+      finalRefund > 0
+        ? `A refund of ₹${rupees(finalRefund)} has been processed to your original payment method.`
+        : "No refund could be issued for this item.";
+    await notifyWhatsApp({
+      orderId: row.orderId,
+      phone: row.phone,
+      whatsappOptIn: row.whatsappOptIn,
+      templateKey: "return_qc_failed",
+      bodyValues: [
+        firstNameFromAddress(row.shippingAddress),
+        row.orderNumber,
+        input.note?.trim() || "The item didn't pass our quality check.",
+        refundLine,
+      ],
+    });
+  } else if (finalRefund > 0) {
+    // A pass on an exchange ships a swap instead (finalRefund 0) — nothing
+    // to notify about here yet (no outbound shipment tracking built).
     await notifyWhatsApp({
       orderId: row.orderId,
       phone: row.phone,

@@ -6,7 +6,8 @@
 // customer comms — we don't duplicate them. See docs/whatsapp-templates.md.
 //
 // Templates (all need Meta approval, 1–7 day cycle):
-//   order_placed, delivered, return_received, refund_processed
+//   order_placed, delivered, return_received, refund_processed,
+//   return_requested, return_approved, return_rejected, return_qc_failed
 
 import crypto from "node:crypto";
 
@@ -14,7 +15,11 @@ export type WhatsappTemplateKey =
   | "order_placed"
   | "delivered"
   | "return_received"
-  | "refund_processed";
+  | "refund_processed"
+  | "return_requested"
+  | "return_approved"
+  | "return_rejected"
+  | "return_qc_failed";
 
 const DEFAULT_BASE = "https://api.interakt.ai/v1/public";
 

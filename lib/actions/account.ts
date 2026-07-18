@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { getCurrentCustomer } from "@/lib/actions/auth";
 import type { AddressInput } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
+import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
 
 const {
   orders,
@@ -336,6 +337,7 @@ export async function requestReturn(input: ReturnRequestInput) {
     .select({
       orderItemId: orderItems.id,
       orderId: orders.id,
+      orderNumber: orders.orderNumber,
       customerId: orders.customerId,
       fulfillmentStatus: orders.fulfillmentStatus,
       placedAt: orders.placedAt,
@@ -343,6 +345,9 @@ export async function requestReturn(input: ReturnRequestInput) {
       updatedAt: orders.updatedAt,
       lineTotal: orderItems.lineTotal,
       variantId: orderItems.variantId,
+      phone: orders.phone,
+      whatsappOptIn: orders.whatsappOptIn,
+      shippingAddress: orders.shippingAddress,
     })
     .from(orderItems)
     .innerJoin(orders, eq(orders.id, orderItems.orderId))
@@ -416,6 +421,18 @@ export async function requestReturn(input: ReturnRequestInput) {
       photos: input.photos ?? [],
     })
     .returning();
+
+  await notifyWhatsApp({
+    orderId: row[0].orderId,
+    phone: row[0].phone,
+    whatsappOptIn: row[0].whatsappOptIn,
+    templateKey: "return_requested",
+    bodyValues: [
+      firstNameFromAddress(row[0].shippingAddress),
+      type,
+      row[0].orderNumber,
+    ],
+  });
 
   return created;
 }
