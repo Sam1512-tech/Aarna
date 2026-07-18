@@ -92,6 +92,48 @@ export async function getCollections(): Promise<Collection[]> {
     .orderBy(asc(collections.sortOrder));
 }
 
+export interface HomepageFeature {
+  collection: Collection;
+  products: CardProduct[];
+}
+
+/**
+ * The admin-picked "show this on the homepage" collection, with its products
+ * ready to render. Returns null when no collection is currently featured —
+ * the homepage falls back to its randomised new-arrivals shuffle in that
+ * case, so this is always safe to call.
+ */
+export async function getHomepageFeaturedCollection(
+  limit = 4,
+): Promise<HomepageFeature | null> {
+  const [collection] = await db
+    .select()
+    .from(collections)
+    .where(
+      and(eq(collections.isHomepageFeature, true), eq(collections.isActive, true)),
+    )
+    .limit(1);
+  if (!collection) return null;
+
+  const items = await db
+    .select({ p: products })
+    .from(products)
+    .innerJoin(collectionProducts, eq(collectionProducts.productId, products.id))
+    .where(
+      and(
+        eq(collectionProducts.collectionId, collection.id),
+        eq(products.status, "active"),
+      ),
+    )
+    .orderBy(desc(products.createdAt))
+    .limit(limit);
+
+  return {
+    collection,
+    products: await attachCardImages(items.map((r) => r.p)),
+  };
+}
+
 // ── Products ─────────────────────────────────────────────────────────────────
 
 export async function getProducts(
@@ -227,11 +269,35 @@ export async function getProductBySlug(
   return { ...product, variants, images, category };
 }
 
-export async function getNewArrivals(limit = 8): Promise<CardProduct[]> {
+export interface NewArrivalsOptions {
+  limit?: number;
+  /** Exclude products with no in-stock active variant — keeps randomised
+   * homepage picks (e.g. the featured-collection shuffle) from ever landing
+   * on something the customer can't actually buy. */
+  inStockOnly?: boolean;
+}
+
+export async function getNewArrivals(
+  options: NewArrivalsOptions = {},
+): Promise<CardProduct[]> {
+  const { limit = 8, inStockOnly = false } = options;
+
+  const conditions = [eq(products.status, "active")];
+  if (inStockOnly) {
+    conditions.push(
+      sql`exists (
+        select 1 from ${productVariants}
+        where ${productVariants.productId} = ${products.id}
+          and ${productVariants.isActive} = true
+          and ${productVariants.stock} > 0
+      )`,
+    );
+  }
+
   const items = await db
     .select()
     .from(products)
-    .where(eq(products.status, "active"))
+    .where(and(...conditions))
     .orderBy(desc(products.createdAt))
     .limit(limit);
   return attachCardImages(items);

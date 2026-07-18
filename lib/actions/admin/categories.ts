@@ -68,6 +68,8 @@ export interface CreateCategoryInput {
   slug: string;
   sortOrder?: number;
   parentId?: string;
+  imageUrl?: string | null;
+  imageMobileUrl?: string | null;
 }
 
 export async function createCategory(input: CreateCategoryInput): Promise<Category> {
@@ -100,6 +102,8 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
       slug,
       sortOrder: nextSort,
       parentId: input.parentId ?? null,
+      imageUrl: input.imageUrl ?? null,
+      imageMobileUrl: input.imageMobileUrl ?? null,
     })
     .returning();
 
@@ -112,6 +116,8 @@ export interface UpdateCategoryInput {
   slug?: string;
   sortOrder?: number;
   parentId?: string | null;
+  imageUrl?: string | null;
+  imageMobileUrl?: string | null;
 }
 
 export async function updateCategory(
@@ -146,6 +152,10 @@ export async function updateCategory(
 
   if (input.sortOrder !== undefined) patch.sortOrder = input.sortOrder;
   if (input.parentId !== undefined) patch.parentId = input.parentId;
+  if (input.imageUrl !== undefined) patch.imageUrl = input.imageUrl;
+  if (input.imageMobileUrl !== undefined) {
+    patch.imageMobileUrl = input.imageMobileUrl;
+  }
 
   if (Object.keys(patch).length === 0) return existing[0];
 

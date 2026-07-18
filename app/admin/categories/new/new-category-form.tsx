@@ -10,8 +10,10 @@ import {
   TextInput,
   slugify,
 } from "@/components/admin/admin-form";
+import { CategoryImagePicker } from "@/components/admin/category-image-picker";
 import { createCategory } from "@/lib/actions/admin/categories";
 import { actionErrorMessage } from "@/lib/action-error";
+import { uploadAdminImage } from "@/lib/cloudinary/upload-client";
 
 export function NewCategoryForm() {
   const router = useRouter();
@@ -19,6 +21,7 @@ export function NewCategoryForm() {
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const [sortOrder, setSortOrder] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -37,6 +40,7 @@ export function NewCategoryForm() {
           name: name.trim(),
           slug: effectiveSlug,
           sortOrder: sortOrder.trim() ? Number.parseInt(sortOrder, 10) : undefined,
+          imageUrl,
         });
         router.push("/admin/categories");
         router.refresh();
@@ -85,6 +89,17 @@ export function NewCategoryForm() {
             placeholder="0"
           />
         </Field>
+      </FormSection>
+
+      <FormSection
+        title="homepage tile"
+        description="Shown on the homepage's wardrobe-paths grid. Portrait works best."
+      >
+        <CategoryImagePicker
+          value={imageUrl}
+          onChange={setImageUrl}
+          uploadImage={(file) => uploadAdminImage(file, "aarna/categories")}
+        />
       </FormSection>
 
       <SubmitBar
