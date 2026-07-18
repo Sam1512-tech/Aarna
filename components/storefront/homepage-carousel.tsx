@@ -326,6 +326,41 @@ function Slide({
           onVideoEnded={onVideoEnded}
         />
       </div>
+
+      {/* Editorial CTA overlay — bottom-left. Renders only when the admin has
+          set a destination on this banner (ctaHref); a missing label falls
+          back to a sensible default so a slide never ships with a broken
+          button. Soft gradient scrim behind the block guarantees legibility on
+          any photo (bright or dark). */}
+      {banner.ctaHref ? (
+        <div className="pointer-events-none absolute inset-0 flex items-end">
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-charcoal/45 via-charcoal/15 to-transparent"
+          />
+          <div className="relative flex w-full flex-col items-start gap-4 px-6 pb-16 sm:px-10 sm:pb-20 md:max-w-[520px] md:px-14 md:pb-24 lg:px-20 lg:pb-28">
+            {banner.title ? (
+              <p className="text-[10px] font-medium uppercase tracking-[0.32em] text-cream/85 drop-shadow-[0_2px_10px_rgba(43,38,35,0.5)]">
+                {banner.title}
+              </p>
+            ) : null}
+            {banner.subtitle ? (
+              <h2 className="max-w-md font-display text-3xl leading-[1.05] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.5)] sm:text-4xl lg:text-5xl">
+                {banner.subtitle}
+              </h2>
+            ) : null}
+            <Link
+              href={banner.ctaHref}
+              tabIndex={isActive ? 0 : -1}
+              aria-hidden={!isActive}
+              className="pointer-events-auto mt-1 inline-flex min-h-[52px] items-center gap-2 rounded-2xl border border-cream/60 bg-cream/95 px-7 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(43,38,35,0.22)] transition duration-700 hover:bg-cream hover:-translate-y-0.5 active:translate-y-0"
+            >
+              {banner.ctaLabel ?? "shop the slow-made collection"}
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
