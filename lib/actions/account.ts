@@ -302,10 +302,23 @@ export async function setDefaultAddress(id: string) {
 
 // ── Returns ──────────────────────────────────────────────────────────────────
 
+const MAX_RETURN_PHOTOS = 3;
+
 export interface ReturnRequestInput {
   orderItemId: string;
   reason: string;
   reasonCategory?: string;
+  /**
+   * Explicit type — the new contract PR 4's rewritten modal will pass. When
+   * omitted (today's modal, see components/storefront/return-exchange-modal.tsx),
+   * falls back to the legacy EXCHANGE_REASON_PREFIX convention so existing
+   * callers keep working unchanged until that rewrite lands.
+   */
+  type?: "return" | "exchange";
+  /** Exchange target variant. Ignored for type "return". */
+  desiredVariantId?: string;
+  /** Cloudinary URLs already uploaded via POST /api/uploads/return-photo. */
+  photos?: string[];
 }
 
 export async function requestReturn(input: ReturnRequestInput) {
@@ -322,6 +335,7 @@ export async function requestReturn(input: ReturnRequestInput) {
       deliveredAt: orders.deliveredAt,
       updatedAt: orders.updatedAt,
       lineTotal: orderItems.lineTotal,
+      variantId: orderItems.variantId,
     })
     .from(orderItems)
     .innerJoin(orders, eq(orders.id, orderItems.orderId))
@@ -357,15 +371,42 @@ export async function requestReturn(input: ReturnRequestInput) {
   if (existing[0]) throw new ActionError("A return has already been requested for this item");
 
   // The modal still packs intent into `reason` via EXCHANGE_REASON_PREFIX
-  // (see components/storefront/return-exchange-modal.tsx) until PR 2 gives it
+  // (see components/storefront/return-exchange-modal.tsx) until PR 4 gives it
   // a real `type` param — derive `type` from that same convention here AND
   // strip the marker before storing, so `reason` is always display-ready
   // (account-returns-view.tsx and admin/returns/page.tsx render it as-is,
   // same as the migration backfill did for historical rows).
-  const isExchange = input.reason.startsWith(EXCHANGE_REASON_PREFIX);
-  const storedReason = isExchange
-    ? input.reason.slice(EXCHANGE_REASON_PREFIX.length).trim()
-    : input.reason;
+  const legacyIsExchange = input.reason.startsWith(EXCHANGE_REASON_PREFIX);
+  const type = input.type ?? (legacyIsExchange ? "exchange" : "return");
+  const storedReason =
+    input.type === undefined && legacyIsExchange
+      ? input.reason.slice(EXCHANGE_REASON_PREFIX.length).trim()
+      : input.reason;
+
+  if (input.photos && input.photos.length > MAX_RETURN_PHOTOS) {
+    throw new ActionError(`Up to ${MAX_RETURN_PHOTOS} photos`);
+  }
+
+  let desiredVariantId: string | null = null;
+  if (type === "exchange" && input.desiredVariantId) {
+    // The desired variant must belong to the SAME product as the item being
+    // exchanged — a customer/client bug shouldn't be able to point this at
+    // an unrelated product's variant.
+    const [desired] = await db
+      .select({ productId: productVariants.productId })
+      .from(productVariants)
+      .where(eq(productVariants.id, input.desiredVariantId))
+      .limit(1);
+    const [current] = await db
+      .select({ productId: productVariants.productId })
+      .from(productVariants)
+      .where(eq(productVariants.id, row[0].variantId))
+      .limit(1);
+    if (!desired || !current || desired.productId !== current.productId) {
+      throw new ActionError("Desired variant must be for the same product");
+    }
+    desiredVariantId = input.desiredVariantId;
+  }
 
   const [created] = await db
     .insert(returns)
@@ -374,7 +415,9 @@ export async function requestReturn(input: ReturnRequestInput) {
       reason: storedReason,
       reasonCategory: input.reasonCategory,
       refundAmount: row[0].lineTotal,
-      type: isExchange ? "exchange" : "return",
+      type,
+      desiredVariantId,
+      photos: input.photos ?? [],
     })
     .returning();
 
@@ -397,12 +440,85 @@ export async function getMyReturns() {
       productTitle: orderItems.productTitleSnapshot,
       variantLabel: orderItems.variantLabelSnapshot,
       quantity: orderItems.quantity,
+      photos: returns.photos,
+      desiredVariantId: returns.desiredVariantId,
+      rejectionReason: returns.rejectionReason,
+      adminNote: returns.adminNote,
+      qcOutcome: returns.qcOutcome,
     })
     .from(returns)
     .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
     .innerJoin(orders, eq(orders.id, orderItems.orderId))
     .where(eq(orders.customerId, customer.id))
     .orderBy(desc(returns.createdAt));
+}
+
+export interface ReturnableItem {
+  orderItemId: string;
+  orderNumber: string;
+  productId: string;
+  productTitle: string;
+  variantId: string;
+  variantLabel: string | null;
+  quantity: number;
+  lineTotal: number;
+}
+
+/**
+ * Delivered, unreturned, still-within-window order items — the picker in
+ * ReturnExchangeModal. Extracted from what was previously inlined (and
+ * placedAt-based, a real bug — a slow delivery could sit outside the
+ * placedAt-measured window while requestReturn's own deliveredAt-based
+ * check would still have allowed it) directly in the account/returns page.
+ */
+export async function getReturnableItems(): Promise<ReturnableItem[]> {
+  const customer = await requireCustomer();
+
+  const candidates = await db
+    .select({
+      orderItemId: orderItems.id,
+      orderNumber: orders.orderNumber,
+      productId: productVariants.productId,
+      productTitle: orderItems.productTitleSnapshot,
+      variantId: orderItems.variantId,
+      variantLabel: orderItems.variantLabelSnapshot,
+      quantity: orderItems.quantity,
+      lineTotal: orderItems.lineTotal,
+      deliveredAt: orders.deliveredAt,
+      placedAt: orders.placedAt,
+    })
+    .from(orderItems)
+    .innerJoin(orders, eq(orders.id, orderItems.orderId))
+    .innerJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+    .where(
+      and(
+        eq(orders.customerId, customer.id),
+        eq(orders.fulfillmentStatus, "delivered"),
+      ),
+    );
+
+  if (candidates.length === 0) return [];
+
+  const existing = await db
+    .select({ orderItemId: returns.orderItemId })
+    .from(returns)
+    .where(
+      inArray(
+        returns.orderItemId,
+        candidates.map((c) => c.orderItemId),
+      ),
+    );
+  const alreadyRequested = new Set(existing.map((r) => r.orderItemId));
+
+  const now = Date.now();
+  return candidates
+    .filter((c) => !alreadyRequested.has(c.orderItemId))
+    .filter((c) => {
+      const reference = c.deliveredAt ?? c.placedAt;
+      const ts = reference ? new Date(reference).getTime() : 0;
+      return (now - ts) / MS_PER_DAY <= RETURN_WINDOW_DAYS;
+    })
+    .map(({ deliveredAt: _deliveredAt, placedAt: _placedAt, ...rest }) => rest);
 }
 
 // ── Profile ──────────────────────────────────────────────────────────────────

@@ -154,10 +154,95 @@ export async function trackShipment(waybill: string) {
 
 // ── Reverse pickup (returns) ────────────────────────────────────────────────
 
-export async function requestReversePickup(_input: unknown) {
-  // TODO(backend): reverse shipments reuse /api/cmu/create.json with an RVP
-  // (return) shipment payload. Wire once the returns flow goes live.
-  throw new Error("Delhivery requestReversePickup not yet implemented.");
+// Registered studio address — same one on every GST invoice
+// (lib/invoice/template.tsx). Reverse pickups return here regardless of
+// which customer address the item ships from, so it's fine to inline
+// rather than plumb through another env var.
+const RETURN_TO = {
+  name: "Aarna Label",
+  address: "No. 3571, 1st H Cross, Behind Girinagar Police Station, Giri Nagar",
+  city: "Bengaluru",
+  state: "Karnataka",
+  pincode: "560085",
+  phone: "7975639485",
+};
+
+export interface ReversePickupInput {
+  orderNumber: string;
+  waybill?: string;
+  customerName: string;
+  customerAddress: string;
+  customerPincode: string;
+  customerCity: string;
+  customerState: string;
+  customerPhone: string;
+}
+
+/**
+ * Books a reverse pickup (RVP) — a courier collects the item FROM the
+ * customer and delivers it back TO the studio. Same /api/cmu/create.json
+ * endpoint as an outbound shipment, but with the roles reversed: `add`/
+ * `pin`/`city`/`state`/`phone` describe where the courier picks up FROM
+ * (the customer), and `return_*` describes where it's going TO (the
+ * studio) — that's what tells Delhivery this is a return, not a delivery.
+ *
+ * Best-effort against Delhivery's documented RVP shape; verify against the
+ * Delhivery panel/support on the first real pickup before relying on it —
+ * same caveat as createShipment's per-item HSN TODO above.
+ */
+export async function requestReversePickup(input: ReversePickupInput) {
+  const pickupName = process.env.DELHIVERY_PICKUP_NAME;
+  if (!pickupName) throw new Error("DELHIVERY_PICKUP_NAME not set.");
+
+  const waybill = input.waybill ?? (await fetchWaybill());
+
+  const payload = {
+    pickup_location: { name: pickupName },
+    shipments: [
+      {
+        name: input.customerName,
+        order: `${input.orderNumber}-RVP`,
+        waybill,
+        add: input.customerAddress,
+        pin: input.customerPincode,
+        city: input.customerCity,
+        state: input.customerState,
+        country: "India",
+        phone: input.customerPhone,
+        payment_mode: "Pickup",
+        shipment_type: "Return",
+        return_add: RETURN_TO.address,
+        return_pin: RETURN_TO.pincode,
+        return_city: RETURN_TO.city,
+        return_state: RETURN_TO.state,
+        return_country: "India",
+        return_phone: RETURN_TO.phone,
+        return_name: RETURN_TO.name,
+      },
+    ],
+  };
+
+  const body = new URLSearchParams({
+    format: "json",
+    data: JSON.stringify(payload),
+  });
+
+  const result = await delhiveryFetch<{
+    packages?: Array<{ waybill?: string; status?: string; remarks?: string[] }>;
+  }>(`/api/cmu/create.json`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+
+  const pkg = result.packages?.[0];
+  if (!pkg?.waybill) {
+    throw new Error(
+      `Delhivery reverse pickup failed: ${pkg?.remarks?.join(", ") ?? "no waybill returned"}`,
+    );
+  }
+
+  return { waybill: pkg.waybill };
 }
 
 // ── Status mapping (used by the webhook) ────────────────────────────────────
