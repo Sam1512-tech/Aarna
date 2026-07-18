@@ -355,7 +355,7 @@ function Slide({
               aria-hidden={!isActive}
               className="pointer-events-auto mt-1 inline-flex min-h-[52px] items-center gap-2 rounded-2xl border border-cream/60 bg-cream/95 px-7 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(43,38,35,0.22)] transition duration-700 hover:bg-cream hover:-translate-y-0.5 active:translate-y-0"
             >
-              {banner.ctaLabel ?? "shop the slow-made collection"}
+              {banner.ctaLabel ?? "the first chapter"}
               <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>
           </div>
