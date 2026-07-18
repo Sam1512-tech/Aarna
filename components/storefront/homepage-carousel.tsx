@@ -327,25 +327,26 @@ function Slide({
         />
       </div>
 
-      {/* Editorial CTA overlay — bottom-left. Renders only when the admin has
-          set a destination on this banner (ctaHref); a missing label falls
-          back to a sensible default so a slide never ships with a broken
-          button. Soft gradient scrim behind the block guarantees legibility on
-          any photo (bright or dark). */}
+      {/* Editorial CTA overlay — vertically centered, left-aligned. Renders
+          only when the admin has set a destination on this banner (ctaHref);
+          a missing label falls back to a sensible default so a slide never
+          ships with a broken button. A left-to-right scrim (charcoal fading
+          into transparent across the left ~60%) keeps the copy legible on
+          any photo without dimming the rest of the image. */}
       {banner.ctaHref ? (
-        <div className="pointer-events-none absolute inset-0 flex items-end">
+        <div className="pointer-events-none absolute inset-0 flex items-center">
           <div
             aria-hidden="true"
-            className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-charcoal/45 via-charcoal/15 to-transparent"
+            className="absolute inset-y-0 left-0 w-3/5 bg-gradient-to-r from-charcoal/55 via-charcoal/20 to-transparent"
           />
-          <div className="relative flex w-full flex-col items-start gap-4 px-6 pb-16 sm:px-10 sm:pb-20 md:max-w-[520px] md:px-14 md:pb-24 lg:px-20 lg:pb-28">
+          <div className="relative flex w-full flex-col items-start gap-5 px-6 py-10 sm:gap-6 sm:px-10 md:max-w-[620px] md:px-14 lg:px-20">
             {banner.title ? (
-              <p className="text-[10px] font-medium uppercase tracking-[0.32em] text-cream/85 drop-shadow-[0_2px_10px_rgba(43,38,35,0.5)]">
+              <p className="text-xs font-medium uppercase tracking-[0.32em] text-cream/90 drop-shadow-[0_2px_10px_rgba(43,38,35,0.5)] sm:text-sm">
                 {banner.title}
               </p>
             ) : null}
             {banner.subtitle ? (
-              <h2 className="max-w-md font-display text-3xl leading-[1.05] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.5)] sm:text-4xl lg:text-5xl">
+              <h2 className="max-w-xl font-display text-5xl leading-[1.02] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.5)] sm:text-6xl lg:text-7xl">
                 {banner.subtitle}
               </h2>
             ) : null}
