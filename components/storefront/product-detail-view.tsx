@@ -629,7 +629,7 @@ function Gallery({
           <div
             ref={railRef}
             onScroll={handleRailScroll}
-            className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [touch-action:pan-y] [&::-webkit-scrollbar]:hidden"
+            className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [touch-action:pan-y] [&>*]:snap-always [&::-webkit-scrollbar]:hidden"
           >
             {images.map((img) => (
               <div
@@ -659,6 +659,28 @@ function Gallery({
               </div>
             ))}
           </div>
+
+          {/* Overlay arrows — same pattern as desktop so users discover
+              navigation without hunting below the image. Positioned inside
+              the visible slide's edges (6vw peek on either side means the
+              current image sits at 6vw..94vw of the viewport). */}
+          {hasMultiple ? (
+            <GalleryArrow
+              direction="prev"
+              onClick={() => goTo(safeIdx - 1)}
+              disabled={safeIdx === 0}
+              variant="mobileOverlay"
+            />
+          ) : null}
+          {hasMultiple ? (
+            <GalleryArrow
+              direction="next"
+              onClick={() => goTo(safeIdx + 1)}
+              disabled={safeIdx === images.length - 1}
+              variant="mobileOverlay"
+            />
+          ) : null}
+
           {hasMultiple ? (
             <GalleryCounter index={safeIdx} total={images.length} />
           ) : null}
@@ -706,24 +728,15 @@ function Gallery({
           ) : null}
         </div>
 
-        {/* Arrows above the mobile rail too — swipe still works, but this
-            gives a deterministic way to page through without relying on
-            gesture detection at all. */}
+        {/* Page indicator dots — clearer than a small "3 / 5" pill and
+            gives an at-a-glance sense of how many images total. Tap-to-jump
+            works too. Mobile-only; desktop uses the thumbnail rail. */}
         {hasMultiple ? (
-          <div className="mt-3 flex items-center justify-center gap-3 md:hidden">
-            <GalleryArrow
-              direction="prev"
-              variant="inline"
-              onClick={() => goTo(safeIdx - 1)}
-              disabled={safeIdx === 0}
-            />
-            <GalleryArrow
-              direction="next"
-              variant="inline"
-              onClick={() => goTo(safeIdx + 1)}
-              disabled={safeIdx === images.length - 1}
-            />
-          </div>
+          <GalleryDots
+            index={safeIdx}
+            total={images.length}
+            onSelect={goTo}
+          />
         ) : null}
       </div>
     </div>
@@ -739,11 +752,19 @@ function GalleryArrow({
   direction: "prev" | "next";
   onClick: () => void;
   disabled: boolean;
-  variant?: "overlay" | "inline";
+  variant?: "overlay" | "mobileOverlay" | "inline";
 }) {
   const Icon = direction === "prev" ? ChevronLeft : ChevronRight;
+  // Desktop overlay: sits inside the image with a small inset (left-3/right-3).
+  // Mobile overlay: needs to align with the visible slide's edge, which sits
+  // at ~6vw from each side of the viewport (88vw slide, centered). Extra
+  // touch area (h-11/w-11 = 44px minimum) satisfies iOS HIG.
   const overlayPosition =
     direction === "prev" ? "left-3" : "right-3";
+  const mobilePosition =
+    direction === "prev" ? "left-[calc(6vw+8px)]" : "right-[calc(6vw+8px)]";
+  const overlayBase =
+    "absolute top-1/2 z-10 -translate-y-1/2 grid place-items-center rounded-full border border-cream/50 bg-cream/80 text-maroon shadow-[0_12px_34px_rgba(43,38,35,0.14)] backdrop-blur-xl transition duration-500 disabled:pointer-events-none disabled:opacity-0";
   return (
     <button
       type="button"
@@ -752,8 +773,10 @@ function GalleryArrow({
       aria-label={direction === "prev" ? "Previous image" : "Next image"}
       className={
         variant === "overlay"
-          ? `absolute top-1/2 z-10 -translate-y-1/2 ${overlayPosition} grid h-10 w-10 place-items-center rounded-full border border-cream/42 bg-cream/70 text-maroon shadow-[0_12px_34px_rgba(43,38,35,0.12)] backdrop-blur-xl transition duration-500 hover:bg-cream/90 disabled:pointer-events-none disabled:opacity-0`
-          : "grid h-9 w-9 place-items-center rounded-full border border-cocoa/22 bg-cream text-maroon shadow-[0_6px_18px_rgba(43,38,35,0.06)] transition duration-500 hover:border-cocoa disabled:opacity-30"
+          ? `${overlayBase} ${overlayPosition} h-10 w-10 hover:bg-cream/95`
+          : variant === "mobileOverlay"
+            ? `${overlayBase} ${mobilePosition} h-11 w-11 active:scale-95 active:bg-cream`
+            : "grid h-9 w-9 place-items-center rounded-full border border-cocoa/22 bg-cream text-maroon shadow-[0_6px_18px_rgba(43,38,35,0.06)] transition duration-500 hover:border-cocoa disabled:opacity-30"
       }
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
@@ -766,6 +789,43 @@ function GalleryCounter({ index, total }: { index: number; total: number }) {
     <span className="pointer-events-none absolute bottom-4 right-4 rounded-full border border-cream/50 bg-charcoal/45 px-2.5 py-1 text-[11px] font-medium tabular-nums text-cream backdrop-blur-md">
       {index + 1} / {total}
     </span>
+  );
+}
+
+function GalleryDots({
+  index,
+  total,
+  onSelect,
+}: {
+  index: number;
+  total: number;
+  onSelect: (i: number) => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Product images"
+      className="mt-4 flex items-center justify-center gap-2 md:hidden"
+    >
+      {Array.from({ length: total }).map((_, i) => {
+        const active = i === index;
+        return (
+          <button
+            key={i}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            aria-label={`Go to image ${i + 1}`}
+            onClick={() => onSelect(i)}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              active
+                ? "w-6 bg-maroon"
+                : "w-1.5 bg-cocoa/25 hover:bg-cocoa/45"
+            }`}
+          />
+        );
+      })}
+    </div>
   );
 }
 
