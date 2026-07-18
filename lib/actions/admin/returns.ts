@@ -4,11 +4,14 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
+import { requestReversePickup } from "@/lib/delhivery";
+import { createRefund } from "@/lib/razorpay";
 import {
   notifyWhatsApp,
   firstNameFromAddress,
   rupees,
 } from "@/lib/whatsapp/notify";
+import type { AddressInput } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 
 const { returns, orderItems, orders } = schema;
@@ -80,17 +83,37 @@ export async function getAdminReturns(filters: AdminReturnFilters = {}) {
 
 // ── Mutate ───────────────────────────────────────────────────────────────────
 
-export async function updateReturnStatus(returnId: string, status: ReturnStatus) {
+export interface UpdateReturnStatusDetails {
+  /** Required when status = "rejected". Value from ReturnRejectPicker's
+   * REJECT_REASONS (e.g. "window_expired") — not re-validated against that
+   * exact list server-side, same trust level as reasonCategory elsewhere in
+   * this table. */
+  rejectionReason?: string;
+  /** Customer-visible explanation — required for rejectionReason "other". */
+  adminNote?: string;
+}
+
+export async function updateReturnStatus(
+  returnId: string,
+  status: ReturnStatus,
+  details?: UpdateReturnStatusDetails,
+) {
   await requireAdmin();
 
   if (!RETURN_STATUSES.includes(status)) {
     throw new ActionError(`Invalid return status: ${status}`);
   }
+  if (status === "rejected" && !details?.rejectionReason) {
+    throw new ActionError("A rejection reason is required");
+  }
 
-  // Pull the return + its order (for the WhatsApp + refund-amount basis).
+  // Pull the return + its order (for WhatsApp, refund-amount basis, and the
+  // reverse-pickup address).
   const [row] = await db
     .select({
+      status: returns.status,
       refundAmount: returns.refundAmount,
+      razorpayPaymentId: orders.razorpayPaymentId,
       lineTotal: orderItems.lineTotal,
       orderId: orders.id,
       orderNumber: orders.orderNumber,
@@ -105,16 +128,55 @@ export async function updateReturnStatus(returnId: string, status: ReturnStatus)
     .limit(1);
   if (!row) throw new ActionError("Return not found");
 
-  // "refunded" is set by the Razorpay refund.processed webhook; "rejected" ends
-  // the flow here. Both resolve the return.
-  const resolved = status === "rejected" || status === "refunded";
+  // "refunded" is set via markReturnQc (below); "rejected" ends the flow here.
+  const resolved = status === "rejected";
+
+  // Booking the reverse pickup on "approved" is best-effort — if Delhivery
+  // isn't configured or the call fails, the status change still goes
+  // through (same graceful-degradation pattern as notifyWhatsApp below);
+  // admin can always coordinate pickup manually.
+  let reversePickupAwb: string | undefined;
+  if (status === "approved" && row.status !== "approved") {
+    try {
+      const address = row.shippingAddress as AddressInput;
+      const { waybill } = await requestReversePickup({
+        orderNumber: row.orderNumber,
+        customerName: address.fullName,
+        customerAddress: [address.line1, address.line2].filter(Boolean).join(", "),
+        customerPincode: address.pincode,
+        customerCity: address.city,
+        customerState: address.state,
+        customerPhone: address.phone,
+      });
+      reversePickupAwb = waybill;
+    } catch (err) {
+      console.warn(
+        `[returns] reverse pickup booking failed for ${returnId} — needs manual pickup:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
   const [updated] = await db
     .update(returns)
-    .set({ status, ...(resolved ? { resolvedAt: new Date() } : {}) })
+    .set({
+      status,
+      ...(resolved ? { resolvedAt: new Date() } : {}),
+      ...(status === "rejected"
+        ? {
+            rejectionReason: details?.rejectionReason,
+            adminNote: details?.adminNote ?? null,
+          }
+        : {}),
+      ...(reversePickupAwb
+        ? { delhiveryReversePickupId: reversePickupAwb }
+        : {}),
+    })
     .where(eq(returns.id, returnId))
     .returning();
 
   revalidatePath("/admin/returns");
+  revalidatePath("/account/returns");
 
   if (status === "received") {
     // Refund amount may not be set yet — fall back to the returned item's total.
@@ -128,6 +190,112 @@ export async function updateReturnStatus(returnId: string, status: ReturnStatus)
         firstNameFromAddress(row.shippingAddress),
         row.orderNumber,
         rupees(refundBasis),
+      ],
+    });
+  }
+
+  return updated;
+}
+
+export interface MarkReturnQcInput {
+  outcome: "pass" | "fail";
+  /** % of the stored refund amount to actually refund on a fail. 0-100. */
+  partialPercent?: number;
+  note?: string;
+}
+
+/**
+ * Records the inspection outcome once a return/exchange reaches "received"
+ * — matches ReturnQcPanel's contract. A pass on a return (or a fail, at
+ * whatever percentage) issues an actual Razorpay refund; a pass on an
+ * exchange ships the swap instead (refundAmount 0, no Razorpay call) — the
+ * account UI already relabels "refunded" as "swap on the way" for
+ * exchanges, so no new return_status value is needed for that path.
+ */
+export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
+  await requireAdmin();
+
+  if (input.outcome === "fail" && (!input.note || input.note.trim().length < 10)) {
+    throw new ActionError("A note (min 10 characters) is required when QC fails");
+  }
+
+  const [row] = await db
+    .select({
+      status: returns.status,
+      type: returns.type,
+      refundAmount: returns.refundAmount,
+      lineTotal: orderItems.lineTotal,
+      orderId: orders.id,
+      orderNumber: orders.orderNumber,
+      phone: orders.phone,
+      whatsappOptIn: orders.whatsappOptIn,
+      shippingAddress: orders.shippingAddress,
+      razorpayPaymentId: orders.razorpayPaymentId,
+    })
+    .from(returns)
+    .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
+    .innerJoin(orders, eq(orders.id, orderItems.orderId))
+    .where(eq(returns.id, returnId))
+    .limit(1);
+  if (!row) throw new ActionError("Return not found");
+  if (row.status !== "received") {
+    throw new ActionError("QC can only be recorded once the item has been received");
+  }
+
+  const baseRefund = row.refundAmount ?? row.lineTotal;
+  const finalRefund =
+    input.outcome === "pass"
+      ? row.type === "exchange"
+        ? 0
+        : baseRefund
+      : Math.round((baseRefund * (input.partialPercent ?? 0)) / 100);
+
+  // Issue the actual refund before touching our own records — money
+  // actually moving is the part that can't be silently "marked done" if it
+  // didn't happen.
+  let razorpayRefundId: string | undefined;
+  if (finalRefund > 0) {
+    if (!row.razorpayPaymentId) {
+      throw new ActionError("No Razorpay payment on this order — refund manually");
+    }
+    const refund = await createRefund(row.razorpayPaymentId, finalRefund, {
+      returnId,
+      orderNumber: row.orderNumber,
+    });
+    razorpayRefundId = refund.id;
+  }
+
+  const [updated] = await db
+    .update(returns)
+    .set({
+      status: "refunded",
+      qcOutcome: input.outcome,
+      refundAmount: finalRefund,
+      adminNote: input.note?.trim() || null,
+      ...(razorpayRefundId ? { razorpayRefundId } : {}),
+      resolvedAt: new Date(),
+    })
+    .where(eq(returns.id, returnId))
+    .returning();
+
+  revalidatePath("/admin/returns");
+  revalidatePath("/account/returns");
+
+  // Reuse the existing (approved, live) refund_processed template — the
+  // dedicated QC-stage templates in PR 3 aren't approved by Meta yet. Only
+  // for an actual refund; a full-pass exchange (finalRefund 0) ships a swap
+  // instead, nothing to notify about here yet.
+  if (finalRefund > 0) {
+    await notifyWhatsApp({
+      orderId: row.orderId,
+      phone: row.phone,
+      whatsappOptIn: row.whatsappOptIn,
+      templateKey: "refund_processed",
+      bodyValues: [
+        firstNameFromAddress(row.shippingAddress),
+        rupees(finalRefund),
+        row.orderNumber,
+        "5–7 business days",
       ],
     });
   }

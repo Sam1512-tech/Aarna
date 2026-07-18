@@ -269,6 +269,45 @@ export async function getProductBySlug(
   return { ...product, variants, images, category };
 }
 
+export interface VariantOption {
+  variantId: string;
+  size: string | null;
+  color: string | null;
+  sku: string;
+  stock: number;
+  isCurrentVariant: boolean;
+}
+
+/**
+ * Feeds ExchangeVariantChooser — every active variant of a product, in
+ * garment size order, with `isCurrentVariant` flagging the one the customer
+ * already has (the component grays it out rather than excluding it, so it's
+ * included here too).
+ */
+export async function getVariantsInStockForProduct(
+  productId: string,
+  currentVariantId?: string,
+): Promise<VariantOption[]> {
+  const rows = await db
+    .select()
+    .from(productVariants)
+    .where(
+      and(
+        eq(productVariants.productId, productId),
+        eq(productVariants.isActive, true),
+      ),
+    );
+
+  return sortBySize(rows).map((v) => ({
+    variantId: v.id,
+    size: v.size,
+    color: v.color,
+    sku: v.sku,
+    stock: v.stock,
+    isCurrentVariant: v.id === currentVariantId,
+  }));
+}
+
 export interface NewArrivalsOptions {
   limit?: number;
   /** Exclude products with no in-stock active variant — keeps randomised
