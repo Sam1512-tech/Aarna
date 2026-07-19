@@ -140,7 +140,7 @@ export function SearchView({
               type="button"
               onClick={() => setQuery("")}
               aria-label="Clear search"
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-cocoa/60 transition duration-500 hover:bg-cocoa/10 hover:text-cocoa"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-cocoa/60 transition duration-500 hover:bg-cocoa/10 hover:text-cocoa"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -258,7 +258,7 @@ export function SearchView({
                         type="button"
                         onClick={() => removeRecent(term)}
                         aria-label={`Remove ${term}`}
-                        className="inline-flex h-4 w-4 items-center justify-center text-cocoa/45 transition duration-500 hover:text-burnt-red"
+                        className="-m-2 inline-flex h-8 w-8 items-center justify-center text-cocoa/45 transition duration-500 hover:text-burnt-red"
                       >
                         <X className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>

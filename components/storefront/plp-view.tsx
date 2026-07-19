@@ -120,7 +120,7 @@ export function PlpView({
             <button
               type="button"
               onClick={() => setMobileFiltersOpen(true)}
-              className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa lg:hidden"
+              className="inline-flex min-h-11 items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa lg:hidden"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
               Filters
@@ -187,7 +187,7 @@ function SortDropdown({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as SortOption)}
-        className="rounded-full border border-cocoa/22 bg-cream px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] text-charcoal/85 outline-none transition duration-500 focus:border-cocoa"
+        className="rounded-full border border-cocoa/22 bg-cream px-3 py-1.5 text-base uppercase tracking-[0.16em] text-charcoal/85 outline-none transition duration-500 focus:border-cocoa sm:text-[11px]"
       >
         {(Object.keys(SORT_LABELS) as SortOption[]).map((k) => (
           <option key={k} value={k}>
@@ -350,7 +350,7 @@ function Pagination({
   return (
     <nav
       aria-label="Pagination"
-      className="mt-16 flex items-center justify-center gap-2"
+      className="mt-16 flex items-center justify-start gap-2 overflow-x-auto px-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:justify-center [&::-webkit-scrollbar]:hidden"
     >
       <PgLink
         href={buildUrl(page - 1)}
