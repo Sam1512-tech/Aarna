@@ -1,5 +1,6 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
+import { gstRatePercentFor } from "@/lib/gst";
 import { InvoiceDocument, type InvoiceData } from "./template";
 
 export type { InvoiceData, InvoiceLineItem } from "./template";
@@ -32,21 +33,117 @@ export function isInterStateOrder(customerState: string): boolean {
   return customerState.trim().toLowerCase() !== "karnataka";
 }
 
+export interface GstLineInput {
+  unitPrice: number; // paise, GST-inclusive, pre-discount
+  quantity: number;
+  lineTotal: number; // paise, GST-inclusive, pre-discount (unitPrice * quantity)
+}
+
+export interface GstLineResult extends GstLineInput {
+  gstRatePercent: number;
+  discountedLineTotal: number; // GST-inclusive, after proportional discount allocation
+  taxableAmount: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+}
+
+export interface GstRateBreakdown {
+  ratePercent: number;
+  taxableAmount: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+}
+
+export interface OrderGstResult {
+  lines: GstLineResult[];
+  // One entry per distinct rate actually present, ascending — an order can
+  // mix Rs.2500-and-under pieces (5%) with pricier ones (18%), and GST rules
+  // require those shown as separate taxable/tax lines, never blended.
+  rateBreakdown: GstRateBreakdown[];
+  taxableAmount: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+}
+
 /**
- * Calculates GST breakdown for a given taxable amount (in paise).
- * GST rate for garments (HSN 6211): 12%
- * Prices stored in DB are GST-inclusive, so we back-calculate.
+ * Computes GST for an order, per line item, using the garment value-slab
+ * rule (HSN 6211): a piece priced at or below Rs.2500 is taxed at 5%, above
+ * that at 18% — see lib/gst.ts. The threshold is evaluated on each line's
+ * *original* unit price, not a discount-adjusted one, so a coupon can never
+ * shift which slab a piece falls into.
+ *
+ * An order-level discount is allocated across lines proportionally to each
+ * line's share of the pre-discount subtotal; the last line absorbs whatever
+ * rounding remainder is left so the discounted lines always sum back to
+ * exactly (subtotal - discount). Prices are GST-inclusive, so tax is
+ * back-calculated from each line's discounted total at its own rate.
  */
-export function calculateGst(inclusiveAmountPaise: number, interState: boolean) {
-  // inclusive amount = taxable + 12% GST
-  // taxable = inclusive / 1.12
-  const taxable = Math.round(inclusiveAmountPaise / 1.12);
-  const totalGst = inclusiveAmountPaise - taxable;
+export function calculateOrderGst(
+  items: GstLineInput[],
+  discountPaise: number,
+  interState: boolean,
+): OrderGstResult {
+  const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0);
+
+  let allocatedDiscount = 0;
+  const lines: GstLineResult[] = items.map((item, index) => {
+    const isLast = index === items.length - 1;
+    const share = isLast
+      ? discountPaise - allocatedDiscount
+      : subtotal > 0
+        ? Math.round((item.lineTotal / subtotal) * discountPaise)
+        : 0;
+    allocatedDiscount += share;
+
+    const discountedLineTotal = Math.max(0, item.lineTotal - share);
+    const gstRatePercent = gstRatePercentFor(item.unitPrice);
+    const taxableAmount = Math.round(
+      discountedLineTotal / (1 + gstRatePercent / 100),
+    );
+    const totalTax = discountedLineTotal - taxableAmount;
+    const cgst = interState ? 0 : Math.round(totalTax / 2);
+
+    return {
+      ...item,
+      gstRatePercent,
+      discountedLineTotal,
+      taxableAmount,
+      cgst,
+      // totalTax - cgst rather than a second independent round(), so
+      // cgst + sgst always equals totalTax exactly even when it's odd.
+      sgst: interState ? 0 : totalTax - cgst,
+      igst: interState ? totalTax : 0,
+    };
+  });
+
+  const byRate = new Map<number, GstRateBreakdown>();
+  for (const line of lines) {
+    const bucket = byRate.get(line.gstRatePercent) ?? {
+      ratePercent: line.gstRatePercent,
+      taxableAmount: 0,
+      cgst: 0,
+      sgst: 0,
+      igst: 0,
+    };
+    bucket.taxableAmount += line.taxableAmount;
+    bucket.cgst += line.cgst;
+    bucket.sgst += line.sgst;
+    bucket.igst += line.igst;
+    byRate.set(line.gstRatePercent, bucket);
+  }
+
   return {
-    taxableAmount: taxable,
-    cgst: interState ? 0 : Math.round(totalGst / 2),
-    sgst: interState ? 0 : Math.round(totalGst / 2),
-    igst: interState ? totalGst : 0,
+    lines,
+    rateBreakdown: [...byRate.values()].sort(
+      (a, b) => a.ratePercent - b.ratePercent,
+    ),
+    taxableAmount: lines.reduce((s, l) => s + l.taxableAmount, 0),
+    cgst: lines.reduce((s, l) => s + l.cgst, 0),
+    sgst: lines.reduce((s, l) => s + l.sgst, 0),
+    igst: lines.reduce((s, l) => s + l.igst, 0),
   };
 }
 

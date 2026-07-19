@@ -1,7 +1,7 @@
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { InvoiceData } from "@/lib/invoice/generate";
-import { calculateGst, isInterStateOrder } from "@/lib/invoice/generate";
+import { calculateOrderGst, isInterStateOrder } from "@/lib/invoice/generate";
 
 const { orders, orderItems, returns, carts, cartItems } = schema;
 
@@ -168,8 +168,13 @@ export function buildInvoiceData(
   };
 
   const interState = isInterStateOrder(shipping.state);
-  const { taxableAmount, cgst, sgst, igst } = calculateGst(
-    order.subtotal - order.discount,
+  const gst = calculateOrderGst(
+    order.orderItems.map((item) => ({
+      unitPrice: item.unitPriceSnapshot,
+      quantity: item.quantity,
+      lineTotal: item.lineTotal,
+    })),
+    order.discount,
     interState,
   );
 
@@ -189,6 +194,7 @@ export function buildInvoiceData(
       name: shipping.fullName,
       email: order.email,
       phone: order.phone,
+      gstin: order.gstNumber,
       address: {
         line1: shipping.line1,
         line2: shipping.line2,
@@ -197,22 +203,24 @@ export function buildInvoiceData(
         pincode: shipping.pincode,
       },
     },
-    items: order.orderItems.map((item) => ({
+    items: order.orderItems.map((item, i) => ({
       description: item.productTitleSnapshot,
       size: item.variantLabelSnapshot,
       sku: item.skuSnapshot,
       quantity: item.quantity,
       unitPrice: item.unitPriceSnapshot,
       lineTotal: item.lineTotal,
+      gstRatePercent: gst.lines[i].gstRatePercent,
     })),
     subtotal: order.subtotal,
     discount: order.discount,
     shippingFee: order.shippingFee,
-    taxableAmount,
     isInterState: interState,
-    cgst,
-    sgst,
-    igst,
+    rateBreakdown: gst.rateBreakdown,
+    taxableAmount: gst.taxableAmount,
+    cgst: gst.cgst,
+    sgst: gst.sgst,
+    igst: gst.igst,
     total: order.total,
   };
 }
