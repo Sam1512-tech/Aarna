@@ -443,7 +443,7 @@ function CartItemCard({
             onClick={onRemove}
             disabled={disabled}
             aria-label={`Remove ${line.productTitle}`}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-cocoa/50 transition duration-500 hover:bg-burnt-red/10 hover:text-burnt-red disabled:opacity-40"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-cocoa/50 transition duration-500 hover:bg-burnt-red/10 hover:text-burnt-red disabled:opacity-40"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
