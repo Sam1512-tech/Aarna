@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   integer,
   jsonb,
@@ -91,7 +92,7 @@ export const categories = pgTable("categories", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 120 }).notNull(),
   slug: varchar("slug", { length: 140 }).notNull().unique(),
-  parentId: uuid("parent_id"),
+  parentId: uuid("parent_id").references((): AnyPgColumn => categories.id),
   sortOrder: integer("sort_order").default(0).notNull(),
   // Homepage "wardrobe paths" tile image. Nullable — categories without one
   // fall back to the existing cloth-window placeholder gradient.
