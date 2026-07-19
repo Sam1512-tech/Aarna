@@ -152,11 +152,7 @@ export default async function HomePage() {
         </section>
 
         <section className="px-5 py-24">
-          <TwoVideoSection
-            left={videoSlots.left}
-            right={videoSlots.right}
-            panelClassName="h-[220px]"
-          />
+          <TwoVideoSection left={videoSlots.left} right={videoSlots.right} />
           <h2 className="mt-9 font-display text-[44px] leading-[1.05] text-maroon">
             Made to live in.
           </h2>
@@ -256,11 +252,7 @@ export default async function HomePage() {
 
       <section className="bg-cream px-6 py-20 md:py-28">
         <div className="mx-auto max-w-7xl">
-          <TwoVideoSection
-            left={videoSlots.left}
-            right={videoSlots.right}
-            panelClassName="h-[420px] md:h-[520px]"
-          />
+          <TwoVideoSection left={videoSlots.left} right={videoSlots.right} />
           <h2 className="mt-10 max-w-3xl font-display text-[56px] leading-[1.05] text-maroon md:text-[72px]">
             Made to live in.
           </h2>
