@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCart, applyCoupon } from "@/lib/actions/cart";
 import type { AddressInput, CheckoutSummary } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
+import { isValidGstin, normalizeGstin } from "@/lib/gst";
 
 const { customers, orders, orderItems, productVariants, coupons } = schema;
 
@@ -21,6 +22,8 @@ export interface CheckoutInitInput {
   billingAddress?: AddressInput;
   couponCode?: string;
   whatsappOptIn: boolean;
+  /** Buyer's GSTIN, optional — only set for a business/GST invoice. */
+  gstNumber?: string;
 }
 
 export interface RazorpayOrderHandle {
@@ -105,6 +108,14 @@ export async function initCheckout(
     couponCode = input.couponCode.trim().toUpperCase();
   }
 
+  // 3b. GST number — optional, but if provided it must be a real GSTIN.
+  // Never trust client-side validation alone for something that ends up on a
+  // legal tax document.
+  const gstNumber = normalizeGstin(input.gstNumber);
+  if (gstNumber && !isValidGstin(gstNumber)) {
+    throw new ActionError("That GST number doesn't look valid — check and try again");
+  }
+
   // 4. Calculate totals (all in paise)
   const subtotal = cart.subtotal;
   const shippingFee = calculateShipping(subtotal - discount);
@@ -138,6 +149,7 @@ export async function initCheckout(
       shippingFee,
       total,
       couponCode,
+      gstNumber,
     })
     .returning({ id: orders.id });
 

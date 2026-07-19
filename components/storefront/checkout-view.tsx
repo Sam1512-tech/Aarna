@@ -16,6 +16,7 @@ import { clearStoredCoupon, getStoredCoupon } from "@/lib/cart/coupon-storage";
 import type { CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/action-error";
+import { GSTIN_PATTERN } from "@/lib/gst";
 
 const FREE_SHIPPING_THRESHOLD = 299900; // ₹2,999 (matches backend)
 const FORM_DRAFT_KEY = "aarna-checkout-draft";
@@ -62,6 +63,17 @@ const shippingSchema = z.object({
     .trim()
     .regex(/^[1-9]\d{5}$/, "6-digit PIN code"),
   whatsappOptIn: z.boolean(),
+  // Optional — only business buyers who want a GST invoice fill this in, but
+  // if they do, it must be a real GSTIN. Uppercased so a copy-pasted
+  // lowercase GSTIN still validates.
+  gstNumber: z
+    .string()
+    .trim()
+    .transform((v) => v.toUpperCase())
+    .refine(
+      (v) => v.length === 0 || GSTIN_PATTERN.test(v),
+      "Enter a valid 15-character GSTIN",
+    ),
 });
 
 // ── India Post postal DB lookup ───────────────────────────────────────────────
@@ -184,6 +196,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
       state: "",
       pincode: "",
       whatsappOptIn: true,
+      gstNumber: "",
     },
   });
 
@@ -407,6 +420,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
         billingSameAsShipping: true,
         whatsappOptIn: data.whatsappOptIn,
         couponCode: couponCode ?? undefined,
+        gstNumber: data.gstNumber || undefined,
       });
       openRazorpay(razorpay, {
         name: data.fullName,
@@ -472,6 +486,15 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                   Send order updates over WhatsApp
                 </span>
               </label>
+              <Field
+                label="GST number"
+                hint="Optional — add this for a business GST invoice"
+                error={errors.gstNumber?.message}
+                {...register("gstNumber")}
+                placeholder="22AAAAA0000A1Z5"
+                maxLength={15}
+                autoComplete="off"
+              />
             </fieldset>
 
             <fieldset className="space-y-5">

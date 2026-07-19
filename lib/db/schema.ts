@@ -316,6 +316,9 @@ export const orders = pgTable("orders", {
   shippingFee: integer("shipping_fee").default(0).notNull(),
   total: integer("total").notNull(),
   couponCode: varchar("coupon_code", { length: 40 }),
+  // Buyer's GSTIN, optional — only business customers who want it on the tax
+  // invoice provide one. Format-validated at checkout (lib/gst.ts).
+  gstNumber: varchar("gst_number", { length: 15 }),
   paymentStatus: orderPaymentStatus("payment_status")
     .default("pending")
     .notNull(),

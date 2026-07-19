@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import {
   Document,
   Image,
@@ -7,6 +8,7 @@ import {
   View,
 } from "@react-pdf/renderer";
 import path from "path";
+import type { GstRateBreakdown } from "./generate";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +19,9 @@ export interface InvoiceLineItem {
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+  // Garment value-slab rate this line falls under — Rs.2500 or under is 5%,
+  // above is 18%. See lib/gst.ts.
+  gstRatePercent: number;
 }
 
 export interface InvoiceData {
@@ -28,6 +33,8 @@ export interface InvoiceData {
     name: string;
     email: string;
     phone: string;
+    /** Buyer's GSTIN, optional — only present for a business/GST invoice. */
+    gstin?: string | null;
     address: {
       line1: string;
       line2?: string;
@@ -40,8 +47,12 @@ export interface InvoiceData {
   subtotal: number;
   discount: number;
   shippingFee: number;
-  taxableAmount: number;
   isInterState: boolean;
+  // One entry per distinct GST rate actually present in this order — a
+  // single invoice can legitimately mix 5% and 18% items, and each rate's
+  // taxable value + tax must be itemized separately, never blended.
+  rateBreakdown: GstRateBreakdown[];
+  taxableAmount: number;
   cgst: number;
   sgst: number;
   igst: number;
@@ -110,7 +121,7 @@ const s = StyleSheet.create({
   colSize: { flex: 0.8, textAlign: "center" },
   colQty: { flex: 0.6, textAlign: "center" },
   colRate: { flex: 1.2, textAlign: "right" },
-  colTaxable: { flex: 1.2, textAlign: "right" },
+  colGstRate: { flex: 0.8, textAlign: "center" },
   colTotal: { flex: 1.2, textAlign: "right" },
 
   tableCell: { fontSize: 8, color: "#111111" },
@@ -165,7 +176,7 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
   const {
     invoiceNumber, invoiceDate, orderNumber, orderDate,
     customer, items, subtotal, discount, shippingFee,
-    taxableAmount, isInterState, cgst, sgst, igst, total,
+    isInterState, rateBreakdown, total,
   } = data;
 
   return (
@@ -207,6 +218,9 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
             <Text style={s.infoText}>{customer.address.city}, {customer.address.state} – {customer.address.pincode}</Text>
             <Text style={s.infoText}>Ph: {customer.phone}</Text>
             <Text style={s.infoText}>{customer.email}</Text>
+            {customer.gstin ? (
+              <Text style={s.infoText}>GSTIN: {customer.gstin}</Text>
+            ) : null}
           </View>
 
           <View style={s.infoBox}>
@@ -231,7 +245,7 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
             <Text style={[s.tableHeaderText, s.colSize]}>Size</Text>
             <Text style={[s.tableHeaderText, s.colQty]}>Qty</Text>
             <Text style={[s.tableHeaderText, s.colRate]}>Rate</Text>
-            <Text style={[s.tableHeaderText, s.colTaxable]}>Taxable</Text>
+            <Text style={[s.tableHeaderText, s.colGstRate]}>GST%</Text>
             <Text style={[s.tableHeaderText, s.colTotal]}>Total</Text>
           </View>
 
@@ -245,7 +259,7 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
               <Text style={[s.tableCell, s.colSize]}>{item.size ?? "—"}</Text>
               <Text style={[s.tableCell, s.colQty]}>{item.quantity}</Text>
               <Text style={[s.tableCell, s.colRate]}>{INR(item.unitPrice)}</Text>
-              <Text style={[s.tableCell, s.colTaxable]}>{INR(item.lineTotal)}</Text>
+              <Text style={[s.tableCell, s.colGstRate]}>{item.gstRatePercent}%</Text>
               <Text style={[s.tableCell, s.colTotal]}>{INR(item.lineTotal)}</Text>
             </View>
           ))}
@@ -270,27 +284,37 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
                 <Text style={s.totalValue}>{INR(shippingFee)}</Text>
               </View>
             )}
-            <View style={s.totalRow}>
-              <Text style={s.totalLabel}>Taxable Amount</Text>
-              <Text style={s.totalValue}>{INR(taxableAmount)}</Text>
-            </View>
-            {isInterState ? (
-              <View style={s.totalRow}>
-                <Text style={s.totalLabel}>IGST @ 12%</Text>
-                <Text style={s.totalValue}>{INR(igst)}</Text>
-              </View>
-            ) : (
-              <>
+            {rateBreakdown.map((bucket) => (
+              <Fragment key={bucket.ratePercent}>
                 <View style={s.totalRow}>
-                  <Text style={s.totalLabel}>CGST @ 6%</Text>
-                  <Text style={s.totalValue}>{INR(cgst)}</Text>
+                  <Text style={s.totalLabel}>
+                    Taxable @ {bucket.ratePercent}%
+                  </Text>
+                  <Text style={s.totalValue}>{INR(bucket.taxableAmount)}</Text>
                 </View>
-                <View style={s.totalRow}>
-                  <Text style={s.totalLabel}>SGST @ 6%</Text>
-                  <Text style={s.totalValue}>{INR(sgst)}</Text>
-                </View>
-              </>
-            )}
+                {isInterState ? (
+                  <View style={s.totalRow}>
+                    <Text style={s.totalLabel}>IGST @ {bucket.ratePercent}%</Text>
+                    <Text style={s.totalValue}>{INR(bucket.igst)}</Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={s.totalRow}>
+                      <Text style={s.totalLabel}>
+                        CGST @ {bucket.ratePercent / 2}%
+                      </Text>
+                      <Text style={s.totalValue}>{INR(bucket.cgst)}</Text>
+                    </View>
+                    <View style={s.totalRow}>
+                      <Text style={s.totalLabel}>
+                        SGST @ {bucket.ratePercent / 2}%
+                      </Text>
+                      <Text style={s.totalValue}>{INR(bucket.sgst)}</Text>
+                    </View>
+                  </>
+                )}
+              </Fragment>
+            ))}
             <View style={s.grandTotalRow}>
               <Text style={s.grandTotalLabel}>TOTAL</Text>
               <Text style={s.grandTotalValue}>{INR(total)}</Text>
