@@ -20,6 +20,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { addToCart, getCart } from "@/lib/actions/cart";
 import { addToWishlist } from "@/lib/actions/account";
+import { SizeGuideModal } from "@/components/storefront/size-guide-modal";
 import { useCartCount } from "@/store/cart-count";
 import type {
   ProductImage as DbProductImage,
@@ -138,6 +139,7 @@ export function ProductDetailView({
   const [bagFeedback, setBagFeedback] = useState<null | "added" | "error">(null);
   const [wished, setWished] = useState(false);
   const [wishError, setWishError] = useState<string | null>(null);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   // Quantity of THIS exact variant (size + colour) already sitting in the
   // customer's bag — lets "add to bag" tell them it's already there instead
   // of silently incrementing with no feedback.
@@ -262,14 +264,16 @@ export function ProductDetailView({
               <fieldset className="mt-9">
                 <legend className="mb-3 flex items-center justify-between gap-4 text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
                   <span>Size</span>
-                  {/* /size-guide doesn't exist yet — the FAQ covers sizing
-                      help. Re-point here when a dedicated guide ships. */}
-                  <Link
-                    href="/faq"
+                  {/* Opens the in-page size guide modal (measurement chart in
+                      inches). Replaces the old /faq redirect so customers get
+                      the answer without leaving the product page. */}
+                  <button
+                    type="button"
+                    onClick={() => setSizeGuideOpen(true)}
                     className="soft-link text-[10px] tracking-[0.18em] text-cocoa"
                   >
-                    Size help
-                  </Link>
+                    Size guide
+                  </button>
                 </legend>
                 <div className="flex flex-wrap gap-2">
                   {sizes.map((size) => {
@@ -483,6 +487,11 @@ export function ProductDetailView({
           </div>
         </div>
       </div>
+
+      <SizeGuideModal
+        open={sizeGuideOpen}
+        onClose={() => setSizeGuideOpen(false)}
+      />
     </section>
   );
 }
