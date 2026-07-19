@@ -119,9 +119,11 @@ One admin exists: Arpitha, `aarnabyarpithabhishek@gmail.com`, Supabase UID `5644
 Customers can submit a review from `/account/orders` (delivered items only, one review per product — resubmitting edits it and resets to `pending`). Admin moderates via a live status dropdown on `/admin/reviews` (was a static, non-interactive pill before). Approved reviews now display on the PDP (star rating + count under the title, full review list section below) and feed `aggregateRating` in the Product JSON-LD. **No real reviews exist yet** — this closes the "no way to write/see reviews" gap from the Jul 4 audit, but it's unexercised by real customers until real orders exist.
 
 ### Known gaps / decisions pending
-- **Broken links — RESOLVED Jul 11** (see audit above). `/collections` + `/about` remain unbuilt but nothing links to them anymore; build-vs-descope still an open client decision for `/collections`.
+- **Broken links — RESOLVED Jul 11** (see audit above). `/about` remains unbuilt but nothing links to it. `/collections` (list + detail) has since been built — see below.
 - **Return window inconsistency — RESOLVED Jul 11, 3 days everywhere** (see audit section above).
-- **Quotation debt, still not built:** product zoom on PDP, best-sellers ranking, rate limiting, Cloudflare CDN (DNS is Hostinger→Vercel direct), handover documentation. (Customer reviews UI — previously listed here — was built Jul 7, see above.) Decide build-vs-descope with client before launch.
+- **`/collections` — BUILT.** List + detail pages exist (`app/(storefront)/collections`), no longer an open build-vs-descope decision.
+- **PDP zoom — BUILT.** Pinch-zoom lightbox + desktop cursor-magnify on the product gallery; a mobile rendering bug was fixed in `fix/pdp-zoom-lightbox-mobile` (merged #154).
+- **Quotation debt, still not built:** best-sellers ranking, rate limiting, Cloudflare CDN (DNS is Hostinger→Vercel direct), handover documentation. (Customer reviews UI, product zoom, and `/collections` — previously listed here — are all built, see above.)
 - **DB content:** no longer literally zero — a handful of test products/variants/a test collection/coupon exist from dev testing, but **no real launch content** (16 real products with real photography, real banners, real collections). **Product photography RECEIVED Jul 8** — no longer blocked; next step is uploading to Cloudinary + entering all 16 products via the (now fully-built) admin product form.
 - **`requestReversePickup` now implemented** (`lib/delhivery/index.ts`, part of `#145`, pending merge) — points at Delhivery's **production** endpoint per current `.env.local`, not exercised live yet; manual returns still OK as a fallback (best-effort, failure doesn't block the status update). WhatsApp read-receipts not persisted; search is client-side over 60 products (fine at launch scale).
 
@@ -320,7 +322,7 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 3. **Upload received product photography to Cloudinary + enter all 16 products** via the admin product form (photography is no longer the blocker — data entry is).
 4. Wire up Interakt now that credentials are live: add `WHATSAPP_API_KEY` to `.env.local`, confirm the 4 Meta-approved template names match the code exactly (see External/accounts state above).
 5. Full QA on test keys → flip to live Razorpay keys + live webhook → load real content → DNS cutover from placeholder to real app.
-6. Decide with client: product zoom / `/collections` page — build or descope from Jul 20 launch (reviews UI is now built, see CURRENT STATUS).
+6. ~~Decide with client: product zoom / `/collections` page~~ — both are built now, no decision needed (see Known gaps above).
 7. Pre-go-live: prod Supabase (or accept dev DB), `npm run db:rls` on prod, handover docs + Loom videos, transfer Vercel to client.
 
 ---
