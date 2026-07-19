@@ -3,9 +3,17 @@
 import { and, asc, eq, isNull, lte, or, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 
-const { banners } = schema;
+const { banners, homepageVideoSlots } = schema;
 
 export type Banner = typeof banners.$inferSelect;
+
+export interface PublicVideoSlot {
+  videoUrl: string;
+  title: string | null;
+  subtitle: string | null;
+  ctaLabel: string | null;
+  ctaHref: string | null;
+}
 
 /**
  * Returns banners that should be shown right now — active, within their
@@ -27,4 +35,38 @@ export async function getActiveBanners(): Promise<Banner[]> {
       ),
     )
     .orderBy(asc(banners.sortOrder));
+}
+
+/**
+ * The two fixed video slots for the "made to live in" homepage section.
+ * Returns null for a side that's inactive or has no video set yet, so the
+ * frontend can fall back to a placeholder instead of ever showing dead
+ * blank space.
+ */
+export async function getActiveHomepageVideoSlots(): Promise<{
+  left: PublicVideoSlot | null;
+  right: PublicVideoSlot | null;
+}> {
+  const rows = await db
+    .select()
+    .from(homepageVideoSlots)
+    .where(eq(homepageVideoSlots.isActive, true));
+
+  const toPublic = (
+    row: (typeof rows)[number] | undefined,
+  ): PublicVideoSlot | null => {
+    if (!row || !row.videoUrl) return null;
+    return {
+      videoUrl: row.videoUrl,
+      title: row.title,
+      subtitle: row.subtitle,
+      ctaLabel: row.ctaLabel,
+      ctaHref: row.ctaHref,
+    };
+  };
+
+  return {
+    left: toPublic(rows.find((r) => r.position === "left")),
+    right: toPublic(rows.find((r) => r.position === "right")),
+  };
 }

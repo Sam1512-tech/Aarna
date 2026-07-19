@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   BarChart3,
   Boxes,
+  Clapperboard,
   FolderTree,
   Image as ImageIcon,
   Layers,
@@ -35,6 +36,7 @@ const NAV: NavItem[] = [
   { href: "/admin/returns", label: "returns", Icon: RotateCcw },
   { href: "/admin/coupons", label: "coupons", Icon: Tag },
   { href: "/admin/banners", label: "banners", Icon: ImageIcon },
+  { href: "/admin/homepage-videos", label: "homepage videos", Icon: Clapperboard },
   { href: "/admin/collections", label: "collections", Icon: Layers },
   { href: "/admin/reviews", label: "reviews", Icon: Star },
 ];

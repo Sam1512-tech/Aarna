@@ -2,8 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { Feather, Infinity, ShieldCheck, Sparkles } from "lucide-react";
 import { HomepageCarousel } from "@/components/storefront/homepage-carousel";
+import { TwoVideoSection } from "@/components/storefront/two-video-section";
 import { ScrollRail } from "@/components/storefront/scroll-rail";
-import { getActiveBanners } from "@/lib/actions/banners";
+import { getActiveBanners, getActiveHomepageVideoSlots } from "@/lib/actions/banners";
 import {
   getCategories,
   getHomepageFeaturedCollection,
@@ -55,11 +56,12 @@ export default async function HomePage() {
   // (isHomepageFeature), show its real products under its own name. Otherwise
   // fall back to shuffling 4 in-stock items out of the last 20 arrivals so
   // the section never sits static without any admin work.
-  const [categories, featured, arrivalPool, banners] = await Promise.all([
+  const [categories, featured, arrivalPool, banners, videoSlots] = await Promise.all([
     getCategories(),
     getHomepageFeaturedCollection(4),
     getNewArrivals({ limit: 20, inStockOnly: true }),
     getActiveBanners(),
+    getActiveHomepageVideoSlots(),
   ]);
   const products = featured?.products.length
     ? featured.products
@@ -78,10 +80,10 @@ export default async function HomePage() {
     ctaLabel: b.ctaLabel,
     ctaHref: b.ctaHref,
   }));
-  // Split by media type: photos drive the hero banner under the nav, videos
-  // drive the in-content carousel inside the "made to live in" section.
+  // Photos drive the hero banner under the nav. The "made to live in"
+  // section is its own fixed two-video layout (lib/actions/admin/homepage-video-slots.ts),
+  // not part of the banners rotation.
   const photoBanners = carouselBanners.filter((b) => !isVideoUrl(b.imageUrl));
-  const videoBanners = carouselBanners.filter((b) => isVideoUrl(b.imageUrl));
 
   return (
     <>
@@ -150,10 +152,10 @@ export default async function HomePage() {
         </section>
 
         <section className="px-5 py-24">
-          <HomepageCarousel
-            banners={videoBanners}
-            variant="inline"
-            inlineClassName="h-[260px]"
+          <TwoVideoSection
+            left={videoSlots.left}
+            right={videoSlots.right}
+            panelClassName="h-[220px]"
           />
           <h2 className="mt-9 font-display text-[44px] leading-[1.05] text-maroon">
             Made to live in.
@@ -254,10 +256,10 @@ export default async function HomePage() {
 
       <section className="bg-cream px-6 py-20 md:py-28">
         <div className="mx-auto max-w-7xl">
-          <HomepageCarousel
-            banners={videoBanners}
-            variant="inline"
-            inlineClassName="h-[420px] md:h-[520px]"
+          <TwoVideoSection
+            left={videoSlots.left}
+            right={videoSlots.right}
+            panelClassName="h-[420px] md:h-[520px]"
           />
           <h2 className="mt-10 max-w-3xl font-display text-[56px] leading-[1.05] text-maroon md:text-[72px]">
             Made to live in.
