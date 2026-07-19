@@ -6,7 +6,12 @@ import {
   tableClasses,
 } from "@/components/admin/admin-primitives";
 import { DeleteButton } from "@/components/admin/delete-button";
-import { deleteCategory, getAdminCategories } from "@/lib/actions/admin/categories";
+import { ReorderButtons } from "@/components/admin/reorder-buttons";
+import {
+  deleteCategory,
+  getAdminCategories,
+  reorderCategories,
+} from "@/lib/actions/admin/categories";
 
 export const metadata: Metadata = { title: "admin · categories" };
 
@@ -45,7 +50,14 @@ export default async function AdminCategoriesPage() {
                 {categories.map((c) => (
                   <tr key={c.id} className={t.tr}>
                     <td className={`${t.td} tabular-nums text-charcoal/60`}>
-                      {c.sortOrder}
+                      <div className="flex items-center gap-2">
+                        <span>{c.sortOrder}</span>
+                        <ReorderButtons
+                          items={categories}
+                          id={c.id}
+                          action={reorderCategories}
+                        />
+                      </div>
                     </td>
                     <td className={t.td}>
                       <p className="text-charcoal">{c.name}</p>
