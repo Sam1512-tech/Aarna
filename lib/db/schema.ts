@@ -123,6 +123,30 @@ export const banners = pgTable("banners", {
     .notNull(),
 });
 
+export const homepageVideoPosition = pgEnum("homepage_video_position", [
+  "left",
+  "right",
+]);
+
+// The "made to live in" homepage section — always exactly two fixed video
+// slots (left/right), unlike `banners` which is an arbitrary-length rotating
+// carousel. Kept as its own small table rather than shoehorned into banners
+// so the fixed two-up layout has a purpose-built shape (position is unique,
+// so there are only ever at most 2 rows).
+export const homepageVideoSlots = pgTable("homepage_video_slots", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  position: homepageVideoPosition("position").notNull().unique(),
+  videoUrl: text("video_url"),
+  title: varchar("title", { length: 200 }),
+  subtitle: varchar("subtitle", { length: 300 }),
+  ctaLabel: varchar("cta_label", { length: 60 }),
+  ctaHref: varchar("cta_href", { length: 300 }),
+  isActive: boolean("is_active").default(true).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export const collections = pgTable("collections", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 140 }).notNull(),
