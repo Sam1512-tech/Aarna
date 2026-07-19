@@ -53,7 +53,7 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="size-guide-title"
-      className="fixed inset-0 z-[80] flex items-end justify-center bg-charcoal/40 backdrop-blur-sm md:items-center md:p-6"
+      className="fixed inset-0 z-[110] flex items-end justify-center bg-charcoal/40 backdrop-blur-sm md:items-center md:p-6"
     >
       <button
         type="button"
@@ -62,7 +62,12 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
         className="absolute inset-0"
       />
 
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-[28px] bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-[28px]">
+      {/* Mobile: panel height reserves ~110px at the top for the sticky
+          site header (36px marquee + ~72px main header). Using dvh (dynamic
+          viewport height) so mobile Chrome/Safari's collapsing URL bar
+          doesn't clip the panel content. Desktop keeps the original 92vh
+          since the modal is centered and has md:p-6 breathing room. */}
+      <div className="relative z-10 flex max-h-[calc(100dvh-110px)] w-full max-w-md flex-col overflow-hidden rounded-t-[28px] bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:max-h-[92vh] md:rounded-[28px]">
         {/* Grabber (mobile only) — signals bottom-sheet affordance */}
         <div className="flex justify-center pt-3 md:hidden" aria-hidden="true">
           <span className="h-1 w-10 rounded-full bg-cocoa/22" />
