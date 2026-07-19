@@ -253,7 +253,7 @@ function CarouselInner({
         {/* Dots + slide indicator */}
         {count > 1 ? (
           <div className="absolute inset-x-0 bottom-5 z-30 flex flex-col items-center gap-3 md:bottom-7">
-            <div role="tablist" aria-label="Slides" className="flex items-center gap-2">
+            <div role="tablist" aria-label="Slides" className="flex items-center">
               {banners.map((_, i) => (
                 <button
                   key={i}
@@ -263,12 +263,17 @@ function CarouselInner({
                   aria-selected={i === active}
                   aria-controls={`${indicatorId}-${i}`}
                   onClick={() => go(i)}
-                  className={`h-[6px] rounded-full transition-all duration-500 ${
-                    i === active
-                      ? "w-7 bg-cream"
-                      : "w-[6px] bg-cream/55 hover:bg-cream/80"
-                  }`}
-                />
+                  className="group flex h-9 min-w-9 items-center justify-center p-2"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`block h-[6px] rounded-full transition-all duration-500 ${
+                      i === active
+                        ? "w-7 bg-cream"
+                        : "w-[6px] bg-cream/55 group-hover:bg-cream/80"
+                    }`}
+                  />
+                </button>
               ))}
             </div>
             <span className="text-[10px] font-medium uppercase tracking-[0.28em] text-cream/85 tabular-nums">

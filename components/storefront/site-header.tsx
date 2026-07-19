@@ -58,7 +58,7 @@ export function SiteHeader({
         aria-hidden so screen readers only announce it once. will-change
         promotes the strip to its own compositor layer.
       */}
-      <div className="fixed inset-x-0 top-0 z-50 h-9 overflow-hidden bg-maroon text-cream">
+      <div className="fixed inset-x-0 top-0 z-50 h-9 overflow-hidden bg-maroon pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-cream">
         <div
           className="flex h-full w-max animate-[mobile-marquee_36s_linear_infinite] items-center whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]"
           style={{ willChange: "transform" }}
@@ -77,7 +77,7 @@ export function SiteHeader({
         </div>
       </div>
 
-      <header className="fixed inset-x-0 top-9 z-40 px-3 pt-3 md:px-6 md:pt-4">
+      <header className="fixed inset-x-0 top-9 z-40 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-3 md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] md:pt-4">
         <div
           // Header stays fully visible at all times — the scroll-driven
           // fade-out has been removed. Solid semi-opaque cream fill, no
@@ -131,7 +131,7 @@ export function SiteHeader({
               >
                 Wardrobe
               </Link>
-              <div className="pointer-events-none absolute left-1/2 top-full w-64 -translate-x-1/2 translate-y-3 border border-maroon/10 bg-cream p-3 opacity-0 shadow-[0_24px_70px_rgba(43,38,35,0.12)] transition duration-700 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100">
+              <div className="pointer-events-none absolute left-1/2 top-full w-64 -translate-x-1/2 translate-y-3 border border-maroon/10 bg-cream p-3 opacity-0 shadow-[0_24px_70px_rgba(43,38,35,0.12)] transition duration-700 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100">
                 {categories.length > 0 ? (
                   categories.map((category) => (
                     <Link
@@ -216,43 +216,48 @@ export function SiteHeader({
             </button>
           </div>
 
-          {/* text-maroon on the parent — anchors inherit it because the
-              unlayered `a { color: inherit }` in globals.css beats Tailwind's
-              text-* utilities applied directly to a link. */}
-          <nav className="mt-16 flex flex-col gap-5 text-maroon" aria-label="Mobile">
-            {primaryLinks.map((link) => (
+          {/* Scrolls independently of the fixed logo/close row above, so a
+              longer category list (or a short landscape viewport) can't
+              clip the trailing links/tagline outside the reachable area. */}
+          <div className="flex flex-1 flex-col overflow-y-auto">
+            {/* text-maroon on the parent — anchors inherit it because the
+                unlayered `a { color: inherit }` in globals.css beats Tailwind's
+                text-* utilities applied directly to a link. */}
+            <nav className="mt-16 flex flex-col gap-5 text-maroon" aria-label="Mobile">
+              {primaryLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              {categories.map((category) => (
+                <Link
+                  key={category.slug}
+                  href={`/shop/${category.slug}`}
+                  onClick={() => setMenuOpen(false)}
+                  className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
+                >
+                  {category.name}
+                </Link>
+              ))}
+              {/* /about link removed for launch — the page hasn't been designed
+                  yet, don't want a dead nav link in production. */}
               <Link
-                key={link.href}
-                href={link.href}
+                href="/account"
                 onClick={() => setMenuOpen(false)}
                 className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
               >
-                {link.label}
+                Your account
               </Link>
-            ))}
-            {categories.map((category) => (
-              <Link
-                key={category.slug}
-                href={`/shop/${category.slug}`}
-                onClick={() => setMenuOpen(false)}
-                className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
-              >
-                {category.name}
-              </Link>
-            ))}
-            {/* /about link removed for launch — the page hasn't been designed
-                yet, don't want a dead nav link in production. */}
-            <Link
-              href="/account"
-              onClick={() => setMenuOpen(false)}
-              className="font-display text-[36px] uppercase leading-[1.15] tracking-[0.04em] transition duration-700 hover:translate-x-1 hover:opacity-70 active:translate-x-0"
-            >
-              Your account
-            </Link>
-          </nav>
+            </nav>
 
-          <div className="mt-auto border-t border-maroon/14 pt-6 text-base leading-7 text-cocoa">
-            <p>Made to live in, shared softly, worn your way.</p>
+            <div className="mt-auto border-t border-maroon/14 pt-6 text-base leading-7 text-cocoa">
+              <p>Made to live in, shared softly, worn your way.</p>
+            </div>
           </div>
         </div>
       </div>
