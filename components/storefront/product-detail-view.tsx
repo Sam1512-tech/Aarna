@@ -984,14 +984,19 @@ function GalleryArrow({
   const Icon = direction === "prev" ? ChevronLeft : ChevronRight;
   // Desktop overlay: sits inside the image with a small inset (left-3/right-3).
   // Mobile overlay: needs to align with the visible slide's edge, which sits
-  // at ~6vw from each side of the viewport (88vw slide, centered). Extra
-  // touch area (h-11/w-11 = 44px minimum) satisfies iOS HIG.
+  // at ~6vw from each side of the viewport (88vw slide, centered). h-11/w-11
+  // (44px) satisfies iOS HIG for tap targets.
   const overlayPosition =
     direction === "prev" ? "left-3" : "right-3";
   const mobilePosition =
     direction === "prev" ? "left-[calc(6vw+8px)]" : "right-[calc(6vw+8px)]";
+  // z-20 keeps the arrow above the image tap-to-zoom button (absolute inset-0
+  // inside the slide) so a thumb landing on the arrow always fires the arrow,
+  // not the zoom. Disabled shows as 30% opacity (not opacity-0) so BOTH arrows
+  // are visible on every image — users at index 0 or the last image still see
+  // both arrows and understand what's tappable.
   const overlayBase =
-    "absolute top-1/2 z-10 -translate-y-1/2 grid place-items-center rounded-full border border-cream/50 bg-cream/80 text-maroon shadow-[0_12px_34px_rgba(43,38,35,0.14)] backdrop-blur-xl transition duration-500 disabled:pointer-events-none disabled:opacity-0";
+    "absolute top-1/2 z-20 -translate-y-1/2 grid place-items-center rounded-full border border-cocoa/25 bg-cream/95 text-maroon shadow-[0_10px_28px_rgba(43,38,35,0.22)] backdrop-blur-xl transition duration-300 disabled:pointer-events-none disabled:opacity-30";
   return (
     <button
       type="button"
@@ -1000,7 +1005,7 @@ function GalleryArrow({
       aria-label={direction === "prev" ? "Previous image" : "Next image"}
       className={
         variant === "overlay"
-          ? `${overlayBase} ${overlayPosition} h-10 w-10 hover:bg-cream/95`
+          ? `${overlayBase} ${overlayPosition} h-10 w-10 hover:bg-cream`
           : variant === "mobileOverlay"
             ? `${overlayBase} ${mobilePosition} h-11 w-11 active:scale-95 active:bg-cream`
             : "grid h-9 w-9 place-items-center rounded-full border border-cocoa/22 bg-cream text-maroon shadow-[0_6px_18px_rgba(43,38,35,0.06)] transition duration-500 hover:border-cocoa disabled:opacity-30"
