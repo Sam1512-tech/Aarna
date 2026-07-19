@@ -384,8 +384,7 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
             download tax invoice
           </a>
           <p className="mt-2 text-xs text-charcoal/50">
-            Needs a small server-route wrapper (`app/api/admin/orders/[id]/invoice.pdf`)
-            around <code>regenerateInvoicePdf</code>. Sam owns.
+            Regenerates the GST invoice PDF from current order data.
           </p>
         </Card>
 

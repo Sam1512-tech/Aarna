@@ -8,6 +8,8 @@ import { ActionError } from "@/lib/action-error";
 
 const { coupons } = schema;
 
+export type Coupon = typeof coupons.$inferSelect;
+
 type CouponType = "flat" | "percent";
 
 const CODE_PATTERN = /^[A-Z0-9_-]+$/;

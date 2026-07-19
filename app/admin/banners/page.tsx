@@ -7,7 +7,8 @@ import {
   tableClasses,
 } from "@/components/admin/admin-primitives";
 import { DeleteButton } from "@/components/admin/delete-button";
-import { deleteBanner, getAdminBanners } from "@/lib/actions/admin/banners";
+import { ReorderButtons } from "@/components/admin/reorder-buttons";
+import { deleteBanner, getAdminBanners, reorderBanners } from "@/lib/actions/admin/banners";
 
 export const metadata: Metadata = { title: "admin · banners" };
 
@@ -64,7 +65,14 @@ export default async function AdminBannersPage() {
                 {banners.map((b) => (
                   <tr key={b.id} className={t.tr}>
                     <td className={`${t.td} tabular-nums text-charcoal/60`}>
-                      {b.sortOrder}
+                      <div className="flex items-center gap-2">
+                        <span>{b.sortOrder}</span>
+                        <ReorderButtons
+                          items={banners}
+                          id={b.id}
+                          action={reorderBanners}
+                        />
+                      </div>
                     </td>
                     <td className={t.td}>
                       <p className="text-charcoal">{b.title ?? "—"}</p>

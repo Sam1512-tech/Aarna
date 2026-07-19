@@ -109,12 +109,22 @@ export async function sendTemplate(
 /**
  * Verifies an Interakt delivery/read-receipt webhook with a shared secret.
  * When WHATSAPP_WEBHOOK_SECRET is set, requires a matching HMAC-SHA256 of the
- * raw body. Until then it accepts (pre-BSP). Confirm Interakt's exact signing
- * scheme when wiring the live webhook.
+ * raw body. Until then it accepts unauthenticated requests (pre-BSP secret) —
+ * intentional so the endpoint keeps working before Interakt issues one, but
+ * this means `true` here does NOT mean "verified", just "not rejected". Any
+ * future logic that trusts the payload (e.g. the message_log persistence
+ * TODO in app/api/webhooks/whatsapp/route.ts) must not treat an unsigned
+ * request as more trustworthy than it is. Confirm Interakt's exact signing
+ * scheme when wiring the live secret.
  */
 export function verifyDeliveryWebhook(rawBody: string, signature: string): boolean {
   const secret = process.env.WHATSAPP_WEBHOOK_SECRET;
-  if (!secret) return true;
+  if (!secret) {
+    console.warn(
+      "[whatsapp webhook] WHATSAPP_WEBHOOK_SECRET not set — accepting request WITHOUT signature verification.",
+    );
+    return true;
+  }
   if (!signature) return false;
   const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
   try {
