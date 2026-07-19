@@ -2,6 +2,10 @@
 
 import { useRef, useState, useTransition } from "react";
 import { ImagePlus, Loader2, Trash2, RefreshCw } from "lucide-react";
+import {
+  isWidgetConfigured,
+  openCloudinaryWidget,
+} from "@/lib/cloudinary/widget-client";
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB per image (category tiles are shown large; give room for detail)
 const ACCEPT = "image/jpeg,image/png,image/webp,image/avif";
@@ -27,6 +31,12 @@ export interface CategoryImagePickerProps {
   aspect?: "4/5" | "3/4" | "1/1" | "16/9";
   label?: string;
   hint?: string;
+  /**
+   * Cloudinary folder for widget uploads. Ignored when the widget isn't
+   * configured (the native-picker fallback carries its own folder in the
+   * `uploadImage` prop already).
+   */
+  folder?: string;
 }
 
 /**
@@ -53,6 +63,7 @@ export function CategoryImagePicker({
   aspect = "4/5",
   label = "category image",
   hint,
+  folder = "aarna/categories",
 }: CategoryImagePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,8 +78,35 @@ export function CategoryImagePicker({
           ? "aspect-video"
           : "aspect-[4/5]";
 
-  function pick() {
-    inputRef.current?.click();
+  /**
+   * Try the Cloudinary Upload Widget first (branded UI, drag-drop, URL
+   * paste, camera, library browse). Falls back to the OS file picker if:
+   *   - Env vars aren't set (widget not configured for this deploy)
+   *   - The widget script fails to load (network blocked, etc.)
+   *   - The widget throws mid-upload
+   * The native fallback still uploads to Cloudinary via the server route
+   * — no path leaves images off Cloudinary.
+   */
+  async function pick() {
+    setError(null);
+    if (!isWidgetConfigured()) {
+      inputRef.current?.click();
+      return;
+    }
+    try {
+      const cropAspectRatio = aspect.replace("/", ":");
+      const result = await openCloudinaryWidget({
+        folder,
+        cropAspectRatio,
+        showBrowse: true,
+      });
+      if (result) {
+        onChange(result.url);
+      }
+    } catch (err) {
+      console.warn("[category-image-picker] widget failed, falling back", err);
+      inputRef.current?.click();
+    }
   }
 
   async function handleFile(file: File | null | undefined) {
