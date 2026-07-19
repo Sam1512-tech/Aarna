@@ -59,6 +59,7 @@ interface Order {
   couponCode: string | null;
   email: string;
   phone: string;
+  gstNumber: string | null;
   shippingAddress: unknown;
   billingAddress: unknown;
   invoiceNumber: string | null;
@@ -275,6 +276,11 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
               status · {order.paymentStatus}
               {order.invoiceNumber ? ` · invoice ${order.invoiceNumber}` : ""}
             </p>
+            {order.gstNumber ? (
+              <p className="text-xs text-charcoal/55">
+                buyer GSTIN · <span className="font-mono">{order.gstNumber}</span>
+              </p>
+            ) : null}
           </div>
         </Card>
       </div>
