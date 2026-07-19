@@ -5,40 +5,48 @@ import type { PublicVideoSlot } from "@/lib/actions/banners";
 interface TwoVideoSectionProps {
   left: PublicVideoSlot | null;
   right: PublicVideoSlot | null;
-  /** Tailwind height class per panel — differs mobile (stacked) vs desktop (side by side). */
-  panelClassName?: string;
+  /**
+   * Tailwind aspect-ratio class per panel (e.g. "aspect-[9/16]"). The
+   * videos here are portrait, so the panel's shape needs to match the
+   * source instead of a fixed landscape-ish height that crops it badly.
+   * Defaults to a portrait ratio.
+   */
+  aspectClassName?: string;
 }
 
 /**
  * The "made to live in" homepage section — two fixed video slots, side by
  * side on desktop and stacked on mobile. A slot with no video configured yet
  * (or turned inactive) shows the site's standard `cloth-window` placeholder
- * instead of ever rendering dead blank space.
+ * instead of ever rendering dead blank space. Sized by aspect-ratio (not a
+ * fixed height) so a portrait video isn't cropped down to a landscape box.
  */
 export function TwoVideoSection({
   left,
   right,
-  panelClassName,
+  aspectClassName,
 }: TwoVideoSectionProps) {
   return (
     <div className="grid gap-5 md:grid-cols-2 md:gap-6">
-      <VideoPanel slot={left} panelClassName={panelClassName} />
-      <VideoPanel slot={right} panelClassName={panelClassName} />
+      <VideoPanel slot={left} aspectClassName={aspectClassName} />
+      <VideoPanel slot={right} aspectClassName={aspectClassName} />
     </div>
   );
 }
 
 function VideoPanel({
   slot,
-  panelClassName,
+  aspectClassName,
 }: {
   slot: PublicVideoSlot | null;
-  panelClassName?: string;
+  aspectClassName?: string;
 }) {
   return (
     <div
       className={`relative isolate overflow-hidden rounded-[26px] shadow-[0_22px_60px_rgba(43,38,35,0.08)] ${
-        panelClassName ?? "h-[320px] md:h-[480px]"
+        // True 9:16 — matches the source portrait video exactly (1080x1920)
+        // at every breakpoint, so object-cover has nothing to crop.
+        aspectClassName ?? "aspect-[9/16]"
       }`}
     >
       {slot?.videoUrl ? (
