@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRecentSearches } from "@/store/recent-searches";
+import { useCartCount } from "@/store/cart-count";
+import { addToCart } from "@/lib/actions/cart";
 import { formatINR } from "@/lib/utils";
 
 interface SearchProduct {
@@ -24,6 +26,7 @@ interface SearchProduct {
   slug: string;
   basePrice: number;
   fabric: string | null;
+  defaultVariantId: string | null;
 }
 
 interface SearchCategory {
@@ -100,9 +103,16 @@ export function SearchView({
     });
   }
 
-  // Visual-only for now — a real add needs a default variant in the product
-  // payload + the addToCart action. The card shows inline "added" feedback.
-  function quickAdd() {}
+  async function quickAdd(product: SearchProduct): Promise<boolean> {
+    if (!product.defaultVariantId) return false;
+    try {
+      const next = await addToCart(product.defaultVariantId, 1);
+      useCartCount.getState().set(next.itemCount);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   return (
     <section className="paper-grain min-h-screen bg-cream pb-24 pt-[128px] md:pt-32">
@@ -175,7 +185,7 @@ export function SearchView({
                       query={trimmed}
                       wished={wished.has(product.id)}
                       onWish={() => toggleWish(product)}
-                      onAdd={quickAdd}
+                      onAdd={() => quickAdd(product)}
                     />
                   ))}
                 </div>
@@ -310,7 +320,7 @@ export function SearchView({
                         query=""
                         wished={wished.has(product.id)}
                         onWish={() => toggleWish(product)}
-                        onAdd={quickAdd}
+                        onAdd={() => quickAdd(product)}
                       />
                     </div>
                   ))}
@@ -359,14 +369,20 @@ function ProductCard({
   query: string;
   wished: boolean;
   onWish: () => void;
-  onAdd: () => void;
+  onAdd: () => Promise<boolean>;
 }) {
   const [justAdded, setJustAdded] = useState(false);
+  const [adding, setAdding] = useState(false);
 
-  function handleAdd() {
-    onAdd();
-    setJustAdded(true);
-    window.setTimeout(() => setJustAdded(false), 1600);
+  async function handleAdd() {
+    if (adding) return;
+    setAdding(true);
+    const ok = await onAdd();
+    setAdding(false);
+    if (ok) {
+      setJustAdded(true);
+      window.setTimeout(() => setJustAdded(false), 1600);
+    }
   }
 
   return (
@@ -396,8 +412,9 @@ function ProductCard({
         <button
           type="button"
           onClick={handleAdd}
-          aria-label="Add to bag"
-          className={`absolute inset-x-3 bottom-3 flex min-h-11 items-center justify-center gap-2 rounded-full bg-maroon shadow-[0_12px_28px_rgba(74,31,31,0.25)] transition-all duration-500 ${
+          disabled={!product.defaultVariantId || adding}
+          aria-label={product.defaultVariantId ? "Add to bag" : "Out of stock"}
+          className={`absolute inset-x-3 bottom-3 flex min-h-11 items-center justify-center gap-2 rounded-full bg-maroon shadow-[0_12px_28px_rgba(74,31,31,0.25)] transition-all duration-500 disabled:cursor-not-allowed disabled:opacity-60 ${
             justAdded
               ? "translate-y-0 opacity-100"
               : "opacity-100 md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100"
@@ -409,6 +426,8 @@ function ProductCard({
                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
                 Added to bag
               </>
+            ) : !product.defaultVariantId ? (
+              "Out of stock"
             ) : (
               <>
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />

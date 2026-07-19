@@ -76,6 +76,47 @@ async function attachCardImages(items: Product[]): Promise<CardProduct[]> {
   return items.map((p) => ({ ...p, image: byProduct.get(p.id) ?? null }));
 }
 
+/**
+ * One default variant id per product (first in-stock in garment-size order,
+ * falling back to the first variant if every size is out of stock). For
+ * listing surfaces that quick-add without a full PDP size/color picker (e.g.
+ * search results) — not meant for anywhere a customer should choose a size.
+ */
+export async function getDefaultVariantsForProducts(
+  productIds: string[],
+): Promise<Map<string, string>> {
+  if (productIds.length === 0) return new Map();
+
+  const rows = await db
+    .select({
+      productId: productVariants.productId,
+      id: productVariants.id,
+      size: productVariants.size,
+      stock: productVariants.stock,
+    })
+    .from(productVariants)
+    .where(
+      and(
+        inArray(productVariants.productId, productIds),
+        eq(productVariants.isActive, true),
+      ),
+    );
+
+  const byProduct = new Map<string, typeof rows>();
+  for (const row of rows) {
+    if (!byProduct.has(row.productId)) byProduct.set(row.productId, []);
+    byProduct.get(row.productId)!.push(row);
+  }
+
+  const result = new Map<string, string>();
+  for (const [productId, variants] of byProduct) {
+    const sorted = sortBySize(variants);
+    const pick = sorted.find((v) => v.stock > 0) ?? sorted[0];
+    if (pick) result.set(productId, pick.id);
+  }
+  return result;
+}
+
 // ── Categories ───────────────────────────────────────────────────────────────
 
 export async function getCategories(): Promise<Category[]> {

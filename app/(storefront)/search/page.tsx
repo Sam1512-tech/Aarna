@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { SearchView } from "@/components/storefront/search-view";
-import { getCategories, getProducts } from "@/lib/actions/products";
+import {
+  getCategories,
+  getDefaultVariantsForProducts,
+  getProducts,
+} from "@/lib/actions/products";
 
 export const metadata: Metadata = {
   title: "Search",
@@ -16,6 +20,9 @@ export default async function SearchPage({
     getCategories(),
     getProducts({ pageSize: 60 }),
   ]);
+  const defaultVariants = await getDefaultVariantsForProducts(
+    productList.items.map((p) => p.id),
+  );
 
   return (
     <SearchView
@@ -26,6 +33,7 @@ export default async function SearchPage({
         slug: p.slug,
         basePrice: p.basePrice,
         fabric: p.fabric,
+        defaultVariantId: defaultVariants.get(p.id) ?? null,
       }))}
       initialQuery={q ?? ""}
     />
