@@ -131,7 +131,7 @@ export default async function AdminReturnsPage({
       <div
         role="tablist"
         aria-label="Type filter"
-        className="mt-6 flex gap-1 border-b border-cocoa/12"
+        className="mt-6 flex gap-1 overflow-x-auto border-b border-cocoa/12"
       >
         <TypeTab
           label="all"
@@ -171,7 +171,7 @@ export default async function AdminReturnsPage({
           <select
             name="status"
             defaultValue={status ?? ""}
-            className="mt-1.5 block rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
+            className="mt-1.5 block rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa sm:text-sm"
           >
             <option value="">all statuses</option>
             {STATUSES.map((s) => (
@@ -360,7 +360,7 @@ function TypeTab({
       role="tab"
       aria-selected={active}
       scroll={false}
-      className={`relative -mb-px flex items-center gap-2 px-4 py-3 text-[11px] font-medium uppercase tracking-[0.18em] transition duration-300 ${
+      className={`relative -mb-px flex shrink-0 items-center gap-2 px-4 py-3 text-[11px] font-medium uppercase tracking-[0.18em] transition duration-300 ${
         active
           ? "text-maroon"
           : "text-charcoal/50 hover:text-charcoal/80"

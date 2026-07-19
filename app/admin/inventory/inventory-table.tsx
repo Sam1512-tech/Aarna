@@ -164,7 +164,7 @@ function AdjustModal({
       aria-modal="true"
       aria-labelledby="adjust-title"
     >
-      <div className="w-full max-w-md rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_28px_70px_rgba(43,38,35,0.24)]">
+      <div className="w-full max-h-[85vh] max-w-md overflow-y-auto rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_28px_70px_rgba(43,38,35,0.24)]">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
@@ -202,7 +202,7 @@ function AdjustModal({
               onChange={(e) => setDeltaStr(e.target.value.replace(/[^\d-]/g, ""))}
               placeholder="e.g. 12 or -3"
               autoFocus
-              className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
+              className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa sm:text-sm"
             />
             {deltaValid ? (
               <p
@@ -228,7 +228,7 @@ function AdjustModal({
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value as Reason)}
-              className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
+              className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa sm:text-sm"
             >
               {REASONS.map((r) => (
                 <option key={r} value={r}>
@@ -246,7 +246,7 @@ function AdjustModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. new stock delivered — batch 4"
-              className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
+              className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa sm:text-sm"
             />
           </label>
 
