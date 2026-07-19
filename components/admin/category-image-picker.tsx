@@ -151,7 +151,7 @@ export function CategoryImagePicker({
               type="button"
               onClick={pick}
               disabled={pending}
-              className="inline-flex items-center gap-1 text-cocoa transition hover:text-maroon disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-2 text-cocoa transition hover:text-maroon disabled:opacity-50"
             >
               <RefreshCw className="h-3 w-3" aria-hidden="true" />
               replace
@@ -160,7 +160,7 @@ export function CategoryImagePicker({
               type="button"
               onClick={clear}
               disabled={pending}
-              className="inline-flex items-center gap-1 text-burnt-red transition hover:text-burnt-red/80 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-2 text-burnt-red transition hover:text-burnt-red/80 disabled:opacity-50"
             >
               <Trash2 className="h-3 w-3" aria-hidden="true" />
               remove
