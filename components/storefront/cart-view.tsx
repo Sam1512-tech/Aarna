@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Heart, Minus, Plus, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -9,13 +10,13 @@ import {
   removeFromCart,
   updateCartItem,
 } from "@/lib/actions/cart";
+import { addToWishlist } from "@/lib/actions/account";
 import {
   clearStoredCoupon,
   getStoredCoupon,
   setStoredCoupon,
 } from "@/lib/cart/coupon-storage";
 import { useCartCount } from "@/store/cart-count";
-import { useWishlist } from "@/store/wishlist";
 import type { CartLine, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ interface CartViewProps {
 }
 
 export function CartView({ initialCart }: CartViewProps) {
+  const router = useRouter();
   const [cart, setCart] = useState<CartState>(initialCart);
   const [removing, setRemoving] = useState<Set<string>>(new Set());
   const [discount, setDiscount] = useState(0);
@@ -155,27 +157,33 @@ export function CartView({ initialCart }: CartViewProps) {
     });
   }
 
+  // Wishlist is server-backed (lib/actions/account) so it follows the
+  // logged-in customer everywhere (PDP, account page). Only remove the line
+  // from the cart once the wishlist write actually succeeds — if the
+  // customer isn't signed in, addToWishlist throws and we send them to log
+  // in instead of silently dropping the item from their bag.
   function moveToWishlist(line: CartLine) {
-    useWishlist.getState().add({
-      variantId: line.variantId,
-      productId: line.productId,
-      productTitle: line.productTitle,
-      variantLabel: line.variantLabel,
-      imageUrl: line.imageUrl,
-      unitPrice: line.unitPrice,
-    });
-    const optimistic = recalc(
-      cart.lines.filter((l) => l.variantId !== line.variantId),
-    );
-    animateOut(line.variantId, () => {
-      setCart(optimistic);
-      setDiscount(0);
-      setCouponCode("");
-      setAppliedCode(null);
-      setCouponMsg(null);
-      clearStoredCoupon();
-      persistRemoval(line.variantId, optimistic);
-      flashToast("Moved to wishlist");
+    startTransition(async () => {
+      try {
+        await addToWishlist(line.variantId);
+      } catch {
+        flashToast("sign in to save to wishlist");
+        router.push(`/login/otp?next=${encodeURIComponent("/cart")}`);
+        return;
+      }
+      const optimistic = recalc(
+        cart.lines.filter((l) => l.variantId !== line.variantId),
+      );
+      animateOut(line.variantId, () => {
+        setCart(optimistic);
+        setDiscount(0);
+        setCouponCode("");
+        setAppliedCode(null);
+        setCouponMsg(null);
+        clearStoredCoupon();
+        persistRemoval(line.variantId, optimistic);
+        flashToast("Moved to wishlist");
+      });
     });
   }
 
