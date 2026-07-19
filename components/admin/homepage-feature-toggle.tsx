@@ -52,7 +52,7 @@ export function HomepageFeatureToggle({
         title={
           featured ? "Featured on homepage — click to unfeature" : "Feature on homepage"
         }
-        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] transition duration-500 disabled:opacity-50 ${
+        className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 py-2 text-[10px] font-medium uppercase tracking-[0.14em] transition duration-500 disabled:opacity-50 ${
           featured
             ? "border-cocoa bg-cocoa/12 text-cocoa"
             : "border-cocoa/20 bg-cream text-charcoal/50 hover:border-cocoa/40"

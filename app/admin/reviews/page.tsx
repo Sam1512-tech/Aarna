@@ -64,7 +64,7 @@ export default async function AdminReviewsPage({
           <select
             name="status"
             defaultValue={status ?? ""}
-            className="mt-1.5 block rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
+            className="mt-1.5 block rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa sm:text-sm"
           >
             <option value="">all</option>
             {STATUSES.map((s) => (

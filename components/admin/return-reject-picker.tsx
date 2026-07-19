@@ -58,7 +58,7 @@ export function ReturnRejectPicker({
       />
       <form
         onSubmit={handleSubmit}
-        className="relative z-10 w-full max-w-md rounded-t-3xl bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-3xl"
+        className="relative z-10 flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-3xl"
       >
         <div className="flex items-start gap-3 border-b border-cocoa/10 px-6 py-5 md:px-8">
           <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-burnt-red/30 bg-burnt-red/8 text-burnt-red">
@@ -78,7 +78,7 @@ export function ReturnRejectPicker({
           </div>
         </div>
 
-        <div className="space-y-4 px-6 py-5 md:px-8">
+        <div className="space-y-4 overflow-y-auto px-6 py-5 md:px-8">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
               reason
@@ -121,7 +121,7 @@ export function ReturnRejectPicker({
                 onChange={(e) => setNote(e.target.value)}
                 rows={3}
                 maxLength={400}
-                className="mt-2 block w-full resize-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 text-sm leading-6 text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
+                className="mt-2 block w-full resize-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 text-base leading-6 text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
                 placeholder="explain why so the customer can respond or re-submit."
               />
             </div>

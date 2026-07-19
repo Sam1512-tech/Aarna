@@ -76,7 +76,7 @@ export default async function AdminCouponsPage({
             name="search"
             defaultValue={search ?? ""}
             placeholder="code…"
-            className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
+            className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa sm:text-sm"
           />
         </label>
         <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-charcoal/70">

@@ -12,7 +12,7 @@ export default async function CollectionsPage() {
   const collections = await getCollections();
 
   return (
-    <section className="bg-cream px-6 py-16 md:py-24">
+    <section className="bg-cream px-6 pb-16 pt-[128px] md:pb-24 md:pt-36">
       <div className="mx-auto max-w-7xl">
         <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
           Curated for you

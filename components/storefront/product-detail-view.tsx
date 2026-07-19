@@ -1032,7 +1032,7 @@ function GalleryDots({
     <div
       role="tablist"
       aria-label="Product images"
-      className="mt-4 flex items-center justify-center gap-2 md:hidden"
+      className="mt-4 flex items-center justify-center md:hidden"
     >
       {Array.from({ length: total }).map((_, i) => {
         const active = i === index;
@@ -1044,12 +1044,17 @@ function GalleryDots({
             aria-selected={active}
             aria-label={`Go to image ${i + 1}`}
             onClick={() => onSelect(i)}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              active
-                ? "w-6 bg-maroon"
-                : "w-1.5 bg-cocoa/25 hover:bg-cocoa/45"
-            }`}
-          />
+            className="group flex h-8 w-8 items-center justify-center"
+          >
+            <span
+              aria-hidden="true"
+              className={`block h-1.5 rounded-full transition-all duration-300 ${
+                active
+                  ? "w-6 bg-maroon"
+                  : "w-1.5 bg-cocoa/25 group-hover:bg-cocoa/45"
+              }`}
+            />
+          </button>
         );
       })}
     </div>

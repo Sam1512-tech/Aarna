@@ -78,7 +78,7 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-cocoa/22 bg-cream text-cocoa transition duration-500 hover:border-cocoa hover:bg-cocoa/6"
+          className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-cocoa/22 bg-cream text-cocoa transition duration-500 hover:border-cocoa hover:bg-cocoa/6"
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </button>

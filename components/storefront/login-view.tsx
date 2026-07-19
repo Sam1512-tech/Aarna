@@ -156,7 +156,7 @@ export function LoginView({ nextPath }: LoginViewProps) {
                         showPassword ? "Hide password" : "Show password"
                       }
                       aria-pressed={showPassword}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-cocoa/60 transition duration-500 hover:bg-cocoa/10 hover:text-cocoa"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cocoa/60 transition duration-500 hover:bg-cocoa/10 hover:text-cocoa"
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" aria-hidden="true" />

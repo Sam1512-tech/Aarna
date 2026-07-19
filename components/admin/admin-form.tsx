@@ -83,8 +83,10 @@ export function Field({
   );
 }
 
+// text-base (not text-sm) below sm: — iOS Safari auto-zooms the whole page
+// when a focused input/select/textarea computes to under 16px font-size.
 const inputClass =
-  "block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa disabled:opacity-60";
+  "block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa disabled:opacity-60 sm:text-sm";
 
 export function TextInput(
   props: React.InputHTMLAttributes<HTMLInputElement>,

@@ -46,7 +46,7 @@ export function DeleteButton({
         disabled={pending}
         aria-label={label}
         title={label}
-        className="rounded-full border border-burnt-red/25 bg-cream p-1.5 text-burnt-red transition duration-500 hover:bg-burnt-red/10 disabled:opacity-50"
+        className="flex h-10 w-10 items-center justify-center rounded-full border border-burnt-red/25 bg-cream text-burnt-red transition duration-500 hover:bg-burnt-red/10 disabled:opacity-50"
       >
         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
