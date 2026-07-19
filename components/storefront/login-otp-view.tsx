@@ -166,7 +166,7 @@ export function LoginOtpView({ nextPath, initialEmail }: LoginOtpViewProps) {
         <h1 className="mt-7 font-display text-[40px] uppercase leading-[1.06] tracking-[0.02em] text-maroon md:text-5xl">
           {step === "email" ? "SIGN IN" : "CHECK YOUR EMAIL"}
         </h1>
-        <p className="mt-3 max-w-xs text-center text-sm leading-6 text-charcoal/60">
+        <p className="mt-3 max-w-xs break-words text-center text-sm leading-6 text-charcoal/60">
           {step === "email"
             ? "Enter your email — we'll send a one-time code to verify it."
             : `we sent a 6-digit code to ${email}.`}

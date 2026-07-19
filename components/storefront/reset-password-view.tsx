@@ -166,7 +166,7 @@ function PasswordField({
           onClick={onToggleShow}
           aria-label={show ? "Hide password" : "Show password"}
           aria-pressed={show}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-cocoa/60 transition duration-500 hover:bg-cocoa/10 hover:text-cocoa"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cocoa/60 transition duration-500 hover:bg-cocoa/10 hover:text-cocoa"
         >
           {show ? (
             <EyeOff className="h-4 w-4" aria-hidden="true" />
