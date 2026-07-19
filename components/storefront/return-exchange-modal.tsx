@@ -214,7 +214,10 @@ export function ReturnExchangeModal({
 
       <form
         onSubmit={handleSubmit}
-        className="relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-3xl"
+        // dvh (not vh) — mobile Safari/Chrome's collapsing URL bar means
+        // plain vh can size this taller than what's actually visible when
+        // the toolbar is showing, same fix already applied in size-guide-modal.tsx.
+        className="relative z-10 flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:max-h-[92vh] md:rounded-3xl"
       >
         {/* Header */}
         <div className="flex items-start justify-between border-b border-cocoa/10 px-6 py-5 md:px-8">
@@ -233,7 +236,7 @@ export function ReturnExchangeModal({
             type="button"
             onClick={close}
             aria-label="Close"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-cocoa hover:bg-cocoa/10"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cocoa hover:bg-cocoa/10"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -275,8 +278,13 @@ export function ReturnExchangeModal({
           ) : null}
         </div>
 
-        {/* Footer */}
-        <div className="flex gap-3 border-t border-cocoa/10 px-6 py-5 md:px-8">
+        {/* Footer — extra bottom clearance for the iPhone home-indicator
+            safe area (the app opts into viewport-fit=cover), same fix
+            already applied to the cart's wishlist toast. */}
+        <div
+          className="flex gap-3 border-t border-cocoa/10 px-6 pt-5 md:px-8"
+          style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
+        >
           {step === 1 ? (
             <>
               <button
@@ -396,7 +404,7 @@ function StepIntent({
             <select
               value={orderItemId}
               onChange={(e) => setOrderItemId(e.target.value)}
-              className="block w-full appearance-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 pr-10 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
+              className="block w-full appearance-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 pr-10 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
             >
               {eligibleItems.length === 0 ? (
                 <option value="">no eligible items</option>
@@ -614,7 +622,7 @@ function StepReason({
           rows={4}
           maxLength={MAX_DETAIL_LEN}
           placeholder={detailPromptCopy}
-          className="mt-2 block w-full resize-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 text-sm leading-6 text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
+          className="mt-2 block w-full resize-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 text-base leading-6 text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
         />
         <p
           className={`mt-1.5 text-[11px] ${

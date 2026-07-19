@@ -126,7 +126,7 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
                     onClick={() => remove(row.variantId)}
                     disabled={busy}
                     aria-label={`Remove ${row.productTitle}`}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-cocoa/55 transition duration-500 hover:bg-burnt-red/10 hover:text-burnt-red disabled:opacity-40"
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-cocoa/55 transition duration-500 hover:bg-burnt-red/10 hover:text-burnt-red disabled:opacity-40"
                   >
                     <X className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>

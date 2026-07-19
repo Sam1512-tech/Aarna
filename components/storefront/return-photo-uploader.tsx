@@ -113,7 +113,7 @@ export function ReturnPhotoUploader({
               type="button"
               onClick={() => remove(i)}
               aria-label={`remove photo ${i + 1}`}
-              className="absolute right-1.5 top-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-charcoal/70 text-cream opacity-0 backdrop-blur-sm transition group-hover/tile:opacity-100 focus:opacity-100"
+              className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-charcoal/70 text-cream opacity-100 backdrop-blur-sm transition sm:opacity-0 sm:group-hover/tile:opacity-100 focus:opacity-100"
             >
               <X className="h-3 w-3" aria-hidden="true" />
             </button>

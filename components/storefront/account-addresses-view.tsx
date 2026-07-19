@@ -184,7 +184,9 @@ function AddressCard({
           Default
         </span>
       ) : null}
-      <p className="font-display text-xl text-maroon">
+      <p
+        className={`font-display text-xl text-maroon ${address.isDefault ? "pr-24" : ""}`}
+      >
         {address.fullName}
       </p>
       <p className="mt-2 text-sm leading-6 text-charcoal/75">
@@ -200,13 +202,13 @@ function AddressCard({
       </p>
       <p className="mt-1 text-sm text-charcoal/55">{address.phone}</p>
 
-      <div className="mt-4 flex flex-wrap gap-2 border-t border-cocoa/10 pt-4 text-[11px] font-medium uppercase tracking-[0.16em]">
+      <div className="mt-4 flex flex-wrap gap-3 border-t border-cocoa/10 pt-4 text-[11px] font-medium uppercase tracking-[0.16em]">
         {!address.isDefault ? (
           <button
             type="button"
             onClick={onMakeDefault}
             disabled={disabled}
-            className="soft-link text-cocoa disabled:opacity-50"
+            className="soft-link -my-1.5 py-1.5 text-cocoa disabled:opacity-50"
           >
             Make default
           </button>
@@ -215,7 +217,7 @@ function AddressCard({
           type="button"
           onClick={onEdit}
           disabled={disabled}
-          className="inline-flex items-center gap-1 text-charcoal/70 hover:text-cocoa disabled:opacity-50"
+          className="-my-1.5 inline-flex items-center gap-1 py-1.5 text-charcoal/70 hover:text-cocoa disabled:opacity-50"
         >
           <Pencil className="h-3 w-3" aria-hidden="true" />
           Edit
@@ -224,7 +226,7 @@ function AddressCard({
           type="button"
           onClick={onDelete}
           disabled={disabled}
-          className="ml-auto inline-flex items-center gap-1 text-charcoal/60 hover:text-burnt-red disabled:opacity-50"
+          className="-my-1.5 ml-auto inline-flex items-center gap-1 py-1.5 text-charcoal/60 hover:text-burnt-red disabled:opacity-50"
         >
           <Trash2 className="h-3 w-3" aria-hidden="true" />
           Delete
@@ -283,89 +285,94 @@ function AddressEditor({
       />
       <form
         onSubmit={handleSubmit}
-        className="relative z-10 w-full max-w-lg rounded-t-3xl bg-cream p-6 shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-3xl md:p-8"
+        // Bounded + internally scrollable with Cancel/Save pinned outside the
+        // scroll area, so the on-screen keyboard opening on any of these 7
+        // fields can never push the Save button out of reach.
+        className="relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-3xl"
       >
-        <div className="flex items-start justify-between">
-          <h2 className="font-display text-3xl text-maroon">
-            {initial ? "edit address" : "add address"}
-          </h2>
-          <button
-            type="button"
-            onClick={onCancel}
-            aria-label="Close"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-cocoa hover:bg-cocoa/10"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
+        <div className="overflow-y-auto p-6 md:p-8">
+          <div className="flex items-start justify-between">
+            <h2 className="font-display text-3xl text-maroon">
+              {initial ? "edit address" : "add address"}
+            </h2>
+            <button
+              type="button"
+              onClick={onCancel}
+              aria-label="Close"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cocoa hover:bg-cocoa/10"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
 
-        <div className="mt-5 space-y-3">
-          <TextField
-            label="Full name"
-            value={form.fullName}
-            onChange={(v) => setForm((f) => ({ ...f, fullName: v }))}
-          />
-          <TextField
-            label="Phone (10 digits)"
-            value={form.phone}
-            onChange={(v) =>
-              setForm((f) => ({
-                ...f,
-                phone: v.replace(/\D/g, "").slice(0, 10),
-              }))
-            }
-            inputMode="numeric"
-            maxLength={10}
-          />
-          <TextField
-            label="Address line 1"
-            value={form.line1}
-            onChange={(v) => setForm((f) => ({ ...f, line1: v }))}
-          />
-          <TextField
-            label="Address line 2 (optional)"
-            value={form.line2 ?? ""}
-            onChange={(v) => setForm((f) => ({ ...f, line2: v }))}
-          />
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="mt-5 space-y-3">
             <TextField
-              label="City"
-              value={form.city}
-              onChange={(v) => setForm((f) => ({ ...f, city: v }))}
+              label="Full name"
+              value={form.fullName}
+              onChange={(v) => setForm((f) => ({ ...f, fullName: v }))}
             />
             <TextField
-              label="State"
-              value={form.state}
-              onChange={(v) => setForm((f) => ({ ...f, state: v }))}
+              label="Phone (10 digits)"
+              value={form.phone}
+              onChange={(v) =>
+                setForm((f) => ({
+                  ...f,
+                  phone: v.replace(/\D/g, "").slice(0, 10),
+                }))
+              }
+              inputMode="numeric"
+              maxLength={10}
+            />
+            <TextField
+              label="Address line 1"
+              value={form.line1}
+              onChange={(v) => setForm((f) => ({ ...f, line1: v }))}
+            />
+            <TextField
+              label="Address line 2 (optional)"
+              value={form.line2 ?? ""}
+              onChange={(v) => setForm((f) => ({ ...f, line2: v }))}
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextField
+                label="City"
+                value={form.city}
+                onChange={(v) => setForm((f) => ({ ...f, city: v }))}
+              />
+              <TextField
+                label="State"
+                value={form.state}
+                onChange={(v) => setForm((f) => ({ ...f, state: v }))}
+              />
+            </div>
+            <TextField
+              label="Pin code (6 digits)"
+              value={form.pincode}
+              onChange={(v) =>
+                setForm((f) => ({
+                  ...f,
+                  pincode: v.replace(/\D/g, "").slice(0, 6),
+                }))
+              }
+              inputMode="numeric"
+              maxLength={6}
             />
           </div>
-          <TextField
-            label="Pin code (6 digits)"
-            value={form.pincode}
-            onChange={(v) =>
-              setForm((f) => ({
-                ...f,
-                pincode: v.replace(/\D/g, "").slice(0, 6),
-              }))
-            }
-            inputMode="numeric"
-            maxLength={6}
-          />
+
+          <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm text-charcoal/70">
+            <input
+              type="checkbox"
+              checked={form.isDefault}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, isDefault: e.target.checked }))
+              }
+              className="h-4 w-4 accent-cocoa"
+            />
+            Make this my default address
+          </label>
         </div>
 
-        <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm text-charcoal/70">
-          <input
-            type="checkbox"
-            checked={form.isDefault}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, isDefault: e.target.checked }))
-            }
-            className="h-4 w-4 accent-cocoa"
-          />
-          Make this my default address
-        </label>
-
-        <div className="mt-6 flex gap-3">
+        <div className="mt-auto flex gap-3 border-t border-cocoa/10 p-6 pt-4 md:px-8 md:pb-8">
           <button
             type="button"
             onClick={onCancel}
