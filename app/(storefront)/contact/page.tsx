@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "Reach the Aarna team — email us or call for questions about orders, sizing, or anything else.",
 };
 
-const EMAIL = "aarnabyarpithabhishek@gmail.com";
+const EMAIL = "hello@shopaarna.in";
 const PHONE_DISPLAY = "+91 79-75639485";
 const PHONE_TEL = "+917975639485";
 
