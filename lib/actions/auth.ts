@@ -124,9 +124,13 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
   const normalized = normalizeEmail(email);
   if (!normalized) return { ok: false, message: "Email is required" };
 
+  // Route through /auth/callback (not directly to /reset-password) — Supabase's
+  // recovery link carries a PKCE ?code=... that must be exchanged for a session
+  // before /reset-password's updatePassword() call has anything to act on.
+  // /auth/callback already forwards type=recovery here after the exchange.
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
   });
 
   // Always return ok regardless — don't leak whether the email is registered
@@ -148,7 +152,18 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.updateUser({ password: newPassword });
 
-  if (error) return { ok: false, message: error.message };
+  if (error) {
+    // No active session (link expired, already used, or too much time passed
+    // since the recovery redirect) — Supabase's raw "Auth session missing!"
+    // means nothing to a customer; point them back to request a fresh link.
+    if (/session/i.test(error.message)) {
+      return {
+        ok: false,
+        message: "This reset link has expired. Please request a new one.",
+      };
+    }
+    return { ok: false, message: error.message };
+  }
   return { ok: true, message: "Password updated" };
 }
 

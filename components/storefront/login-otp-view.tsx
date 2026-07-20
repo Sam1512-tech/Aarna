@@ -39,6 +39,7 @@ export function LoginOtpView({ nextPath, initialEmail }: LoginOtpViewProps) {
   const [needsName, setNeedsName] = useState(Boolean(initialEmail));
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [resending, setResending] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(initialEmail ? 30 : 0);
 
   const emailIsValid = EMAIL_REGEX.test(email);
@@ -106,6 +107,7 @@ export function LoginOtpView({ nextPath, initialEmail }: LoginOtpViewProps) {
 
   async function handleResend() {
     if (resendCountdown > 0 || pending) return;
+    setResending(true);
     setPending(true);
     setError(null);
     try {
@@ -117,6 +119,7 @@ export function LoginOtpView({ nextPath, initialEmail }: LoginOtpViewProps) {
       setResendCountdown(30);
     } finally {
       setPending(false);
+      setResending(false);
     }
   }
 
@@ -320,7 +323,9 @@ export function LoginOtpView({ nextPath, initialEmail }: LoginOtpViewProps) {
               >
                 {resendCountdown > 0
                   ? `resend in ${resendCountdown}s`
-                  : "Resend code"}
+                  : resending
+                    ? "Sending…"
+                    : "Resend code"}
               </button>
             </div>
           </form>

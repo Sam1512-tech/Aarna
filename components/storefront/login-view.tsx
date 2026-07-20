@@ -21,17 +21,28 @@ const MIN_PASSWORD = 8;
 interface LoginViewProps {
   /** Where to land after successful sign-in. */
   nextPath: string;
+  /** Error code forwarded via ?error= from /auth/callback (expired/invalid
+   *  recovery or OAuth link, or a missing code) — shown as a friendly notice. */
+  initialError?: string;
 }
 
 type Mode = "password" | "otp";
 
-export function LoginView({ nextPath }: LoginViewProps) {
+const AUTH_CALLBACK_ERRORS: Record<string, string> = {
+  missing_code: "That link looks incomplete. Please try again.",
+  verification_failed:
+    "That link has expired or was already used — please request a new one.",
+};
+
+export function LoginView({ nextPath, initialError }: LoginViewProps) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    initialError ? (AUTH_CALLBACK_ERRORS[initialError] ?? null) : null,
+  );
   const [pending, startTransition] = useTransition();
 
   const emailIsValid = EMAIL_REGEX.test(email);
@@ -101,7 +112,11 @@ export function LoginView({ nextPath }: LoginViewProps) {
         </p>
 
         <div className="mt-10 w-full space-y-6">
-          <GoogleSignInButton nextPath={nextPath} onError={setError} />
+          <GoogleSignInButton
+            nextPath={nextPath}
+            disabled={pending}
+            onError={setError}
+          />
 
           <Divider label="Or continue with email" />
 
