@@ -10,6 +10,7 @@ import {
   markOrderPaymentFailed,
   recordRefund,
 } from "@/lib/db/queries/orders";
+import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { sendEmail } from "@/lib/resend";
 import { notifyWhatsApp, firstNameFromAddress, rupees } from "@/lib/whatsapp/notify";
 
@@ -42,6 +43,22 @@ export async function POST(req: Request) {
 
       const invoiceNumber = await nextInvoiceNumber();
       await markOrderPaid(order.id, invoiceNumber, payment.id);
+
+      // Decrement stock now that payment is confirmed. Best-effort — a
+      // confirmed, paid order must never be blocked by an inventory-side
+      // failure; a decrement that doesn't land here shows up as a stock
+      // mismatch an admin can reconcile in /admin/inventory.
+      await applyStockMovement(
+        order.orderItems.map((item) => ({
+          variantId: item.variantId,
+          quantity: item.quantity,
+        })),
+        -1,
+        "sale",
+        order.orderNumber,
+      ).catch((err) => {
+        console.error("[razorpay webhook] stock decrement failed:", err);
+      });
 
       await clearPurchasedCartItems(order).catch((err) => {
         // Never let a cart-clear failure break payment processing

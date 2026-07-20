@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { generateInvoicePdf } from "@/lib/invoice/generate";
 import { buildInvoiceData } from "@/lib/db/queries/orders";
+import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { ActionError } from "@/lib/action-error";
 
 const { orders, orderItems, productImages, productVariants } = schema;
@@ -250,6 +251,7 @@ export async function updateOrderFulfillmentStatus(
   const existing = await db
     .select({
       fulfillmentStatus: orders.fulfillmentStatus,
+      paymentStatus: orders.paymentStatus,
       orderNumber: orders.orderNumber,
     })
     .from(orders)
@@ -273,6 +275,18 @@ export async function updateOrderFulfillmentStatus(
     })
     .where(eq(orders.id, orderId))
     .returning();
+
+  // Cancelling a paid order restores the stock the Razorpay webhook removed
+  // on capture — the goods never left the warehouse. An order cancelled
+  // before payment completed never had stock decremented, so there's
+  // nothing to give back.
+  if (newStatus === "cancelled" && existing[0].paymentStatus === "paid") {
+    const items = await db
+      .select({ variantId: orderItems.variantId, quantity: orderItems.quantity })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId));
+    await applyStockMovement(items, 1, "return", existing[0].orderNumber);
+  }
 
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${existing[0].orderNumber}`);
