@@ -269,7 +269,7 @@ export function CartView({ initialCart }: CartViewProps) {
           </div>
 
           {/* Summary */}
-          <aside className="lg:sticky lg:top-36 lg:self-start">
+          <aside className="lg:sticky lg:top-[116px] lg:self-start">
             <div className="rounded-[28px] border border-cocoa/12 bg-cream/80 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:p-8">
               <h2 className="font-display text-3xl leading-tight text-maroon">
                 Order summary
