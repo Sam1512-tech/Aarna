@@ -113,7 +113,9 @@ export default async function AdminReviewsPage({
                     </td>
                     <td className={`${t.td} max-w-md truncate`}>
                       {r.body ? (
-                        <p className="truncate text-charcoal/85">{r.body}</p>
+                        <p className="truncate text-charcoal/85" title={r.body}>
+                          {r.body}
+                        </p>
                       ) : (
                         <span className="text-charcoal/40">—</span>
                       )}
