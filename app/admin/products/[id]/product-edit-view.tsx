@@ -180,7 +180,7 @@ function BasicsForm({
             onChange={(e) => setSlug(slugify(e.target.value))}
           />
         </Field>
-        <Field label="style code" hint="auto-generated · used to build tag SKUs">
+        <Field label="style code" wide hint="auto-generated · used to build tag SKUs">
           <TextInput value={product.styleCode ?? "—"} disabled readOnly className="font-mono" />
         </Field>
         <Field label="category" wide>
@@ -344,6 +344,7 @@ function VariantsSection({
               type="button"
               onClick={() => (active ? removeSize(s) : addSize(s))}
               disabled={removing === s}
+              aria-pressed={active}
               className={`rounded-full border px-4 py-2 text-sm uppercase tracking-wide transition duration-300 disabled:opacity-50 ${
                 active
                   ? "border-maroon bg-maroon text-cream"
@@ -361,6 +362,7 @@ function VariantsSection({
           value={customSize}
           onChange={(e) => setCustomSize(e.target.value)}
           placeholder="custom size (e.g. Free Size, 34)"
+          aria-label="custom size"
           className={`${variantInputClass} max-w-xs`}
         />
         <button
@@ -414,8 +416,10 @@ function previewSku(styleCode: string | null, color: string, size: string): stri
   return `${styleCode ?? "…"}-${colorCode}-${sizeCode}`;
 }
 
+// text-base (not text-sm) below sm: — iOS Safari auto-zooms the whole page
+// when a focused input/select/textarea computes to under 16px font-size.
 const variantInputClass =
-  "w-full rounded-lg border border-cocoa/20 bg-cream px-3 py-2 text-sm text-charcoal outline-none transition duration-300 focus:border-cocoa disabled:opacity-60";
+  "w-full rounded-lg border border-cocoa/20 bg-cream px-3 py-2 text-base text-charcoal outline-none transition duration-300 focus:border-cocoa disabled:opacity-60 sm:text-sm";
 
 function SizeGroup({
   productId,
@@ -453,6 +457,7 @@ function SizeGroup({
           <button
             type="button"
             onClick={() => setAdding((s) => !s)}
+            aria-expanded={adding}
             className="inline-flex items-center gap-1.5 rounded-full bg-cocoa px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-cream transition duration-500 hover:bg-cocoa/90"
           >
             <Plus className="h-3 w-3" aria-hidden="true" />
@@ -520,7 +525,16 @@ function AddTagRow({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const effectiveSku = skuEdited ? sku : previewSku(styleCode, color, size);
+  // Legacy products (created before the style-code feature) have
+  // styleCode: null until their first new tag is added — the server lazily
+  // backfills it on submit. Showing "…-MRN-M" there would look like a real
+  // partial SKU when it isn't; show nothing (with an explanatory
+  // placeholder) instead until a style code actually exists.
+  const effectiveSku = skuEdited
+    ? sku
+    : styleCode
+      ? previewSku(styleCode, color, size)
+      : "";
   const priceValid = priceRupees.length > 0 && !Number.isNaN(rupeesToPaise(priceRupees));
   const canSubmit = priceValid && !pending;
 
@@ -560,14 +574,56 @@ function AddTagRow({
       noValidate
     >
       <div className="grid gap-3 sm:grid-cols-[1.4fr_1.4fr_1fr_1fr]">
-        <input placeholder="tag (e.g. color, optional)" value={color} onChange={(e) => setColor(e.target.value)} className={variantInputClass} />
-        <input placeholder="sku (auto)" value={effectiveSku}
-          onChange={(e) => { setSku(e.target.value); setSkuEdited(true); }}
-          className={`${variantInputClass} font-mono`} />
-        <input inputMode="decimal" placeholder="price (₹) *" value={priceRupees}
-          onChange={(e) => setPriceRupees(e.target.value)} className={variantInputClass} />
-        <input inputMode="numeric" placeholder="stock" value={stock}
-          onChange={(e) => setStock(e.target.value.replace(/\D/g, ""))} className={variantInputClass} />
+        <label className="block">
+          <span className="block text-[10px] font-medium uppercase tracking-[0.14em] text-charcoal/45">
+            tag / color
+          </span>
+          <input
+            placeholder="e.g. maroon (optional)"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            aria-label="tag / color"
+            className={`mt-1 ${variantInputClass}`}
+          />
+        </label>
+        <label className="block">
+          <span className="block text-[10px] font-medium uppercase tracking-[0.14em] text-charcoal/45">
+            sku
+          </span>
+          <input
+            placeholder={styleCode ? "auto" : "assigned on save"}
+            value={effectiveSku}
+            onChange={(e) => { setSku(e.target.value); setSkuEdited(true); }}
+            aria-label="sku"
+            className={`mt-1 ${variantInputClass} font-mono`}
+          />
+        </label>
+        <label className="block">
+          <span className="block text-[10px] font-medium uppercase tracking-[0.14em] text-charcoal/45">
+            price (₹) <span className="text-burnt-red">*</span>
+          </span>
+          <input
+            inputMode="decimal"
+            placeholder="0.00"
+            value={priceRupees}
+            onChange={(e) => setPriceRupees(e.target.value)}
+            aria-label="price"
+            className={`mt-1 ${variantInputClass}`}
+          />
+        </label>
+        <label className="block">
+          <span className="block text-[10px] font-medium uppercase tracking-[0.14em] text-charcoal/45">
+            stock
+          </span>
+          <input
+            inputMode="numeric"
+            placeholder="0"
+            value={stock}
+            onChange={(e) => setStock(e.target.value.replace(/\D/g, ""))}
+            aria-label="stock"
+            className={`mt-1 ${variantInputClass}`}
+          />
+        </label>
       </div>
       <p className="mt-1.5 text-[11px] text-charcoal/45">
         SKU auto-fills from the style code, tag, and size — edit it to override.
@@ -666,15 +722,15 @@ function TagRow({
     <li className="py-3">
       <div className="grid items-center gap-3 sm:grid-cols-[1.4fr_1.4fr_1fr_1fr_auto]">
         <input value={v.color} onChange={(e) => setV({ ...v, color: e.target.value })}
-          placeholder="tag (e.g. color)" className={variantInputClass} />
+          placeholder="tag (e.g. color)" aria-label="tag / color" className={variantInputClass} />
         <input value={v.sku} onChange={(e) => setV({ ...v, sku: e.target.value })}
-          placeholder="sku" className={`${variantInputClass} font-mono`} />
+          placeholder="sku" aria-label="sku" className={`${variantInputClass} font-mono`} />
         <input inputMode="decimal" value={priceRupees}
           onChange={(e) => setPriceRupees(e.target.value)}
-          placeholder="price" className={variantInputClass} />
+          placeholder="price" aria-label="price" className={variantInputClass} />
         <input inputMode="numeric" value={stockStr}
           onChange={(e) => setStockStr(e.target.value.replace(/\D/g, ""))}
-          placeholder="stock" className={variantInputClass} />
+          placeholder="stock" aria-label="stock" className={variantInputClass} />
         <div className="flex items-center justify-end gap-2">
           <button type="button" onClick={handleSave} disabled={!dirty || pending}
             className="rounded-full bg-cocoa px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-cream transition duration-500 hover:bg-cocoa/90 disabled:opacity-40">
@@ -789,7 +845,7 @@ function ImagesSection({
               </div>
               <button type="button" onClick={() => handleRemove(img.id)} disabled={pending}
                 aria-label="remove image"
-                className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-cream/90 text-burnt-red opacity-0 shadow transition duration-300 group-hover:opacity-100 hover:bg-cream">
+                className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-cream/90 text-burnt-red opacity-0 shadow transition duration-300 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-cream">
                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
@@ -906,21 +962,23 @@ function PrintTagsCard({
           <ul className="mt-3 divide-y divide-cocoa/10">
             {sorted.map((v) => (
               <li key={v.id} className="flex items-center gap-3 py-2.5">
-                <input
-                  type="checkbox"
-                  checked={Boolean(selected[v.id])}
-                  onChange={() => toggle(v.id)}
-                  className="h-4 w-4 accent-cocoa"
-                  aria-label={`select tag ${v.sku}`}
-                />
-                <div className="min-w-0 flex-1 text-sm">
-                  <span className="text-charcoal">
-                    {[v.size, v.color].filter(Boolean).join(" / ") || "—"}
-                  </span>
-                  <span className="ml-2 font-mono text-xs text-charcoal/50">
-                    {v.sku}
-                  </span>
-                </div>
+                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(selected[v.id])}
+                    onChange={() => toggle(v.id)}
+                    className="h-4 w-4 shrink-0 accent-cocoa"
+                    aria-label={`select tag ${v.sku}`}
+                  />
+                  <div className="min-w-0 flex-1 text-sm">
+                    <span className="text-charcoal">
+                      {[v.size, v.color].filter(Boolean).join(" / ") || "—"}
+                    </span>
+                    <span className="ml-2 font-mono text-xs text-charcoal/50">
+                      {v.sku}
+                    </span>
+                  </div>
+                </label>
                 <label className="flex items-center gap-1.5 text-xs text-charcoal/60">
                   copies
                   <input
