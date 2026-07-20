@@ -156,6 +156,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
   const [submitting, setSubmitting] = useState(false);
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [discount, setDiscount] = useState(0);
+  const [couponNotice, setCouponNotice] = useState<string | null>(null);
 
   // Restore a coupon applied on /cart — re-validate rather than trust the
   // stored discount, since stock/cart contents may have changed since.
@@ -170,6 +171,9 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
         setDiscount(res.discount);
       } else {
         clearStoredCoupon();
+        setCouponNotice(
+          `Your coupon ${saved} is no longer valid and was removed.`,
+        );
       }
     });
     return () => {
@@ -673,6 +677,12 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                   </li>
                 ))}
               </ul>
+
+              {couponNotice ? (
+                <p className="mt-4 rounded-xl border border-cocoa/20 bg-cocoa/6 px-4 py-2.5 text-xs leading-5 text-cocoa">
+                  {couponNotice}
+                </p>
+              ) : null}
 
               <dl className="mt-6 space-y-3 border-t border-maroon/10 pt-6 text-sm text-charcoal/70">
                 <Row label="Subtotal" value={formatINR(cart.subtotal)} />
