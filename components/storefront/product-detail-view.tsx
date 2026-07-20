@@ -613,7 +613,7 @@ function Gallery({
   }
 
   return (
-    <div className="md:grid md:grid-cols-[80px_1fr] md:gap-4 md:self-start">
+    <div className="min-w-0 md:grid md:grid-cols-[80px_1fr] md:gap-4 md:self-start">
       {/* Thumbnail strip — vertical on desktop, hidden on mobile (uses snap rail instead) */}
       {hasMultiple ? (
         <div className="hidden h-fit flex-col gap-3 md:flex">
