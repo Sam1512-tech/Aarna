@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Minus, Plus, Printer, ScanLine, X } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-primitives";
 import { getVariantBySku } from "@/lib/actions/admin/inventory";
+import { actionErrorMessage } from "@/lib/action-error";
 
 interface QueueItem {
   variantId: string;
@@ -31,47 +32,66 @@ export function ReprintScanPanel() {
   const [looking, setLooking] = useState(false);
   const [printing, setPrinting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // A real barcode scanner can emit a full SKU + Enter well under the ~120-
+  // 280ms a lookup takes, so scans are queued and processed one at a time
+  // instead of disabling the input mid-lookup (which would silently drop
+  // whatever the operator scanned next).
+  const pendingRef = useRef<string[]>([]);
+  const processingRef = useRef(false);
 
-  async function handleScan(e: React.FormEvent) {
+  async function processPending() {
+    if (processingRef.current) return;
+    processingRef.current = true;
+    setLooking(true);
+    while (pendingRef.current.length > 0) {
+      const value = pendingRef.current.shift()!;
+      try {
+        const match = await getVariantBySku(value);
+        if (!match) {
+          setError(`no variant found for SKU "${value}"`);
+        } else {
+          setError(null);
+          setQueue((q) => {
+            const existing = q.find((item) => item.variantId === match.variantId);
+            if (existing) {
+              return q.map((item) =>
+                item.variantId === match.variantId
+                  ? { ...item, quantity: item.quantity + 1 }
+                  : item,
+              );
+            }
+            return [
+              ...q,
+              {
+                variantId: match.variantId,
+                productTitle: match.productTitle,
+                size: match.size,
+                color: match.color,
+                sku: match.sku,
+                quantity: 1,
+              },
+            ];
+          });
+        }
+      } catch (err) {
+        setError(actionErrorMessage(err, "couldn't look up that SKU"));
+      }
+    }
+    processingRef.current = false;
+    setLooking(false);
+    inputRef.current?.focus();
+  }
+
+  function handleScan(e: React.FormEvent) {
     e.preventDefault();
     const value = sku.trim();
-    if (!value || looking) return;
-    setError(null);
-    setLooking(true);
-    try {
-      const match = await getVariantBySku(value);
-      if (!match) {
-        setError(`no variant found for SKU "${value}"`);
-      } else {
-        setQueue((q) => {
-          const existing = q.find((item) => item.variantId === match.variantId);
-          if (existing) {
-            return q.map((item) =>
-              item.variantId === match.variantId
-                ? { ...item, quantity: item.quantity + 1 }
-                : item,
-            );
-          }
-          return [
-            ...q,
-            {
-              variantId: match.variantId,
-              productTitle: match.productTitle,
-              size: match.size,
-              color: match.color,
-              sku: match.sku,
-              quantity: 1,
-            },
-          ];
-        });
-      }
-    } catch {
-      setError("couldn't look up that SKU");
-    } finally {
-      setLooking(false);
-      setSku("");
-      inputRef.current?.focus();
-    }
+    if (!value) return;
+    // Clear immediately (not in a .finally()) so the input is ready to
+    // receive the next scan right away, even while this one is still
+    // looking up.
+    setSku("");
+    pendingRef.current.push(value);
+    void processPending();
   }
 
   function bump(variantId: string, delta: number) {
@@ -141,12 +161,11 @@ export function ReprintScanPanel() {
           value={sku}
           onChange={(e) => setSku(e.target.value)}
           placeholder="scan or type sku…"
-          disabled={looking}
-          className="flex-1 rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa disabled:opacity-60"
+          className="flex-1 rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa disabled:opacity-60 sm:text-sm"
         />
         <button
           type="submit"
-          disabled={!sku.trim() || looking}
+          disabled={!sku.trim()}
           className="rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-cream transition duration-500 hover:bg-cocoa/90 disabled:opacity-50"
         >
           {looking ? "…" : "add"}
