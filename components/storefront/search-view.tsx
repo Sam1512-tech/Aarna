@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -18,6 +19,7 @@ import { useMemo, useState } from "react";
 import { useRecentSearches } from "@/store/recent-searches";
 import { useCartCount } from "@/store/cart-count";
 import { addToCart } from "@/lib/actions/cart";
+import { addToWishlist, removeFromWishlist } from "@/lib/actions/account";
 import { formatINR } from "@/lib/utils";
 
 interface SearchProduct {
@@ -25,6 +27,8 @@ interface SearchProduct {
   title: string;
   slug: string;
   basePrice: number;
+  mrp: number | null;
+  image: { url: string; altText: string | null } | null;
   fabric: string | null;
   defaultVariantId: string | null;
 }
@@ -61,6 +65,12 @@ export function SearchView({
   const removeRecent = useRecentSearches((s) => s.remove);
   const clearRecent = useRecentSearches((s) => s.clear);
   const [wished, setWished] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<string | null>(null);
+
+  function flashToast(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast((t) => (t === message ? null : t)), 2200);
+  }
 
   const trimmed = query.trim();
   const isSearching = trimmed.length > 0;
@@ -91,16 +101,35 @@ export function SearchView({
     router.replace(`/search?q=${encodeURIComponent(t)}`, { scroll: false });
   }
 
-  function toggleWish(product: SearchProduct) {
+  // Wishlist is server-backed (lib/actions/account) so it follows the signed-in
+  // customer everywhere (PDP, account page) — same pattern as product-detail-view
+  // and cart-view's moveToWishlist. Optimistic toggle, rolled back on failure.
+  async function toggleWish(product: SearchProduct) {
+    if (!product.defaultVariantId) return;
+    const wasWished = wished.has(product.id);
     setWished((prev) => {
       const next = new Set(prev);
-      if (next.has(product.id)) {
-        next.delete(product.id);
-      } else {
-        next.add(product.id);
-      }
+      if (wasWished) next.delete(product.id);
+      else next.add(product.id);
       return next;
     });
+    try {
+      if (wasWished) {
+        await removeFromWishlist(product.defaultVariantId);
+      } else {
+        await addToWishlist(product.defaultVariantId);
+        flashToast("Saved to wishlist");
+      }
+    } catch {
+      setWished((prev) => {
+        const next = new Set(prev);
+        if (wasWished) next.add(product.id);
+        else next.delete(product.id);
+        return next;
+      });
+      flashToast("sign in to save to wishlist");
+      router.push(`/login/otp?next=${encodeURIComponent("/search")}`);
+    }
   }
 
   async function quickAdd(product: SearchProduct): Promise<boolean> {
@@ -331,6 +360,21 @@ export function SearchView({
         )}
       </div>
 
+      {/* Wishlist confirmation */}
+      <div
+        aria-live="polite"
+        className={`pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4 transition-all duration-500 ${
+          toast ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+        }`}
+        style={{ bottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+      >
+        {toast ? (
+          <div className="flex items-center gap-2 rounded-full border border-maroon/10 bg-cream/95 px-5 py-3 text-xs tracking-wide text-maroon shadow-[0_18px_50px_rgba(43,38,35,0.16)] backdrop-blur-xl">
+            <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+            {toast}
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -374,6 +418,12 @@ function ProductCard({
   const [justAdded, setJustAdded] = useState(false);
   const [adding, setAdding] = useState(false);
 
+  const onSale =
+    typeof product.mrp === "number" && product.mrp > product.basePrice;
+  const discountPct = onSale
+    ? Math.round(((product.mrp! - product.basePrice) / product.mrp!) * 100)
+    : 0;
+
   async function handleAdd() {
     if (adding) return;
     setAdding(true);
@@ -393,8 +443,23 @@ function ProductCard({
           aria-label={product.title}
           className="block h-full w-full"
         >
-          <div className="cloth-window h-full w-full transition duration-1000 group-hover:scale-[1.03]" />
+          {product.image?.url ? (
+            <Image
+              src={product.image.url}
+              alt={product.image.altText ?? product.title}
+              fill
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+              className="object-cover transition-transform duration-1000 group-hover:scale-[1.03]"
+            />
+          ) : (
+            <div className="cloth-window h-full w-full transition duration-1000 group-hover:scale-[1.03]" />
+          )}
         </Link>
+        {onSale ? (
+          <span className="absolute left-3 top-3 rounded-full border border-cream/60 bg-cream/95 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-burnt-red shadow-[0_8px_20px_rgba(43,38,35,0.06)] backdrop-blur-md">
+            {discountPct}% off
+          </span>
+        ) : null}
         <button
           type="button"
           onClick={onWish}
@@ -441,8 +506,13 @@ function ProductCard({
         <h3 className="font-sans text-sm font-normal leading-snug text-charcoal">
           <Highlight text={product.title} query={query} />
         </h3>
-        <p className="mt-1 text-sm text-charcoal/65">
-          {formatINR(product.basePrice)}
+        <p className="mt-1 flex items-baseline gap-1.5 text-sm text-charcoal/65">
+          <span>{formatINR(product.basePrice)}</span>
+          {onSale ? (
+            <span className="text-xs text-charcoal/45 line-through">
+              {formatINR(product.mrp!)}
+            </span>
+          ) : null}
         </p>
       </Link>
     </div>
