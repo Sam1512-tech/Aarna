@@ -193,6 +193,7 @@ function CarouselInner({
         {banners.map((banner, i) => (
           <Slide
             key={banner.id}
+            id={`${indicatorId}-${i}`}
             banner={banner}
             isActive={i === active}
             isAdjacent={Math.abs(i - active) === 1 || i === 0}
@@ -233,7 +234,7 @@ function CarouselInner({
               type="button"
               onClick={goPrev}
               aria-label="Previous slide"
-              className="absolute left-3 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-cream/40 bg-cream/20 text-cream opacity-0 backdrop-blur-md transition duration-500 hover:bg-cream/35 group-hover:opacity-100 md:left-6 md:flex md:hover:opacity-100"
+              className="absolute left-3 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-cream/40 bg-cream/20 text-cream backdrop-blur-md transition duration-500 hover:bg-cream/35 md:left-6 md:flex"
               style={{ opacity: 0.85 }}
             >
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
@@ -287,12 +288,14 @@ function CarouselInner({
 }
 
 function Slide({
+  id,
   banner,
   isActive,
   isAdjacent,
   registerVideo,
   onVideoEnded,
 }: {
+  id: string;
   banner: CarouselBanner;
   isActive: boolean;
   isAdjacent: boolean;
@@ -304,6 +307,7 @@ function Slide({
 
   return (
     <div
+      id={id}
       aria-hidden={!isActive}
       className={`absolute inset-0 transition-opacity duration-1000 ease-[cubic-bezier(0.19,1,0.22,1)] ${
         isActive ? "opacity-100" : "opacity-0"
