@@ -205,13 +205,16 @@ export async function adjustStock(input: AdjustStockInput) {
     throw new ActionError("Delta must be a non-zero integer");
   }
 
-  // Atomic update + audit log inside one transaction
+  // Atomic update + audit log inside one transaction. Row-locked (FOR UPDATE)
+  // so two concurrent adjustments on the same variant can't both read the
+  // same stale stock and have the second silently overwrite the first.
   return db.transaction(async (tx) => {
     const variant = await tx
       .select({ id: productVariants.id, stock: productVariants.stock, sku: productVariants.sku })
       .from(productVariants)
       .where(eq(productVariants.id, input.variantId))
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!variant[0]) throw new ActionError("Variant not found");
 
@@ -261,7 +264,8 @@ export async function bulkAdjustStock(
         .select({ stock: productVariants.stock })
         .from(productVariants)
         .where(eq(productVariants.id, item.variantId))
-        .limit(1);
+        .limit(1)
+        .for("update");
       if (!variant[0]) throw new ActionError(`Variant ${item.variantId} not found`);
 
       const newStock = variant[0].stock + item.delta;

@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { requestReversePickup } from "@/lib/delhivery";
 import { createRefund } from "@/lib/razorpay";
+import { applyStockMovement } from "@/lib/db/queries/inventory";
 import {
   notifyWhatsApp,
   firstNameFromAddress,
@@ -258,6 +259,8 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
       type: returns.type,
       refundAmount: returns.refundAmount,
       lineTotal: orderItems.lineTotal,
+      variantId: orderItems.variantId,
+      quantity: orderItems.quantity,
       orderId: orders.id,
       orderNumber: orders.orderNumber,
       phone: orders.phone,
@@ -313,6 +316,21 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
 
   revalidatePath("/admin/returns");
   revalidatePath("/account/returns");
+
+  if (input.outcome === "pass") {
+    // The piece is physically back and passed inspection — restock the
+    // *returned* variant. For an exchange, the replacement piece shipping
+    // back out isn't decremented here — outbound swap shipment tracking
+    // isn't built yet (see CLAUDE.md), so that side stays manual for now.
+    await applyStockMovement(
+      [{ variantId: row.variantId, quantity: row.quantity }],
+      1,
+      "return",
+      row.orderNumber,
+    ).catch((err) => {
+      console.error("[returns] restock on QC pass failed:", err);
+    });
+  }
 
   if (input.outcome === "fail") {
     // Covers both a partial refund and a full deduction — previously a full
