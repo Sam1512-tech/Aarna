@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 export default async function PaymentFailedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ order?: string; reason?: string }>;
+  searchParams: Promise<{ order?: string }>;
 }) {
-  const { order, reason } = await searchParams;
+  const { order } = await searchParams;
 
   // Try to load the order to show its actual payment status. Guest checkouts
   // (the action throws for unauthorized) fall through to the basic failure
@@ -34,10 +34,6 @@ export default async function PaymentFailedPage({
   }
 
   return (
-    <PaymentFailedView
-      orderNumber={order ?? null}
-      reason={reason ?? null}
-      paymentStatus={paymentStatus}
-    />
+    <PaymentFailedView orderNumber={order ?? null} paymentStatus={paymentStatus} />
   );
 }
