@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { AlertTriangle } from "lucide-react";
 import {
   REJECT_REASONS,
@@ -29,6 +29,15 @@ export function ReturnRejectPicker({
   const needsNote = reason === "other";
   const canSubmit =
     !!reason && (!needsNote || note.trim().length >= 10) && !pending;
+
+  // Escape dismisses, matching size-guide-modal.tsx's existing convention.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

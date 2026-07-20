@@ -54,7 +54,7 @@ export function ReviewStatusSelect({
         disabled={pending}
         onChange={(e) => handleChange(e.target.value as ReviewStatus)}
         aria-label="review status"
-        className={`rounded-full border px-3 py-1 text-base font-medium uppercase tracking-[0.16em] outline-none transition duration-300 disabled:opacity-50 sm:text-[10px] ${TONE_CLASS[current]}`}
+        className={`rounded-full border px-3 py-1 text-base font-medium uppercase tracking-[0.16em] outline-none transition duration-300 focus-visible:ring-2 focus-visible:ring-cocoa/40 disabled:opacity-50 sm:text-[10px] ${TONE_CLASS[current]}`}
       >
         {STATUSES.map((s) => (
           <option key={s} value={s}>
