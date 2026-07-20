@@ -90,6 +90,7 @@ function ReviewModal({
       className="fixed inset-0 z-[70] flex items-end justify-center bg-charcoal/40 backdrop-blur-sm md:items-center"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="rate-product-title"
     >
       <button
         type="button"
@@ -107,7 +108,7 @@ function ReviewModal({
       >
         <div className="overflow-y-auto p-6 md:p-8">
           <div className="flex items-start justify-between">
-            <h2 className="font-display text-3xl text-maroon">
+            <h2 id="rate-product-title" className="font-display text-3xl text-maroon">
               {existingReview ? "Edit your review" : "Rate this piece"}
             </h2>
             <button

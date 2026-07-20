@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { X } from "lucide-react";
 import { StatusPill, tableClasses } from "@/components/admin/admin-primitives";
-import { adjustStock } from "@/lib/actions/admin/inventory";
+import { adjustStock, getInventoryMovements } from "@/lib/actions/admin/inventory";
 import { actionErrorMessage } from "@/lib/action-error";
 
 const LOW_STOCK_THRESHOLD = 5;
@@ -27,6 +27,7 @@ interface InventoryTableProps {
 export function InventoryTable({ items: initial }: InventoryTableProps) {
   const [rows, setRows] = useState(initial);
   const [openRow, setOpenRow] = useState<Row | null>(null);
+  const [historyRow, setHistoryRow] = useState<Row | null>(null);
   const t = tableClasses();
 
   // Keep local state in sync when the parent re-renders after filter/search.
@@ -55,7 +56,7 @@ export function InventoryTable({ items: initial }: InventoryTableProps) {
               <th className={t.th}>variant</th>
               <th className={t.th}>sku</th>
               <th className={t.th}>stock</th>
-              <th className={t.th}></th>
+              <th className={t.th}>status</th>
               <th className={t.th}></th>
             </tr>
           </thead>
@@ -91,13 +92,22 @@ export function InventoryTable({ items: initial }: InventoryTableProps) {
                     )}
                   </td>
                   <td className={`${t.td} text-right`}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenRow(row)}
-                      className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
-                    >
-                      adjust
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setHistoryRow(row)}
+                        className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
+                      >
+                        history
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOpenRow(row)}
+                        className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
+                      >
+                        adjust
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -113,7 +123,131 @@ export function InventoryTable({ items: initial }: InventoryTableProps) {
           onAdjusted={handleAdjusted}
         />
       ) : null}
+
+      {historyRow ? (
+        <HistoryModal row={historyRow} onClose={() => setHistoryRow(null)} />
+      ) : null}
     </>
+  );
+}
+
+// Escape-to-close, shared by both modals in this file — matches the pattern
+// already used elsewhere (size-guide-modal.tsx, product-detail-view.tsx).
+function useEscapeToClose(onClose: () => void) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+}
+
+function HistoryModal({ row, onClose }: { row: Row; onClose: () => void }) {
+  useEscapeToClose(onClose);
+  const [movements, setMovements] = useState<Awaited<
+    ReturnType<typeof getInventoryMovements>
+  > | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getInventoryMovements({ variantId: row.variantId, pageSize: 50 })
+      .then((rows) => {
+        if (!cancelled) setMovements(rows);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(actionErrorMessage(err, "couldn't load history"));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [row.variantId]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/40 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="history-title"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="close"
+        className="absolute inset-0 cursor-default"
+      />
+      <div className="relative z-10 w-full max-h-[85vh] max-w-lg overflow-y-auto rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_28px_70px_rgba(43,38,35,0.24)]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
+              stock history
+            </p>
+            <h3 id="history-title" className="mt-1 truncate font-display text-xl uppercase text-maroon">
+              {row.productTitle}
+            </h3>
+            <p className="text-xs text-charcoal/55">
+              {[row.size, row.color].filter(Boolean).join(" / ") || "—"} · sku{" "}
+              {row.sku}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="close"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-cocoa transition duration-500 hover:bg-cocoa/10"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="mt-5">
+          {error ? (
+            <p className="text-xs text-burnt-red">{error}</p>
+          ) : movements === null ? (
+            <p className="text-sm text-charcoal/55">loading…</p>
+          ) : movements.length === 0 ? (
+            <p className="text-sm text-charcoal/55">
+              no stock movements recorded for this variant yet.
+            </p>
+          ) : (
+            <ul className="divide-y divide-cocoa/8">
+              {movements.map((m) => (
+                <li key={m.id} className="flex items-start justify-between gap-4 py-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="text-charcoal">
+                      {m.reason}
+                      {m.referenceId ? ` · ${m.referenceId}` : ""}
+                    </p>
+                    {m.note ? (
+                      <p className="mt-0.5 text-xs text-charcoal/55">{m.note}</p>
+                    ) : null}
+                    <p className="mt-0.5 text-xs text-charcoal/45">
+                      {new Date(m.createdAt).toLocaleString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                        timeZone: "Asia/Kolkata",
+                      })}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 font-medium tabular-nums ${
+                      m.delta < 0 ? "text-burnt-red" : "text-cocoa"
+                    }`}
+                  >
+                    {m.delta > 0 ? `+${m.delta}` : m.delta}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -131,6 +265,7 @@ function AdjustModal({
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  useEscapeToClose(onClose);
 
   const delta = Number.parseInt(deltaStr, 10);
   const deltaValid = Number.isInteger(delta) && delta !== 0;
@@ -164,7 +299,13 @@ function AdjustModal({
       aria-modal="true"
       aria-labelledby="adjust-title"
     >
-      <div className="w-full max-h-[85vh] max-w-md overflow-y-auto rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_28px_70px_rgba(43,38,35,0.24)]">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="close"
+        className="absolute inset-0 cursor-default"
+      />
+      <div className="relative z-10 w-full max-h-[85vh] max-w-md overflow-y-auto rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_28px_70px_rgba(43,38,35,0.24)]">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
@@ -185,7 +326,7 @@ function AdjustModal({
             type="button"
             onClick={onClose}
             aria-label="close"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-cocoa transition duration-500 hover:bg-cocoa/10"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-cocoa transition duration-500 hover:bg-cocoa/10"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -197,7 +338,10 @@ function AdjustModal({
               change (+/−)
             </span>
             <input
-              inputMode="numeric"
+              // No inputMode="numeric" — that keypad has no minus key on iOS/
+              // Android, which would make it impossible to enter a negative
+              // delta (removing stock) from a phone. Default keyboard still
+              // includes digits.
               value={deltaStr}
               onChange={(e) => setDeltaStr(e.target.value.replace(/[^\d-]/g, ""))}
               placeholder="e.g. 12 or -3"

@@ -12,7 +12,7 @@ export default function FabricCarePage() {
     <LegalPage
       eyebrow="resources"
       title="Fabric Care Guide"
-      intro="Slow-made pieces last longer when they're loved gently. A few small rituals will keep the fabric, cut, and colour of your Aarna clothing feeling like new."
+      intro="Slow-made pieces last longer when they’re loved gently. A few small rituals will keep the fabric, cut, and colour of your Aarna clothing feeling like new."
     >
       <LegalList
         items={[

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCartCount } from "@/store/cart-count";
 
 interface CategoryLink {
@@ -31,6 +31,34 @@ export function SiteHeader({
   initialCartCount = 0,
 }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuCloseRef = useRef<HTMLButtonElement>(null);
+  // Guards the focus-restoration effect below from firing on initial mount
+  // (menuOpen starts false) — it should only return focus to the trigger
+  // after the drawer has actually been opened at least once.
+  const hasOpenedRef = useRef(false);
+
+  // Escape closes the mobile drawer, matching every other overlay in the app
+  // (size-guide-modal.tsx, product-detail-view.tsx's lightbox).
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
+  // Move focus into the drawer on open, and back to the trigger on close —
+  // otherwise a keyboard user's focus is left on a now-hidden/inert control.
+  useEffect(() => {
+    if (menuOpen) {
+      hasOpenedRef.current = true;
+      menuCloseRef.current?.focus();
+    } else if (hasOpenedRef.current) {
+      menuTriggerRef.current?.focus();
+    }
+  }, [menuOpen]);
 
   // Hydrate the client store with the server value on mount so subsequent
   // navigations + mutations pick up from where the server left off. If the
@@ -86,10 +114,13 @@ export function SiteHeader({
         >
           <div className="flex items-center justify-start md:hidden">
             <button
+              ref={menuTriggerRef}
               type="button"
               onClick={() => setMenuOpen(true)}
               className="inline-flex h-10 w-10 items-center justify-center text-maroon transition duration-700 hover:-translate-y-0.5 hover:text-cocoa active:translate-y-0"
               aria-label="Open menu"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-nav-drawer"
             >
               <Menu className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
@@ -190,12 +221,19 @@ export function SiteHeader({
       </header>
 
       <div
+        id="mobile-nav-drawer"
         className={`fixed inset-0 z-[100] bg-cream transition duration-1000 md:hidden ${
           menuOpen
             ? "pointer-events-auto opacity-100"
             : "pointer-events-none opacity-0"
         }`}
         aria-hidden={!menuOpen}
+        // inert (not just aria-hidden) so the drawer's links/close button
+        // are genuinely unfocusable while closed — aria-hidden alone still
+        // left them in the tab order, an ARIA violation (axe's
+        // aria-hidden-focus rule) since the panel stays mounted for its
+        // fade transition rather than unmounting.
+        inert={!menuOpen}
       >
         <div className="paper-grain flex h-full flex-col px-6 py-5">
           <div className="flex items-center justify-between">
@@ -207,6 +245,7 @@ export function SiteHeader({
               className="logo-blend h-14 w-14 object-contain"
             />
             <button
+              ref={menuCloseRef}
               type="button"
               onClick={() => setMenuOpen(false)}
               className="inline-flex h-11 w-11 items-center justify-center border border-maroon/20 text-maroon transition duration-700 hover:bg-cocoa hover:text-cream"

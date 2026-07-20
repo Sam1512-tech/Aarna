@@ -112,7 +112,7 @@ export function PlpView({
         </header>
 
         {/* Toolbar — count + filter + sort */}
-        <div className="sticky top-[120px] z-20 -mx-5 mt-6 flex items-center justify-between gap-3 border-b border-cocoa/10 bg-cream/85 px-5 py-3.5 backdrop-blur-xl md:top-[100px] md:-mx-6 md:px-6">
+        <div className="sticky top-[120px] z-20 -mx-5 mt-6 flex items-center justify-between gap-3 border-b border-cocoa/10 bg-cream/85 px-5 py-3.5 backdrop-blur-xl md:top-[116px] md:-mx-6 md:px-6">
           <p className="text-sm text-charcoal/65">
             {total} {total === 1 ? "piece" : "pieces"}
           </p>

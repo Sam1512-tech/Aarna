@@ -213,7 +213,7 @@ export function ProductDetailView({
           />
 
           {/* Info */}
-          <div className="md:sticky md:top-36 md:self-start">
+          <div className="md:sticky md:top-[116px] md:self-start">
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
               {product.category?.name ?? "Wardrobe"}
             </p>
@@ -613,7 +613,7 @@ function Gallery({
   }
 
   return (
-    <div className="md:grid md:grid-cols-[80px_1fr] md:gap-4">
+    <div className="md:grid md:grid-cols-[80px_1fr] md:gap-4 md:self-start">
       {/* Thumbnail strip — vertical on desktop, hidden on mobile (uses snap rail instead) */}
       {hasMultiple ? (
         <div className="hidden h-fit flex-col gap-3 md:flex">
@@ -750,7 +750,7 @@ function Gallery({
                 src={active.url}
                 alt={active.altText ?? altFallback}
                 fill
-                sizes="(min-width: 1024px) 50vw, 100vw"
+                sizes="(min-width: 1280px) 550px, (min-width: 1024px) 46vw, 100vw"
                 priority
                 className="object-cover"
               />
@@ -762,7 +762,7 @@ function Gallery({
                 alt=""
                 aria-hidden="true"
                 fill
-                sizes="(min-width: 1024px) 50vw, 100vw"
+                sizes="(min-width: 1280px) 550px, (min-width: 1024px) 46vw, 100vw"
                 className="object-cover transition-opacity duration-150"
                 style={{
                   opacity: hoverPos ? 1 : 0,

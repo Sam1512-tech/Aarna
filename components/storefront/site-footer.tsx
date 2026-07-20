@@ -27,33 +27,10 @@ export function SiteFooter({ categories }: SiteFooterProps) {
   return (
     <footer className="paper-grain border-t border-cocoa/12 bg-cream text-maroon">
       <div className="mx-auto max-w-7xl px-6 py-16 md:py-20">
-        <div className="grid gap-10 border-b border-maroon/14 pb-12 md:grid-cols-[1.1fr_0.9fr] md:items-end">
-          <div>
-            <h2 className="max-w-2xl font-display text-5xl leading-[1.08] md:text-7xl">
-              From our wardrobe to your everyday rituals.
-            </h2>
-            <p className="mt-6 max-w-2xl text-lg leading-9 text-charcoal/68">
-              Sign up for quiet collection notes, styling rituals, fabric care,
-              and community stories from Aarna.
-            </p>
-          </div>
-          <form className="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <label className="sr-only" htmlFor="footer-email">
-              Email address
-            </label>
-            <input
-              id="footer-email"
-              type="email"
-              placeholder="Email address"
-              className="min-h-12 border border-cocoa/18 bg-cream px-4 text-base text-charcoal outline-none transition duration-700 placeholder:text-charcoal/45 focus:border-cocoa"
-            />
-            <button
-              type="submit"
-              className="min-h-12 bg-cocoa px-6 text-xs font-medium tracking-[0.24em] text-white transition duration-1000 hover:bg-cocoa/85"
-            >
-              Sign up
-            </button>
-          </form>
+        <div className="border-b border-maroon/14 pb-12">
+          <h2 className="max-w-2xl font-display text-5xl leading-[1.08] md:text-7xl">
+            From our wardrobe to your everyday rituals.
+          </h2>
         </div>
 
         <div className="grid gap-10 py-12 md:grid-cols-[1.1fr_0.9fr_0.9fr_0.9fr]">

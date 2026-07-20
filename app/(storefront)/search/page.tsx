@@ -32,6 +32,8 @@ export default async function SearchPage({
         title: p.title,
         slug: p.slug,
         basePrice: p.basePrice,
+        mrp: p.mrp,
+        image: p.image,
         fabric: p.fabric,
         defaultVariantId: defaultVariants.get(p.id) ?? null,
       }))}

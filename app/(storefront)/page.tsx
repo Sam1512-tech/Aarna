@@ -112,43 +112,44 @@ export default async function HomePage() {
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             Wardrobe paths
           </p>
-          <div className="mt-8 grid grid-cols-2 gap-5">
-            {(categories.length > 0
-              ? categories
-              : [
-                  { name: "Wardrobe", slug: "shop", imageMobileUrl: null, imageUrl: null },
-                  { name: "Slow essentials", slug: "shop", imageMobileUrl: null, imageUrl: null },
-                ]
-            ).map((category) => {
-              const tileImage = category.imageMobileUrl ?? category.imageUrl;
-              return (
-                <Link
-                  key={category.slug}
-                  href={
-                    category.slug === "shop" ? "/shop" : `/shop/${category.slug}`
-                  }
-                  className="group block"
-                >
-                  {tileImage ? (
-                    <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]">
-                      <Image
-                        src={tileImage}
-                        alt={category.name}
-                        fill
-                        sizes="50vw"
-                        className="object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="cloth-window aspect-[3/4] rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]" />
-                  )}
-                  <p className="mt-3 font-display text-2xl leading-tight text-maroon">
-                    {category.name}
-                  </p>
-                </Link>
-              );
-            })}
-          </div>
+          {categories.length > 0 ? (
+            <div className="mt-8 grid grid-cols-2 gap-5">
+              {categories.map((category) => {
+                const tileImage = category.imageMobileUrl ?? category.imageUrl;
+                return (
+                  <Link
+                    key={category.slug}
+                    href={`/shop/${category.slug}`}
+                    className="group block"
+                  >
+                    {tileImage ? (
+                      <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]">
+                        <Image
+                          src={tileImage}
+                          alt={category.name}
+                          fill
+                          sizes="50vw"
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="cloth-window aspect-[3/4] rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]" />
+                    )}
+                    <p className="mt-3 font-display text-2xl leading-tight text-maroon">
+                      {category.name}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-8 border border-cocoa/12 bg-cocoa/10 px-5 py-8 text-charcoal/64">
+              <p className="text-sm leading-7">
+                Category tiles will appear here automatically after the
+                backend returns categories from the database.
+              </p>
+            </div>
+          )}
         </section>
 
         <section className="px-5 py-24">
@@ -304,7 +305,15 @@ export default async function HomePage() {
           </div>
 
           {categories.length > 0 ? (
-            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div
+              className={`mt-10 grid gap-5 ${
+                categories.length >= 4
+                  ? "sm:grid-cols-2 lg:grid-cols-4"
+                  : categories.length === 3
+                    ? "sm:grid-cols-3"
+                    : "sm:grid-cols-2"
+              }`}
+            >
               {categories.map((category) => (
                 <Link
                   key={category.slug}

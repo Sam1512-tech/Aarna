@@ -12,7 +12,7 @@ export default function PrivacyPolicyPage() {
     <LegalPage
       eyebrow="policies"
       title="Privacy Policy"
-      intro="Your trust matters to us. Here's a plain-language summary of how we handle the information you share with Aarna."
+      intro="Your trust matters to us. Here’s a plain-language summary of how we handle the information you share with Aarna."
     >
       <LegalList
         items={[

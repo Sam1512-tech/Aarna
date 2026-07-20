@@ -4,7 +4,7 @@ import { LegalList, LegalPage } from "@/components/storefront/legal-page";
 export const metadata: Metadata = {
   title: "Return & exchange policy",
   description:
-    "Aarna's return and exchange terms — how the return window works and what makes a piece eligible.",
+    "Aarna’s return and exchange terms — how the return window works and what makes a piece eligible.",
 };
 
 export default function ReturnPolicyPage() {
@@ -12,7 +12,7 @@ export default function ReturnPolicyPage() {
     <LegalPage
       eyebrow="policies"
       title="Return & Exchange Policy"
-      intro="We want you to love every Aarna piece. If something isn't right, here's how returns and exchanges work."
+      intro="We want you to love every Aarna piece. If something isn’t right, here’s how returns and exchanges work."
     >
       <LegalList
         items={[

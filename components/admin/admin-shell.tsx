@@ -156,7 +156,7 @@ export function AdminShell({ displayName, children }: AdminShellProps) {
         </nav>
       </aside>
 
-      <section className="px-5 py-8 md:px-8">{children}</section>
+      <section className="max-w-6xl px-5 py-8 md:px-8">{children}</section>
     </div>
   );
 }

@@ -85,6 +85,7 @@ export function SignupView({ nextPath }: SignupViewProps) {
           <GoogleSignInButton
             nextPath={nextPath}
             label="Sign up with google"
+            disabled={pending}
             onError={setError}
           />
 

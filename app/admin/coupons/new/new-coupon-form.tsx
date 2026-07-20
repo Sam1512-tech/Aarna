@@ -116,6 +116,7 @@ export function NewCouponForm() {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={type === "percent" ? "10" : "200"}
+            className="max-w-[140px]"
           />
         </Field>
         <Field
@@ -127,6 +128,7 @@ export function NewCouponForm() {
             value={minOrderRupees}
             onChange={(e) => setMinOrderRupees(e.target.value)}
             placeholder="1500"
+            className="max-w-[140px]"
           />
         </Field>
         <Field
@@ -153,6 +155,7 @@ export function NewCouponForm() {
               setUsageLimit(e.target.value.replace(/\D/g, ""))
             }
             placeholder="unlimited"
+            className="max-w-[140px]"
           />
         </Field>
         <Field
@@ -166,6 +169,7 @@ export function NewCouponForm() {
               setPerCustomerLimit(e.target.value.replace(/\D/g, ""))
             }
             placeholder="1"
+            className="max-w-[140px]"
           />
         </Field>
         <CheckboxRow

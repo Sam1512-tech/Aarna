@@ -269,7 +269,7 @@ export function CartView({ initialCart }: CartViewProps) {
           </div>
 
           {/* Summary */}
-          <aside className="lg:sticky lg:top-36 lg:self-start">
+          <aside className="lg:sticky lg:top-[116px] lg:self-start">
             <div className="rounded-[28px] border border-cocoa/12 bg-cream/80 p-6 shadow-[0_18px_55px_rgba(43,38,35,0.06)] backdrop-blur-sm md:p-8">
               <h2 className="font-display text-3xl leading-tight text-maroon">
                 Order summary
@@ -332,7 +332,12 @@ export function CartView({ initialCart }: CartViewProps) {
               <Link
                 href="/checkout"
                 aria-disabled={isPending}
-                className="group/cta mt-7 flex min-h-[58px] items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)]"
+                onClick={(e) => {
+                  if (isPending) e.preventDefault();
+                }}
+                className={`group/cta mt-7 flex min-h-[58px] items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)] ${
+                  isPending ? "pointer-events-none opacity-60" : ""
+                }`}
               >
                 <span className="flex items-center gap-3 text-xs font-medium tracking-[0.24em] text-cream">
                   Proceed to checkout

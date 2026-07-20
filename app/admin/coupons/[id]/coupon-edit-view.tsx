@@ -126,6 +126,7 @@ export function CouponEditView({ coupon }: { coupon: Coupon }) {
             inputMode="decimal"
             value={value}
             onChange={(e) => setValue(e.target.value)}
+            className="max-w-[140px]"
           />
         </Field>
         <Field
@@ -136,6 +137,7 @@ export function CouponEditView({ coupon }: { coupon: Coupon }) {
             inputMode="decimal"
             value={minOrderRupees}
             onChange={(e) => setMinOrderRupees(e.target.value)}
+            className="max-w-[140px]"
           />
         </Field>
         <Field
@@ -160,6 +162,7 @@ export function CouponEditView({ coupon }: { coupon: Coupon }) {
             value={usageLimit}
             onChange={(e) => setUsageLimit(e.target.value.replace(/\D/g, ""))}
             placeholder="unlimited"
+            className="max-w-[140px]"
           />
         </Field>
         <Field
@@ -172,6 +175,7 @@ export function CouponEditView({ coupon }: { coupon: Coupon }) {
             onChange={(e) =>
               setPerCustomerLimit(e.target.value.replace(/\D/g, ""))
             }
+            className="max-w-[140px]"
           />
         </Field>
         <CheckboxRow

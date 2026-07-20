@@ -14,7 +14,7 @@ export default function FaqPage() {
     <LegalPage
       eyebrow="help"
       title="Frequently Asked Questions"
-      intro="A few things people often ask before their first Aarna piece — sizing, care, shipping, returns. If your question isn't here, we'd love to hear from you."
+      intro="A few things people often ask before their first Aarna piece — sizing, care, shipping, returns. If your question isn’t here, we’d love to hear from you."
     >
       <FaqList>
         <FaqItem question="What kind of clothing does Aarna make?">
@@ -71,7 +71,7 @@ export default function FaqPage() {
           <p>
             All Indian cards, UPI, netbanking, and popular wallets — processed
             securely through Razorpay. We do{" "}
-            <span className="font-medium text-maroon">Not</span> offer cash on
+            <span className="font-medium text-maroon">not</span> offer cash on
             delivery at this time.
           </p>
         </FaqItem>
