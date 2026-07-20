@@ -68,12 +68,19 @@ export default async function AccountOrdersPage() {
   // for this render. react-hooks/purity targets client hooks.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
-  function isWithinWindow(placedAt: Date | string | null): boolean {
-    if (!placedAt) return false;
+  // Mirrors getReturnableItems()'s deliveredAt ?? placedAt convention — a slow
+  // delivery could otherwise sit outside a placedAt-measured window while
+  // requestReturn's own deliveredAt-based check would still allow it.
+  function isWithinWindow(
+    deliveredAt: Date | string | null,
+    placedAt: Date | string | null,
+  ): boolean {
+    const reference = deliveredAt ?? placedAt;
+    if (!reference) return false;
     const t =
-      typeof placedAt === "string"
-        ? new Date(placedAt).getTime()
-        : placedAt.getTime();
+      typeof reference === "string"
+        ? new Date(reference).getTime()
+        : reference.getTime();
     return (now - t) / MS_PER_DAY <= RETURN_WINDOW_DAYS;
   }
 
@@ -130,12 +137,12 @@ export default async function AccountOrdersPage() {
               </div>
 
               <ul className="divide-y divide-cocoa/8 px-5 py-1">
-                {order.items.slice(0, 3).map((it) => {
+                {order.items.map((it) => {
                   const reviewable = reviewableByItemId.get(it.id);
                   const key = `${order.orderNumber}|${it.productTitleSnapshot}|${it.variantLabelSnapshot ?? ""}`;
                   const returnable =
                     order.fulfillmentStatus === "delivered" &&
-                    isWithinWindow(order.placedAt) &&
+                    isWithinWindow(order.deliveredAt, order.placedAt) &&
                     !alreadyRequested.has(key);
                   return (
                     <li
@@ -186,11 +193,6 @@ export default async function AccountOrdersPage() {
                     </li>
                   );
                 })}
-                {order.items.length > 3 ? (
-                  <li className="py-2 text-xs text-charcoal/50">
-                    + {order.items.length - 3} more
-                  </li>
-                ) : null}
               </ul>
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-cocoa/10 px-5 py-4">
