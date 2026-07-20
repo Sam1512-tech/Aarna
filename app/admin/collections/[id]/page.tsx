@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { AdminPageHeader } from "@/components/admin/admin-primitives";
 import { getAdminCollectionDetail } from "@/lib/actions/admin/collections";
+import { getAdminProducts } from "@/lib/actions/admin/products";
 import { CollectionEditView } from "./collection-edit-view";
 
 export const metadata: Metadata = { title: "admin · edit collection" };
@@ -12,7 +13,10 @@ export default async function AdminEditCollectionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const collection = await getAdminCollectionDetail(id);
+  const [collection, productList] = await Promise.all([
+    getAdminCollectionDetail(id),
+    getAdminProducts({ pageSize: 100 }),
+  ]);
   if (!collection) notFound();
 
   return (
@@ -32,6 +36,13 @@ export default async function AdminEditCollectionPage({
           sortOrder: collection.sortOrder,
           isActive: collection.isActive,
         }}
+        members={collection.products}
+        allProducts={productList.items.map((p) => ({
+          id: p.id,
+          title: p.title,
+          basePrice: p.basePrice,
+          status: p.status,
+        }))}
       />
     </div>
   );
