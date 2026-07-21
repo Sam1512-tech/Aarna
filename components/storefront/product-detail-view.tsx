@@ -645,17 +645,20 @@ function Gallery({
       {/* Main image — single on desktop, swipe rail on mobile */}
       <div className="md:contents">
         {/* Mobile: horizontal scroll-snap rail showing all images.
-            touch-action: pan-y tells the browser a vertical swipe that
-            starts over this rail should scroll the PAGE, not get captured
-            by the rail's own horizontal scroll-snap — without it, a swipe
-            that isn't perfectly horizontal can hijack the gesture and the
-            gallery appears to "jump" while the customer is trying to
-            scroll past it. */}
+            touch-action was previously pinned to pan-y here, intending to
+            stop a not-quite-horizontal swipe from being hijacked by the
+            rail instead of scrolling the page — but pan-y actually means
+            "only vertical panning is handled natively on this element",
+            which disables the rail's own native horizontal touch-scroll
+            entirely (no swipe gesture at all, only mouse-drag). Left at the
+            default (auto, i.e. no touch-action override) so the browser's
+            normal per-axis gesture detection handles both directions, which
+            is what native horizontal scroll-snap needs to actually swipe. */}
         <div className="relative md:hidden">
           <div
             ref={railRef}
             onScroll={handleRailScroll}
-            className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [touch-action:pan-y] [&>*]:snap-always [&::-webkit-scrollbar]:hidden"
+            className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&>*]:snap-always [&::-webkit-scrollbar]:hidden"
           >
             {images.map((img) => (
               <div
