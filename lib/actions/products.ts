@@ -314,7 +314,7 @@ export async function getProductBySlug(
       : Promise.resolve(null),
   ]);
 
-  // Garment size order (XS, S, M, L, XL, XXL), not the alphabetical order a
+  // Garment size order (XS, S, M, L, XL), not the alphabetical order a
   // plain DB sort on the "size" column gives (which puts L before S).
   const variants = sortBySize(variantRows);
 

@@ -218,7 +218,7 @@ export async function getAdminProductDetail(
       : Promise.resolve(null),
   ]);
 
-  // Garment size order (XS, S, M, L, XL, XXL) — the admin's size groups are
+  // Garment size order (XS, S, M, L, XL) — the admin's size groups are
   // rendered in this array's order, so an alphabetical DB sort put "L"
   // before "S" here too.
   const variants = sortBySize(variantRows);
