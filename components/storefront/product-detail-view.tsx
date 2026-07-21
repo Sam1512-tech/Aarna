@@ -539,14 +539,7 @@ function Gallery({
   onSelect: (i: number) => void;
   altFallback: string;
 }) {
-  const railRef = useRef<HTMLDivElement>(null);
-  const rafRef = useRef<number | null>(null);
-  // While a goTo()-triggered smooth scroll is in flight, handleRailScroll's
-  // own scroll-position → index math would otherwise fire on the animation's
-  // intermediate frames and stomp the index goTo just set (e.g. clicking
-  // "next" could get silently undone by a mid-animation reading of 0).
-  const programmaticScrollRef = useRef(false);
-  const programmaticTimeoutRef = useRef<number | null>(null);
+  const thumbStripRef = useRef<HTMLDivElement>(null);
   const [zoomOpen, setZoomOpen] = useState(false);
   // Cursor position (as a % of the image box) driving the hover-magnify
   // effect on desktop; null means "not hovering" (magnified layer hidden).
@@ -577,46 +570,22 @@ function Gallery({
   function goTo(i: number) {
     const next = Math.max(0, Math.min(images.length - 1, i));
     onSelect(next);
-    // Keep the mobile rail's scroll position in sync when navigating via
-    // arrows/thumbnails rather than swiping.
-    const item = railRef.current?.children[next] as HTMLElement | undefined;
-    if (item) {
-      programmaticScrollRef.current = true;
-      if (programmaticTimeoutRef.current !== null) {
-        window.clearTimeout(programmaticTimeoutRef.current);
-      }
-      programmaticTimeoutRef.current = window.setTimeout(() => {
-        programmaticScrollRef.current = false;
-      }, 500);
-      item.scrollIntoView({
-        behavior: "smooth",
-        inline: "center",
-        block: "nearest",
-      });
-    }
-  }
-
-  // Mobile rail: derive the active index from scroll position so arrows,
-  // the counter, and swipe gestures all stay in sync with each other —
-  // swiping never leaves the counter/dots pointing at the wrong image.
-  function handleRailScroll() {
-    if (programmaticScrollRef.current) return;
-    if (rafRef.current !== null) return;
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      const rail = railRef.current;
-      if (!rail) return;
-      const step = rail.scrollWidth / images.length;
-      const i = Math.round(rail.scrollLeft / (step || 1));
-      onSelect(Math.max(0, Math.min(images.length - 1, i)));
-    });
+    // Keep the active thumbnail in view when navigating via arrows/lightbox
+    // rather than tapping a thumbnail directly.
+    const item = thumbStripRef.current?.children[next] as HTMLElement | undefined;
+    item?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }
 
   return (
-    <div className="min-w-0 md:grid md:grid-cols-[80px_1fr] md:gap-4 md:self-start">
-      {/* Thumbnail strip — vertical on desktop, hidden on mobile (uses snap rail instead) */}
+    <div className="flex min-w-0 flex-col gap-4 md:grid md:grid-cols-[80px_1fr] md:self-start">
+      {/* Thumbnails — tap any to jump straight to it. One set of buttons,
+          reordered (and resized) per breakpoint: a horizontal strip below
+          the hero on mobile, a vertical column beside it on desktop. */}
       {hasMultiple ? (
-        <div className="hidden h-fit flex-col gap-3 md:flex">
+        <div
+          ref={thumbStripRef}
+          className="order-2 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] md:order-1 md:h-fit md:flex-col md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden"
+        >
           {images.map((img, i) => (
             <button
               key={img.id}
@@ -624,7 +593,7 @@ function Gallery({
               onClick={() => goTo(i)}
               aria-label={`View image ${i + 1}`}
               aria-current={i === safeIdx}
-              className={`relative aspect-[3/4] overflow-hidden rounded-xl border transition duration-500 ${
+              className={`relative aspect-[3/4] h-20 w-16 shrink-0 overflow-hidden rounded-xl border transition duration-500 md:h-auto md:w-auto ${
                 i === safeIdx
                   ? "border-maroon"
                   : "border-cocoa/14 hover:border-cocoa/40"
@@ -642,172 +611,82 @@ function Gallery({
         </div>
       ) : null}
 
-      {/* Main image — single on desktop, swipe rail on mobile */}
-      <div className="md:contents">
-        {/* Mobile: horizontal scroll-snap rail showing all images.
-            touch-action was previously pinned to pan-y here, intending to
-            stop a not-quite-horizontal swipe from being hijacked by the
-            rail instead of scrolling the page — but pan-y actually means
-            "only vertical panning is handled natively on this element",
-            which disables the rail's own native horizontal touch-scroll
-            entirely (no swipe gesture at all, only mouse-drag). Left at the
-            default (auto, i.e. no touch-action override) so the browser's
-            normal per-axis gesture detection handles both directions, which
-            is what native horizontal scroll-snap needs to actually swipe. */}
-        <div className="relative md:hidden">
-          <div
-            ref={railRef}
-            onScroll={handleRailScroll}
-            className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&>*]:snap-always [&::-webkit-scrollbar]:hidden"
-          >
-            {images.map((img) => (
-              <div
-                key={img.id}
-                className="relative aspect-[3/4] w-[88vw] shrink-0 snap-center overflow-hidden rounded-[20px] bg-cream shadow-[0_18px_55px_rgba(43,38,35,0.06)]"
-              >
-                {isVideoUrl(img.url) ? (
-                  <video
-                    src={img.url}
-                    poster={videoPosterUrl(img.url)}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setZoomOpen(true)}
-                    aria-label="Open full-screen image"
-                    className="absolute inset-0"
-                  >
-                    <Image
-                      src={img.url}
-                      alt={img.altText ?? altFallback}
-                      fill
-                      sizes="88vw"
-                      priority
-                      className="object-cover"
-                    />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Overlay arrows — same pattern as desktop so users discover
-              navigation without hunting below the image. Positioned inside
-              the visible slide's edges (6vw peek on either side means the
-              current image sits at 6vw..94vw of the viewport). */}
-          {hasMultiple ? (
-            <GalleryArrow
-              direction="prev"
-              onClick={() => goTo(safeIdx - 1)}
-              disabled={safeIdx === 0}
-              variant="mobileOverlay"
-            />
-          ) : null}
-          {hasMultiple ? (
-            <GalleryArrow
-              direction="next"
-              onClick={() => goTo(safeIdx + 1)}
-              disabled={safeIdx === images.length - 1}
-              variant="mobileOverlay"
-            />
-          ) : null}
-
-          {hasMultiple ? (
-            <GalleryCounter index={safeIdx} total={images.length} />
-          ) : null}
-        </div>
-
-        {/* Desktop: single large active image (or inline video) */}
-        <div className="group relative hidden aspect-[3/4] overflow-hidden rounded-[22px] bg-cream shadow-[0_22px_60px_rgba(43,38,35,0.08)] md:block">
-          {isVideoUrl(active.url) ? (
-            <video
-              key={active.id}
-              src={active.url}
-              poster={videoPosterUrl(active.url)}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : (
-            <div
-              className="absolute inset-0 cursor-zoom-in"
-              onMouseEnter={handleMagnifyMove}
-              onMouseMove={handleMagnifyMove}
-              onMouseLeave={() => setHoverPos(null)}
-              onClick={() => setZoomOpen(true)}
-              role="button"
-              tabIndex={0}
-              aria-label="Zoom image"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") setZoomOpen(true);
-              }}
-            >
-              <Image
-                src={active.url}
-                alt={active.altText ?? altFallback}
-                fill
-                sizes="(min-width: 1280px) 550px, (min-width: 1024px) 46vw, 100vw"
-                priority
-                className="object-cover"
-              />
-              {/* Cursor-following magnified layer — same image, scaled and
-                  offset by hover position, so hovering the product photo
-                  reveals fabric/stitching detail without a click. */}
-              <Image
-                src={active.url}
-                alt=""
-                aria-hidden="true"
-                fill
-                sizes="(min-width: 1280px) 550px, (min-width: 1024px) 46vw, 100vw"
-                className="object-cover transition-opacity duration-150"
-                style={{
-                  opacity: hoverPos ? 1 : 0,
-                  transform: "scale(2.2)",
-                  transformOrigin: hoverPos
-                    ? `${hoverPos.x}% ${hoverPos.y}%`
-                    : "center",
-                }}
-              />
-              <span className="pointer-events-none absolute bottom-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-charcoal/60 text-cream opacity-0 transition duration-300 group-hover:opacity-100">
-                <ZoomIn className="h-4 w-4" aria-hidden="true" />
-              </span>
-            </div>
-          )}
-          {hasMultiple ? (
-            <GalleryArrow
-              direction="prev"
-              onClick={() => goTo(safeIdx - 1)}
-              disabled={safeIdx === 0}
-            />
-          ) : null}
-          {hasMultiple ? (
-            <GalleryArrow
-              direction="next"
-              onClick={() => goTo(safeIdx + 1)}
-              disabled={safeIdx === images.length - 1}
-            />
-          ) : null}
-          {hasMultiple ? (
-            <GalleryCounter index={safeIdx} total={images.length} />
-          ) : null}
-        </div>
-
-        {/* Page indicator dots — clearer than a small "3 / 5" pill and
-            gives an at-a-glance sense of how many images total. Tap-to-jump
-            works too. Mobile-only; desktop uses the thumbnail rail. */}
-        {hasMultiple ? (
-          <GalleryDots
-            index={safeIdx}
-            total={images.length}
-            onSelect={goTo}
+      {/* Hero — single active image (or inline video), shared by mobile and
+          desktop. Tap/click to open the full-screen zoom; desktop also gets
+          a cursor-magnify layer on hover. */}
+      <div className="group relative order-1 aspect-[3/4] overflow-hidden rounded-[22px] bg-cream shadow-[0_22px_60px_rgba(43,38,35,0.08)] md:order-2">
+        {isVideoUrl(active.url) ? (
+          <video
+            key={active.id}
+            src={active.url}
+            poster={videoPosterUrl(active.url)}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
           />
+        ) : (
+          <div
+            className="absolute inset-0 cursor-zoom-in"
+            onMouseEnter={handleMagnifyMove}
+            onMouseMove={handleMagnifyMove}
+            onMouseLeave={() => setHoverPos(null)}
+            onClick={() => setZoomOpen(true)}
+            role="button"
+            tabIndex={0}
+            aria-label="Zoom image"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") setZoomOpen(true);
+            }}
+          >
+            <Image
+              src={active.url}
+              alt={active.altText ?? altFallback}
+              fill
+              sizes="(min-width: 1280px) 550px, (min-width: 1024px) 46vw, 100vw"
+              priority
+              className="object-cover"
+            />
+            {/* Cursor-following magnified layer — same image, scaled and
+                offset by hover position, so hovering the product photo
+                reveals fabric/stitching detail without a click. */}
+            <Image
+              src={active.url}
+              alt=""
+              aria-hidden="true"
+              fill
+              sizes="(min-width: 1280px) 550px, (min-width: 1024px) 46vw, 100vw"
+              className="object-cover transition-opacity duration-150"
+              style={{
+                opacity: hoverPos ? 1 : 0,
+                transform: "scale(2.2)",
+                transformOrigin: hoverPos
+                  ? `${hoverPos.x}% ${hoverPos.y}%`
+                  : "center",
+              }}
+            />
+            <span className="pointer-events-none absolute bottom-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-charcoal/60 text-cream opacity-0 transition duration-300 group-hover:opacity-100">
+              <ZoomIn className="h-4 w-4" aria-hidden="true" />
+            </span>
+          </div>
+        )}
+        {hasMultiple ? (
+          <GalleryArrow
+            direction="prev"
+            onClick={() => goTo(safeIdx - 1)}
+            disabled={safeIdx === 0}
+          />
+        ) : null}
+        {hasMultiple ? (
+          <GalleryArrow
+            direction="next"
+            onClick={() => goTo(safeIdx + 1)}
+            disabled={safeIdx === images.length - 1}
+          />
+        ) : null}
+        {hasMultiple ? (
+          <GalleryCounter index={safeIdx} total={images.length} />
         ) : null}
       </div>
 
@@ -982,17 +861,13 @@ function GalleryArrow({
   direction: "prev" | "next";
   onClick: () => void;
   disabled: boolean;
-  variant?: "overlay" | "mobileOverlay" | "inline";
+  variant?: "overlay" | "inline";
 }) {
   const Icon = direction === "prev" ? ChevronLeft : ChevronRight;
-  // Desktop overlay: sits inside the image with a small inset (left-3/right-3).
-  // Mobile overlay: needs to align with the visible slide's edge, which sits
-  // at ~6vw from each side of the viewport (88vw slide, centered). Extra
-  // touch area (h-11/w-11 = 44px minimum) satisfies iOS HIG.
+  // Overlay: sits inside the image with a small inset (left-3/right-3),
+  // shared by mobile and desktop now that both use a single hero image.
   const overlayPosition =
     direction === "prev" ? "left-3" : "right-3";
-  const mobilePosition =
-    direction === "prev" ? "left-[calc(6vw+8px)]" : "right-[calc(6vw+8px)]";
   const overlayBase =
     "absolute top-1/2 z-10 -translate-y-1/2 grid place-items-center rounded-full border border-cream/50 bg-cream/80 text-maroon shadow-[0_12px_34px_rgba(43,38,35,0.14)] backdrop-blur-xl transition duration-500 disabled:pointer-events-none disabled:opacity-0";
   return (
@@ -1004,9 +879,7 @@ function GalleryArrow({
       className={
         variant === "overlay"
           ? `${overlayBase} ${overlayPosition} h-10 w-10 hover:bg-cream/95`
-          : variant === "mobileOverlay"
-            ? `${overlayBase} ${mobilePosition} h-11 w-11 active:scale-95 active:bg-cream`
-            : "grid h-9 w-9 place-items-center rounded-full border border-cocoa/22 bg-cream text-maroon shadow-[0_6px_18px_rgba(43,38,35,0.06)] transition duration-500 hover:border-cocoa disabled:opacity-30"
+          : "grid h-9 w-9 place-items-center rounded-full border border-cocoa/22 bg-cream text-maroon shadow-[0_6px_18px_rgba(43,38,35,0.06)] transition duration-500 hover:border-cocoa disabled:opacity-30"
       }
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
@@ -1019,48 +892,6 @@ function GalleryCounter({ index, total }: { index: number; total: number }) {
     <span className="pointer-events-none absolute bottom-4 right-4 rounded-full border border-cream/50 bg-charcoal/45 px-2.5 py-1 text-[11px] font-medium tabular-nums text-cream backdrop-blur-md">
       {index + 1} / {total}
     </span>
-  );
-}
-
-function GalleryDots({
-  index,
-  total,
-  onSelect,
-}: {
-  index: number;
-  total: number;
-  onSelect: (i: number) => void;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Product images"
-      className="mt-4 flex items-center justify-center md:hidden"
-    >
-      {Array.from({ length: total }).map((_, i) => {
-        const active = i === index;
-        return (
-          <button
-            key={i}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-label={`Go to image ${i + 1}`}
-            onClick={() => onSelect(i)}
-            className="group flex h-8 w-8 items-center justify-center"
-          >
-            <span
-              aria-hidden="true"
-              className={`block h-1.5 rounded-full transition-all duration-300 ${
-                active
-                  ? "w-6 bg-maroon"
-                  : "w-1.5 bg-cocoa/25 group-hover:bg-cocoa/45"
-              }`}
-            />
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
