@@ -226,22 +226,22 @@ export function CartView({ initialCart }: CartViewProps) {
           </p>
         </header>
 
-        <div className="grid gap-10 pt-12 lg:grid-cols-[1.55fr_0.9fr] lg:gap-20 md:pt-14">
+        <div className="grid grid-cols-1 gap-10 pt-12 lg:grid-cols-[1.55fr_0.9fr] lg:gap-20 md:pt-14">
           {/* Items */}
-          <div>
+          <div className="min-w-0">
             <ul>
               {cart.lines.map((line) => {
                 const isLeaving = removing.has(line.variantId);
                 return (
                   <li
                     key={line.variantId}
-                    className="grid transition-all duration-300 ease-[cubic-bezier(0.19,1,0.22,1)]"
+                    className="grid grid-cols-1 transition-all duration-300 ease-[cubic-bezier(0.19,1,0.22,1)]"
                     style={{
                       gridTemplateRows: isLeaving ? "0fr" : "1fr",
                       opacity: isLeaving ? 0 : 1,
                     }}
                   >
-                    <div className="min-h-0 overflow-hidden">
+                    <div className="min-h-0 min-w-0 overflow-hidden">
                       <div className="pb-7 md:pb-8">
                         <CartItemCard
                           line={line}
@@ -287,7 +287,7 @@ export function CartView({ initialCart }: CartViewProps) {
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
                   placeholder="Coupon code"
-                  className="min-h-12 rounded-xl border border-cocoa/18 bg-cream px-4 text-base text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
+                  className="min-h-12 min-w-0 rounded-xl border border-cocoa/18 bg-cream px-4 text-base text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
                 />
                 <button
                   type="submit"
@@ -421,7 +421,7 @@ function CartItemCard({
         )}
       </Link>
 
-      <div className="flex flex-1 flex-col">
+      <div className="min-w-0 flex flex-1 flex-col">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="font-display text-xl leading-tight text-maroon md:text-2xl">
