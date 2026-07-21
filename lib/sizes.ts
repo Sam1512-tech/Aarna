@@ -5,8 +5,8 @@
  * order). Matches the admin's size-tag presets
  * (app/admin/products/[id]/product-edit-view.tsx).
  *
- * Aarna's catalog stops at XL — XXL was dropped Jul 17. Sizes outside this
- * list (any custom text an admin types) still sort after the presets, in
+ * Aarna's catalog stops at XL — there is no XXL. Sizes outside this list
+ * (any custom text an admin types) still sort after the presets, in
  * whatever order they were encountered.
  */
 export const GARMENT_SIZE_ORDER = ["XS", "S", "M", "L", "XL"];
