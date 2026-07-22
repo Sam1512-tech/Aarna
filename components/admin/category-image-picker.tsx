@@ -44,8 +44,8 @@ export interface CategoryImagePickerProps {
  * preview, replace, and remove. Pure presentation — every side-effect goes
  * through the props so Sam can plug in the real upload/save actions in his PR.
  *
- * Suggested wiring in `/admin/categories/[id]/page.tsx` and
- * `/admin/categories/new/page.tsx`:
+ * Suggested wiring in `/studio/categories/[id]/page.tsx` and
+ * `/studio/categories/new/page.tsx`:
  *
  *   <CategoryImagePicker
  *     value={category.imageUrl ?? null}

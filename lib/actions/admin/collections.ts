@@ -32,7 +32,7 @@ function revalidateCollectionConsumers(slug?: string) {
   revalidatePath("/", "layout");
   revalidatePath("/collections");
   if (slug) revalidatePath(`/collections/${slug}`);
-  revalidatePath("/admin/collections");
+  revalidatePath("/studio/collections");
 }
 
 // ── Read ─────────────────────────────────────────────────────────────────────

@@ -238,8 +238,8 @@ export async function adjustStock(input: AdjustStockInput) {
       note: input.note ?? null,
     });
 
-    revalidatePath("/admin/inventory");
-    revalidatePath("/admin/products");
+    revalidatePath("/studio/inventory");
+    revalidatePath("/studio/products");
     return { variantId: input.variantId, previousStock: variant[0].stock, newStock };
   });
 }
@@ -290,8 +290,8 @@ export async function bulkAdjustStock(
     }
   });
 
-  revalidatePath("/admin/inventory");
-  revalidatePath("/admin/products");
+  revalidatePath("/studio/inventory");
+  revalidatePath("/studio/products");
   return { adjusted: items.length };
 }
 

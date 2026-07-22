@@ -152,7 +152,7 @@ export async function createCoupon(input: CreateCouponInput) {
     })
     .returning();
 
-  revalidatePath("/admin/coupons");
+  revalidatePath("/studio/coupons");
   return created;
 }
 
@@ -241,7 +241,7 @@ export async function updateCoupon(id: string, input: UpdateCouponInput) {
     .where(eq(coupons.id, id))
     .returning();
 
-  revalidatePath("/admin/coupons");
+  revalidatePath("/studio/coupons");
   return updated;
 }
 
@@ -260,7 +260,7 @@ export async function toggleCouponActive(id: string) {
     .where(eq(coupons.id, id))
     .returning();
 
-  revalidatePath("/admin/coupons");
+  revalidatePath("/studio/coupons");
   return updated;
 }
 
@@ -283,6 +283,6 @@ export async function deleteCoupon(id: string): Promise<{ ok: true }> {
   }
 
   await db.delete(coupons).where(eq(coupons.id, id));
-  revalidatePath("/admin/coupons");
+  revalidatePath("/studio/coupons");
   return { ok: true };
 }

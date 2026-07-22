@@ -27,6 +27,9 @@ Fixed price: ₹1,30,000 (+₹18,000 hang-tag change request → ₹1,53,000 rev
 
 **THE APP IS DEPLOYED: https://aarna-gamma.vercel.app** (Vercel, Sam's account `sam1512-tech`, project `aarna`, Hobby plan). Auto-deploys on every merge to `main`. **Full-scope audit completed Jul 4** (27 checks); **admin CRUD + reviews closed out Jul 7**; **coupon bug, Razorpay key rotation, tag printing shipped Jul 8**; **deployed + 12-PR Vismaya batch merged + all 4 WhatsApp templates approved Jul 8–10**; **second full code audit Jul 11** (see below); **Vismaya's 5-branch polish batch + cart-badge follow-ups merged Jul 15**; **cart bug-fix batch + PDP fixes Jul 16**; **returns v2 rework opened for review Jul 18** (see below). State of the world:
 
+### Admin panel moved from `/admin` to `/studio` (Jul 22)
+Client asked whether the admin panel could be reached somewhere less obvious than `/admin`. The real security is unchanged and was never resting on the URL — `/studio` still requires a valid Supabase session **and** a row in the `admins` table (`app/studio/layout.tsx`), enforced server-side on every request, plus every admin server action independently calls `requireAdmin()`. This rename is purely to cut down on bot/scanner traffic hitting the login page, not a substitute for that. Also: `robots.ts` no longer lists the admin path in its `disallow` rules (a public robots.txt naming an "obscure" path defeats the purpose) — `/studio` instead carries its own `robots: {index: false, follow: false}` metadata. **Only `app/admin/` → `app/studio/` moved** — internal folder names (`lib/actions/admin/`, `components/admin/`) and the `/api/admin/*` routes are unchanged, since those aren't publicly discoverable the way a browser-typed panel URL is. Real edge-layer protection (rate limiting, IP allowlisting, or Cloudflare Access once DNS is eventually on Cloudflare) is still a documented gap — see "Risks to Watch" — this rename doesn't close it, it just reduces noise.
+
 ### Opened for review Jul 18 (returns v2 — schema merged, actions + UI pending Sam's review)
 - **`#142` (schema, merged):** real `type`/`photos`/`qcOutcome`/`rejectionReason`/`adminNote`/`desiredVariantId` columns on `returns`, plus `orders.deliveredAt` — reconciled with Vismaya's parallel schema push. Superseded her original `#138`, which was closed (was actually Sam's own earlier branch, not Vismaya's — corrected from an earlier assumption).
 - **`#144` (merged):** P1 unblockers — `categories.imageUrl`/`imageMobileUrl` + an admin upload endpoint (`app/api/admin/uploads/image`, server-side Cloudinary via `lib/cloudinary/upload.ts`), `getNewArrivals({ inStockOnly })`, and `collections.isHomepageFeature` (DB-enforced single-featured-collection via a partial unique index) wired into the homepage.
@@ -251,7 +254,7 @@ Customers can submit a review from `/account/orders` (delivered items only, one 
 ### Vismaya owns (frontend)
 - `app/(storefront)/` — all public storefront pages
 - `app/(auth)/` — login, signup, forgot password
-- `app/admin/` — admin dashboard UI
+- `app/studio/` — admin dashboard UI (route renamed from `/admin` Jul 22, see status below)
 - `components/` — all UI components
 - `hooks/` — custom React hooks
 - `store/` — Zustand stores
@@ -428,3 +431,4 @@ Garment labels must show MRP, manufacturer details, fabric composition, size, an
 - Razorpay live webhook secret can only exist after deploy — deploy early, don't stack this to the last week
 - Deploy to Vercel is now the top blocker — admin CRUD, photography, and Interakt are all unblocked, nothing else is waiting on the client
 - Never run casual checkout tests once live Razorpay keys are active — real money moves
+- **No edge-layer protection on `/studio` (admin panel)** — no rate limiting, bot filtering, or IP allowlisting in front of it (the domain resolves straight to Vercel, no Cloudflare yet). The auth/RBAC gate itself is solid; this gap is specifically about brute-force/credential-stuffing traffic reaching the login page at all. Revisit once DNS moves to Cloudflare (Cloudflare Access is the planned fix — see Jul 22 entry above).
