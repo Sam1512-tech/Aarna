@@ -5,6 +5,7 @@ import {
   AdminPageHeader,
   tableClasses,
 } from "@/components/admin/admin-primitives";
+import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { ReviewStatusSelect } from "@/components/admin/review-status-select";
 import { deleteReview, getAdminReviews } from "@/lib/actions/admin/reviews";
@@ -56,7 +57,7 @@ export default async function AdminReviewsPage({
         intro="Customer reviews awaiting moderation or already published."
       />
 
-      <form method="get" className="mt-6 flex flex-wrap items-end gap-3">
+      <AutoSubmitForm className="mt-6 flex flex-wrap items-end gap-3">
         <label>
           <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
             status
@@ -74,13 +75,7 @@ export default async function AdminReviewsPage({
             ))}
           </select>
         </label>
-        <button
-          type="submit"
-          className="rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-cream transition duration-500 hover:bg-cocoa/90"
-        >
-          filter
-        </button>
-      </form>
+      </AutoSubmitForm>
 
       <div className="mt-6">
         {result.items.length === 0 ? (

@@ -4,6 +4,7 @@ import {
   AdminPageHeader,
   tableClasses,
 } from "@/components/admin/admin-primitives";
+import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import {
   getAdminAuditLog,
   getAuditLogEntityTypes,
@@ -67,8 +68,8 @@ export default async function AdminAuditLogPage({
         intro="Every product, order, coupon, and content change made from this admin panel — who did it and when."
       />
 
-      <form method="get" className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-        <label>
+      <AutoSubmitForm className="mt-6">
+        <label className="block max-w-xs">
           <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
             entity type
           </span>
@@ -85,13 +86,7 @@ export default async function AdminAuditLogPage({
             ))}
           </select>
         </label>
-        <button
-          type="submit"
-          className="rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-cream transition duration-500 hover:bg-cocoa/90"
-        >
-          filter
-        </button>
-      </form>
+      </AutoSubmitForm>
 
       <div className="mt-6">
         {result.items.length === 0 ? (

@@ -3,6 +3,7 @@ import {
   AdminEmpty,
   AdminPageHeader,
 } from "@/components/admin/admin-primitives";
+import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { getInventory } from "@/lib/actions/admin/inventory";
 import { InventoryTable } from "./inventory-table";
 import { ReprintScanPanel } from "./reprint-scan-panel";
@@ -50,7 +51,7 @@ export default async function AdminInventoryPage({
         <ReprintScanPanel />
       </div>
 
-      <form method="get" className="mt-6 flex flex-wrap items-end gap-3">
+      <AutoSubmitForm className="mt-6 flex flex-wrap items-end gap-3">
         <label className="min-w-56 flex-1">
           <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
             search
@@ -91,7 +92,7 @@ export default async function AdminInventoryPage({
         >
           filter
         </button>
-      </form>
+      </AutoSubmitForm>
 
       <div className="mt-6">
         {result.items.length === 0 ? (
