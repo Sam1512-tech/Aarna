@@ -364,7 +364,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
         modal: {
           ondismiss: () => {
             setSubmitError(
-              "payment was cancelled. your details are saved — try again whenever you're ready.",
+              "Payment was cancelled. Your details are saved — try again whenever you're ready.",
             );
             setSubmitting(false);
           },

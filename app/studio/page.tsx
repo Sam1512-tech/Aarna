@@ -13,7 +13,7 @@ import { getPendingReviewCount } from "@/lib/actions/admin/reviews";
 import { formatINR } from "@/lib/utils";
 
 export const metadata = {
-  title: "admin · dashboard",
+  title: "Admin · dashboard",
 };
 
 const DAYS = 30;
@@ -45,7 +45,7 @@ export default async function AdminDashboardPage() {
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           Icon={ShoppingBag}
-          label="orders"
+          label="Orders"
           value={String(totalOrders)}
           hint={
             totalOrders > 0
@@ -55,13 +55,13 @@ export default async function AdminDashboardPage() {
         />
         <KpiCard
           Icon={IndianRupee}
-          label="revenue"
+          label="Revenue"
           value={formatINR(revenue)}
           hint={`from ${paidOrders} paid ${paidOrders === 1 ? "order" : "orders"}`}
         />
         <KpiCard
           Icon={AlertTriangle}
-          label="low stock"
+          label="Low stock"
           value={String(lowStock.length)}
           hint={
             lowStock.length > 0
@@ -72,7 +72,7 @@ export default async function AdminDashboardPage() {
         />
         <KpiCard
           Icon={Star}
-          label="reviews awaiting"
+          label="Reviews awaiting"
           value={String(pendingReviews)}
           hint={pendingReviews > 0 ? "queued for moderation" : "queue is clear"}
           tone={pendingReviews > 0 ? "warn" : "ok"}

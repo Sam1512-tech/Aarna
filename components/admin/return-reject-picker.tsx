@@ -47,7 +47,7 @@ export function ReturnRejectPicker({
       try {
         await onReject({ reason, note: note.trim() || undefined });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't reject");
+        setError(err instanceof Error ? err.message : "Couldn't reject");
       }
     });
   }
@@ -76,12 +76,12 @@ export function ReturnRejectPicker({
           <div>
             <h2
               id="reject-title"
-              className="font-display text-2xl lowercase leading-tight text-maroon"
+              className="font-display text-2xl leading-tight text-maroon"
             >
-              reject this request
+              Reject this request
             </h2>
             <p className="mt-1 text-xs leading-5 text-charcoal/60">
-              the customer sees the reason on their account. they can reply and
+              The customer sees the reason on their account. They can reply and
               re-submit with better evidence.
             </p>
           </div>
@@ -122,7 +122,7 @@ export function ReturnRejectPicker({
           {needsNote ? (
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                note to customer{" "}
+                Note to customer{" "}
                 <span className="text-charcoal/40">(min 10 chars)</span>
               </p>
               <textarea
@@ -131,7 +131,7 @@ export function ReturnRejectPicker({
                 rows={3}
                 maxLength={400}
                 className="mt-2 block w-full resize-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 text-base leading-6 text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
-                placeholder="explain why so the customer can respond or re-submit."
+                placeholder="Explain why so the customer can respond or re-submit."
               />
             </div>
           ) : null}
@@ -147,14 +147,14 @@ export function ReturnRejectPicker({
             onClick={onCancel}
             className="flex-1 rounded-2xl border border-cocoa/24 bg-cream py-3 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa"
           >
-            cancel
+            Cancel
           </button>
           <button
             type="submit"
             disabled={!canSubmit}
             className="flex-1 rounded-2xl bg-burnt-red py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(122,59,50,0.22)] transition duration-500 hover:bg-burnt-red/90 disabled:opacity-50"
           >
-            {pending ? "rejecting…" : "reject request"}
+            {pending ? "Rejecting…" : "Reject request"}
           </button>
         </div>
       </form>

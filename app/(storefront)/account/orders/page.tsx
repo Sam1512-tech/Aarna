@@ -87,7 +87,7 @@ export default async function AccountOrdersPage() {
   return (
     <div>
       <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-        your orders · {orders.length}
+        Your orders · {orders.length}
       </p>
       <ul className="mt-5 space-y-4">
         {orders.map((order) => {
@@ -106,10 +106,10 @@ export default async function AccountOrdersPage() {
               <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cocoa/10 px-5 py-4">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                    order · {order.orderNumber}
+                    Order · {order.orderNumber}
                   </p>
                   <p className="mt-1 text-sm text-charcoal/75">
-                    placed {created}
+                    Placed {created}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -160,7 +160,7 @@ export default async function AccountOrdersPage() {
                           </p>
                         ) : (
                           <p className="text-xs text-charcoal/55">
-                            qty {it.quantity}
+                            Qty {it.quantity}
                           </p>
                         )}
                       </div>

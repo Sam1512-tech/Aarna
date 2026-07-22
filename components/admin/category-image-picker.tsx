@@ -61,7 +61,7 @@ export function CategoryImagePicker({
   onChange,
   uploadImage,
   aspect = "4/5",
-  label = "category image",
+  label = "Category image",
   hint,
   folder = "aarna/categories",
 }: CategoryImagePickerProps) {
@@ -114,11 +114,11 @@ export function CategoryImagePicker({
     setError(null);
 
     if (!ACCEPT.includes(file.type)) {
-      setError("please pick a jpg, png, webp, or avif image");
+      setError("Please pick a JPG, PNG, WEBP, or AVIF image");
       return;
     }
     if (file.size > MAX_BYTES) {
-      setError(`${file.name} is over 8 mb`);
+      setError(`${file.name} is over 8 MB`);
       return;
     }
 
@@ -128,7 +128,7 @@ export function CategoryImagePicker({
         onChange(url);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "upload failed — try again",
+          err instanceof Error ? err.message : "Upload failed — try again",
         );
       }
     });
@@ -228,7 +228,7 @@ export function CategoryImagePicker({
         <p className="mt-2 text-xs text-burnt-red">{error}</p>
       ) : (
         <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-charcoal/40">
-          jpg · png · webp · avif · 8 mb max · portrait works best
+          JPG · PNG · WEBP · AVIF · 8 MB max · portrait works best
         </p>
       )}
     </div>

@@ -28,17 +28,17 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { href: "/studio", label: "dashboard", Icon: BarChart3, exact: true },
-  { href: "/studio/categories", label: "categories", Icon: FolderTree },
-  { href: "/studio/products", label: "products", Icon: Package },
-  { href: "/studio/inventory", label: "inventory", Icon: Boxes },
-  { href: "/studio/orders", label: "orders", Icon: ShoppingBag },
-  { href: "/studio/returns", label: "returns", Icon: RotateCcw },
-  { href: "/studio/coupons", label: "coupons", Icon: Tag },
-  { href: "/studio/banners", label: "banners", Icon: ImageIcon },
-  { href: "/studio/homepage-videos", label: "homepage videos", Icon: Clapperboard },
-  { href: "/studio/collections", label: "collections", Icon: Layers },
-  { href: "/studio/reviews", label: "reviews", Icon: Star },
+  { href: "/studio", label: "Dashboard", Icon: BarChart3, exact: true },
+  { href: "/studio/categories", label: "Categories", Icon: FolderTree },
+  { href: "/studio/products", label: "Products", Icon: Package },
+  { href: "/studio/inventory", label: "Inventory", Icon: Boxes },
+  { href: "/studio/orders", label: "Orders", Icon: ShoppingBag },
+  { href: "/studio/returns", label: "Returns", Icon: RotateCcw },
+  { href: "/studio/coupons", label: "Coupons", Icon: Tag },
+  { href: "/studio/banners", label: "Banners", Icon: ImageIcon },
+  { href: "/studio/homepage-videos", label: "Homepage videos", Icon: Clapperboard },
+  { href: "/studio/collections", label: "Collections", Icon: Layers },
+  { href: "/studio/reviews", label: "Reviews", Icon: Star },
 ];
 
 interface AdminShellProps {
@@ -66,7 +66,7 @@ export function AdminShell({ displayName, children }: AdminShellProps) {
       <aside className="border-b border-cocoa/12 bg-cream md:border-b-0 md:border-r">
         <div className="flex items-center justify-between px-4 py-5 md:px-5 md:py-6">
           <p className="font-display text-2xl uppercase leading-none text-maroon">
-            aarna admin
+            Aarna admin
           </p>
           <Link
             href="/"
@@ -106,7 +106,7 @@ export function AdminShell({ displayName, children }: AdminShellProps) {
             className="inline-flex shrink-0 snap-start items-center gap-2 rounded-full border border-cocoa/22 bg-cream px-3.5 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/75 transition duration-500 hover:border-burnt-red hover:text-burnt-red disabled:opacity-50"
           >
             <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-            {pending ? "signing out…" : "sign out"}
+            {pending ? "Signing out…" : "Sign out"}
           </button>
         </nav>
 
@@ -121,7 +121,7 @@ export function AdminShell({ displayName, children }: AdminShellProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm lowercase transition duration-500 ${
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition duration-500 ${
                   active
                     ? "bg-maroon/8 font-medium text-maroon"
                     : "text-charcoal/72 hover:bg-cocoa/6 hover:text-cocoa"
@@ -147,10 +147,10 @@ export function AdminShell({ displayName, children }: AdminShellProps) {
               type="button"
               onClick={handleSignOut}
               disabled={pending}
-              className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm lowercase text-charcoal/65 transition duration-500 hover:bg-burnt-red/8 hover:text-burnt-red disabled:opacity-50"
+              className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-charcoal/65 transition duration-500 hover:bg-burnt-red/8 hover:text-burnt-red disabled:opacity-50"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
-              {pending ? "signing out…" : "sign out"}
+              {pending ? "Signing out…" : "Sign out"}
             </button>
           </div>
         </nav>

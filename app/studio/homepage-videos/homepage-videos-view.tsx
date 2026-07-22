@@ -26,8 +26,8 @@ export function HomepageVideosView({
 }) {
   return (
     <div className="mt-6 grid gap-6 md:grid-cols-2">
-      <VideoSlotForm position="left" label="left video" slot={left} />
-      <VideoSlotForm position="right" label="right video" slot={right} />
+      <VideoSlotForm position="left" label="Left video" slot={left} />
+      <VideoSlotForm position="right" label="Right video" slot={right} />
     </div>
   );
 }
@@ -82,17 +82,17 @@ function VideoSlotForm({
         title={label}
         description="Paste a Cloudinary video URL. Leave blank to show the placeholder instead."
       >
-        <Field label="video url" wide hint="https://res.cloudinary.com/…/video/upload/…">
+        <Field label="Video url" wide hint="https://res.cloudinary.com/…/video/upload/…">
           <TextInput
             value={videoUrl}
             onChange={(e) => setVideoUrl(e.target.value)}
             placeholder="https://res.cloudinary.com/…"
           />
         </Field>
-        <Field label="title" hint="Small eyebrow label overlaid on the video">
+        <Field label="Title" hint="Small eyebrow label overlaid on the video">
           <TextInput value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
-        <Field label="subtitle" wide hint="Larger heading, shown under the title">
+        <Field label="Subtitle" wide hint="Larger heading, shown under the title">
           <Textarea
             value={subtitle}
             onChange={(e) => setSubtitle(e.target.value)}
@@ -101,17 +101,17 @@ function VideoSlotForm({
       </FormSection>
 
       <FormSection
-        title="call to action"
+        title="Call to action"
         description="Optional button overlaid on the video."
       >
-        <Field label="button label">
+        <Field label="Button label">
           <TextInput
             value={ctaLabel}
             onChange={(e) => setCtaLabel(e.target.value)}
             placeholder="shop the drop"
           />
         </Field>
-        <Field label="button link">
+        <Field label="Button link">
           <TextInput
             value={ctaHref}
             onChange={(e) => setCtaHref(e.target.value)}
@@ -119,7 +119,7 @@ function VideoSlotForm({
           />
         </Field>
         <CheckboxRow
-          label="active — show on the homepage"
+          label="Active — show on the homepage"
           checked={isActive}
           onChange={setIsActive}
         />
@@ -129,7 +129,7 @@ function VideoSlotForm({
       <SubmitBar
         cancelHref="/studio"
         pending={pending}
-        label="save"
+        label="Save"
         error={error}
         disabled={!canSubmit}
       />

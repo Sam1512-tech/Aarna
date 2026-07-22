@@ -69,17 +69,17 @@ export function NewBannerForm() {
   return (
     <FormShell onSubmit={handleSubmit}>
       <FormSection
-        title="content"
+        title="Content"
         description="Title and subtitle overlay the image. Leave blank for image-only banners."
       >
-        <Field label="title" wide>
+        <Field label="Title" wide>
           <TextInput
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Slow essentials · summer 26"
           />
         </Field>
-        <Field label="subtitle" wide>
+        <Field label="Subtitle" wide>
           <Textarea
             value={subtitle}
             onChange={(e) => setSubtitle(e.target.value)}
@@ -89,17 +89,17 @@ export function NewBannerForm() {
       </FormSection>
 
       <FormSection
-        title="images"
+        title="Images"
         description="Paste Cloudinary URLs. Mobile image is optional — desktop image is used when blank."
       >
-        <Field label="desktop image url" required wide>
+        <Field label="Desktop image url" required wide>
           <TextInput
             value={imageUrl}
             onChange={(e) => setImageUrl(e.target.value)}
             placeholder="https://res.cloudinary.com/…"
           />
         </Field>
-        <Field label="mobile image url" wide>
+        <Field label="Mobile image url" wide>
           <TextInput
             value={mobileImageUrl}
             onChange={(e) => setMobileImageUrl(e.target.value)}
@@ -109,17 +109,17 @@ export function NewBannerForm() {
       </FormSection>
 
       <FormSection
-        title="call to action"
+        title="Call to action"
         description="Optional button overlaid on the banner."
       >
-        <Field label="button label">
+        <Field label="Button label">
           <TextInput
             value={ctaLabel}
             onChange={(e) => setCtaLabel(e.target.value)}
             placeholder="shop the drop"
           />
         </Field>
-        <Field label="button link">
+        <Field label="Button link">
           <TextInput
             value={ctaHref}
             onChange={(e) => setCtaHref(e.target.value)}
@@ -129,24 +129,24 @@ export function NewBannerForm() {
       </FormSection>
 
       <FormSection
-        title="scheduling"
+        title="Scheduling"
         description="Optional. Blank = active immediately, no end date."
       >
-        <Field label="starts at">
+        <Field label="Starts at">
           <TextInput
             type="datetime-local"
             value={startsAt}
             onChange={(e) => setStartsAt(e.target.value)}
           />
         </Field>
-        <Field label="ends at">
+        <Field label="Ends at">
           <TextInput
             type="datetime-local"
             value={endsAt}
             onChange={(e) => setEndsAt(e.target.value)}
           />
         </Field>
-        <Field label="sort order" hint="Lower shows first.">
+        <Field label="Sort order" hint="Lower shows first.">
           <TextInput
             inputMode="numeric"
             value={sortOrder}
@@ -154,7 +154,7 @@ export function NewBannerForm() {
           />
         </Field>
         <CheckboxRow
-          label="active — show on the storefront"
+          label="Active — show on the storefront"
           checked={isActive}
           onChange={setIsActive}
         />
@@ -163,7 +163,7 @@ export function NewBannerForm() {
       <SubmitBar
         cancelHref="/studio/banners"
         pending={pending}
-        label="create banner"
+        label="Create banner"
         error={error}
         disabled={!canSubmit}
       />

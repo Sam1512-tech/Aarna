@@ -200,7 +200,7 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
               label={
                 pending
                   ? mode === "password"
-                    ? "signing in…"
+                    ? "Signing in…"
                     : "Sending code…"
                   : mode === "password"
                     ? "sign in"

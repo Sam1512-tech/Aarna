@@ -4,7 +4,7 @@ import { AdminPageHeader } from "@/components/admin/admin-primitives";
 import { getAdminCategory } from "@/lib/actions/admin/categories";
 import { CategoryEditView } from "./category-edit-view";
 
-export const metadata: Metadata = { title: "admin · edit category" };
+export const metadata: Metadata = { title: "Admin · edit category" };
 
 export default async function AdminEditCategoryPage({
   params,
@@ -18,7 +18,7 @@ export default async function AdminEditCategoryPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="catalog"
+        eyebrow="Catalog"
         title={category.name}
         intro="Renaming or re-slugging updates the nav and homepage immediately."
       />

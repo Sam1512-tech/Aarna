@@ -10,7 +10,7 @@ import { DeleteButton } from "@/components/admin/delete-button";
 import { ReorderButtons } from "@/components/admin/reorder-buttons";
 import { deleteBanner, getAdminBanners, reorderBanners } from "@/lib/actions/admin/banners";
 
-export const metadata: Metadata = { title: "admin · banners" };
+export const metadata: Metadata = { title: "Admin · banners" };
 
 // Vercel functions default to UTC even in bom1 — pin every admin date to IST
 // so timestamps match the client's phone clock.
@@ -35,8 +35,8 @@ export default async function AdminBannersPage() {
   return (
     <div>
       <AdminPageHeader
-        eyebrow="homepage"
-        title="banners"
+        eyebrow="Homepage"
+        title="Banners"
         intro="Hero images and videos the homepage carousel rotates through."
         action={{ href: "/studio/banners/new", label: "add banner" }}
       />
@@ -44,8 +44,8 @@ export default async function AdminBannersPage() {
       <div className="mt-6">
         {banners.length === 0 ? (
           <AdminEmpty
-            title="no banners yet"
-            description="add a hero image or video to fill the homepage carousel."
+            title="No banners yet"
+            description="Add a hero image or video to fill the homepage carousel."
             cta={{ href: "/studio/banners/new", label: "add your first banner" }}
           />
         ) : (

@@ -41,18 +41,18 @@ interface ReturnCategory {
 }
 
 const RETURN_CATEGORIES: ReturnCategory[] = [
-  { value: "size_fit", label: "size or fit" },
-  { value: "quality", label: "quality issue" },
-  { value: "damaged", label: "arrived damaged" },
-  { value: "wrong_item", label: "wrong item sent" },
-  { value: "changed_mind", label: "changed my mind" },
+  { value: "size_fit", label: "Size or fit" },
+  { value: "quality", label: "Quality issue" },
+  { value: "damaged", label: "Arrived damaged" },
+  { value: "wrong_item", label: "Wrong item sent" },
+  { value: "changed_mind", label: "Changed my mind" },
 ];
 
 const EXCHANGE_CATEGORIES: ReturnCategory[] = [
-  { value: "size_fit", label: "different size" },
-  { value: "color", label: "different colour" },
-  { value: "style", label: "different style" },
-  { value: "damaged", label: "arrived damaged" },
+  { value: "size_fit", label: "Different size" },
+  { value: "color", label: "Different colour" },
+  { value: "style", label: "Different style" },
+  { value: "damaged", label: "Arrived damaged" },
 ];
 
 const MIN_DETAIL_LEN = 15;
@@ -227,9 +227,9 @@ export function ReturnExchangeModal({
             </p>
             <h2
               id="return-exchange-title"
-              className="mt-1 font-display text-2xl lowercase leading-tight text-maroon md:text-3xl"
+              className="mt-1 font-display text-2xl leading-tight text-maroon md:text-3xl"
             >
-              {step === 1 ? "return or exchange" : `tell us why`}
+              {step === 1 ? "Return or exchange" : "Tell us why"}
             </h2>
           </div>
           <button
@@ -274,7 +274,7 @@ export function ReturnExchangeModal({
           )}
 
           {error ? (
-            <p className="mt-4 text-xs lowercase text-burnt-red">{error}</p>
+            <p className="mt-4 text-xs text-burnt-red">{error}</p>
           ) : null}
         </div>
 
@@ -292,7 +292,7 @@ export function ReturnExchangeModal({
                 onClick={close}
                 className="flex-1 rounded-2xl border border-cocoa/24 bg-cream py-3 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa"
               >
-                cancel
+                Cancel
               </button>
               <button
                 type="button"
@@ -300,7 +300,7 @@ export function ReturnExchangeModal({
                 disabled={!chosen}
                 className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-maroon py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-500 hover:bg-maroon/90 disabled:opacity-50"
               >
-                continue
+                Continue
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </>
@@ -315,7 +315,7 @@ export function ReturnExchangeModal({
                 className="flex items-center justify-center gap-2 rounded-2xl border border-cocoa/24 bg-cream px-5 py-3 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa"
               >
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                back
+                Back
               </button>
               <button
                 type="submit"
@@ -323,10 +323,10 @@ export function ReturnExchangeModal({
                 className="flex-1 rounded-2xl bg-maroon py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-500 hover:bg-maroon/90 disabled:opacity-50"
               >
                 {pending
-                  ? "submitting…"
+                  ? "Submitting…"
                   : intent === "exchange"
-                    ? "request exchange"
-                    : "request return"}
+                    ? "Request exchange"
+                    : "Request return"}
               </button>
             </>
           )}
@@ -368,15 +368,15 @@ function StepIntent({
             active={intent === "return"}
             onClick={() => setIntent("return")}
             Icon={RotateCcw}
-            title="return"
-            copy="refund to your original payment"
+            title="Return"
+            copy="Refund to your original payment"
           />
           <IntentCard
             active={intent === "exchange"}
             onClick={() => setIntent("exchange")}
             Icon={Repeat}
-            title="exchange"
-            copy="swap for a different size or piece"
+            title="Exchange"
+            copy="Swap for a different size or piece"
           />
         </div>
       </div>
@@ -387,12 +387,12 @@ function StepIntent({
         </p>
         {locked && chosen ? (
           <div className="mt-3 rounded-xl border border-cocoa/16 bg-cream/70 px-4 py-3">
-            <p className="font-display text-base lowercase text-maroon">
-              {chosen.productTitle.toLowerCase()}
+            <p className="font-display text-base text-maroon">
+              {chosen.productTitle}
             </p>
             {chosen.variantLabel ? (
-              <p className="mt-0.5 text-xs lowercase text-charcoal/55">
-                {chosen.variantLabel.toLowerCase()} · qty {chosen.quantity}
+              <p className="mt-0.5 text-xs text-charcoal/55">
+                {chosen.variantLabel} · Qty {chosen.quantity}
               </p>
             ) : null}
             <p className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-charcoal/45">
@@ -407,12 +407,12 @@ function StepIntent({
               className="block w-full appearance-none rounded-xl border border-cocoa/20 bg-cream px-4 py-3 pr-10 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
             >
               {eligibleItems.length === 0 ? (
-                <option value="">no eligible items</option>
+                <option value="">No eligible items</option>
               ) : null}
               {eligibleItems.map((it) => (
                 <option key={it.orderItemId} value={it.orderItemId}>
                   {it.productTitle}
-                  {it.variantLabel ? ` (${it.variantLabel})` : ""} · order{" "}
+                  {it.variantLabel ? ` (${it.variantLabel})` : ""} · Order{" "}
                   {it.orderNumber}
                 </option>
               ))}
@@ -445,7 +445,7 @@ function StepIntent({
             how exchanges work
           </p>
           <p className="mt-1 leading-6">
-            share which size or piece you&apos;d like in the next step. once we
+            Share which size or piece you&apos;d like in the next step. Once we
             receive your original, we&apos;ll ship your swap at no extra cost.
           </p>
         </div>
@@ -480,7 +480,7 @@ function IntentCard({ active, onClick, Icon, title, copy }: IntentCardProps) {
       >
         <Icon className="h-4 w-4" aria-hidden="true" />
       </span>
-      <span className="font-display text-lg lowercase text-maroon">
+      <span className="font-display text-lg text-maroon">
         {title}
       </span>
       <span className="text-xs leading-5 text-charcoal/60">{copy}</span>
@@ -528,8 +528,8 @@ function StepReason({
   const detailShort = detailLen > 0 && detailLen < MIN_DETAIL_LEN;
   const detailPromptCopy =
     intent === "exchange"
-      ? "anything else we should know? add any notes."
-      : "describe the issue so our team can help quickly.";
+      ? "Anything else we should know? Add any notes."
+      : "Describe the issue so our team can help quickly.";
 
   return (
     <div className="space-y-6">
@@ -538,12 +538,12 @@ function StepReason({
           <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
             {intent === "exchange" ? "exchanging" : "returning"}
           </p>
-          <p className="mt-0.5 font-display text-base lowercase text-maroon">
-            {chosen.productTitle.toLowerCase()}
+          <p className="mt-0.5 font-display text-base text-maroon">
+            {chosen.productTitle}
           </p>
           {chosen.variantLabel ? (
-            <p className="mt-0.5 text-xs lowercase text-charcoal/55">
-              {chosen.variantLabel.toLowerCase()} · qty {chosen.quantity}
+            <p className="mt-0.5 text-xs text-charcoal/55">
+              {chosen.variantLabel} · Qty {chosen.quantity}
             </p>
           ) : null}
         </div>
@@ -562,7 +562,7 @@ function StepReason({
                 type="button"
                 onClick={() => setCategory(c.value)}
                 aria-pressed={active}
-                className={`rounded-full border px-3 py-1.5 text-xs lowercase transition duration-500 ${
+                className={`rounded-full border px-3 py-1.5 text-xs transition duration-500 ${
                   active
                     ? "border-maroon bg-maroon text-cream"
                     : "border-cocoa/22 text-charcoal/72 hover:border-cocoa"
@@ -597,8 +597,8 @@ function StepReason({
           required={photosRequired}
           hint={
             photosRequired
-              ? "a photo of the damage helps us process this faster."
-              : "optional — a quick photo helps us process this faster."
+              ? "A photo of the damage helps us process this faster."
+              : "Optional — a quick photo helps us process this faster."
           }
         />
       </div>
@@ -630,8 +630,8 @@ function StepReason({
           }`}
         >
           {detailShort
-            ? `at least ${MIN_DETAIL_LEN} characters — help us help you`
-            : `minimum ${MIN_DETAIL_LEN} characters`}
+            ? `At least ${MIN_DETAIL_LEN} characters — help us help you`
+            : `Minimum ${MIN_DETAIL_LEN} characters`}
         </p>
       </div>
     </div>

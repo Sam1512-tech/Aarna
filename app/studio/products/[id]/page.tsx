@@ -6,7 +6,7 @@ import { getAdminProductDetail } from "@/lib/actions/admin/products";
 import { getCategories } from "@/lib/actions/products";
 import { ProductEditView } from "./product-edit-view";
 
-export const metadata: Metadata = { title: "admin · edit product" };
+export const metadata: Metadata = { title: "Admin · edit product" };
 
 export default async function AdminProductDetailPage({
   params,
@@ -23,7 +23,7 @@ export default async function AdminProductDetailPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="catalog · products"
+        eyebrow="Catalog · products"
         title={product.title}
         intro="Edit basics, add variants, upload images, and print hang tags."
       />

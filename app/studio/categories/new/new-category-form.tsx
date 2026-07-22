@@ -54,8 +54,8 @@ export function NewCategoryForm() {
 
   return (
     <FormShell onSubmit={handleSubmit}>
-      <FormSection title="basics">
-        <Field label="name" required wide>
+      <FormSection title="Basics">
+        <Field label="Name" required wide>
           <TextInput
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -64,7 +64,7 @@ export function NewCategoryForm() {
           />
         </Field>
         <Field
-          label="url slug"
+          label="Url slug"
           required
           wide
           hint={`will appear as /shop/${effectiveSlug || "your-slug"}`}
@@ -79,7 +79,7 @@ export function NewCategoryForm() {
           />
         </Field>
         <Field
-          label="sort order"
+          label="Sort order"
           hint="Lower shows first in the nav and homepage. Blank = last."
         >
           <TextInput
@@ -92,7 +92,7 @@ export function NewCategoryForm() {
       </FormSection>
 
       <FormSection
-        title="homepage tile"
+        title="Homepage tile"
         description="Shown on the homepage's wardrobe-paths grid. Portrait works best."
       >
         <CategoryImagePicker
@@ -105,7 +105,7 @@ export function NewCategoryForm() {
       <SubmitBar
         cancelHref="/studio/categories"
         pending={pending}
-        label="create category"
+        label="Create category"
         error={error}
         disabled={!canSubmit}
       />

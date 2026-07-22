@@ -9,7 +9,7 @@ import {
 import { getAdminOrders } from "@/lib/actions/admin/orders";
 import { formatINR } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "admin · orders" };
+export const metadata: Metadata = { title: "Admin · orders" };
 
 const PAYMENT_STATUSES = [
   "pending",
@@ -83,8 +83,8 @@ export default async function AdminOrdersPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="commerce"
-        title="orders"
+        eyebrow="Commerce"
+        title="Orders"
         intro="Live orders from the storefront. Filter by status or search by order number, email, or phone."
       />
 
@@ -145,8 +145,8 @@ export default async function AdminOrdersPage({
       <div className="mt-6">
         {result.items.length === 0 ? (
           <AdminEmpty
-            title="no orders match"
-            description="try widening the filters or clearing the search."
+            title="No orders match"
+            description="Try widening the filters or clearing the search."
           />
         ) : (
           <div className={t.wrapper}>

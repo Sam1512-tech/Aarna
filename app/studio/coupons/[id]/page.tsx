@@ -4,7 +4,7 @@ import { AdminPageHeader } from "@/components/admin/admin-primitives";
 import { getAdminCouponDetail } from "@/lib/actions/admin/coupons";
 import { CouponEditView } from "./coupon-edit-view";
 
-export const metadata: Metadata = { title: "admin · edit coupon" };
+export const metadata: Metadata = { title: "Admin · edit coupon" };
 
 export default async function AdminEditCouponPage({
   params,
@@ -18,7 +18,7 @@ export default async function AdminEditCouponPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="commerce · coupons"
+        eyebrow="Commerce · coupons"
         title={coupon.code}
         intro="Discount code customers apply at checkout."
       />

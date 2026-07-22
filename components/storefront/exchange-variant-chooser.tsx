@@ -47,8 +47,8 @@ export function ExchangeVariantChooser({
   if (variants.length === 0) {
     return (
       <p className="mt-2 rounded-xl border border-cocoa/12 bg-cocoa/6 px-4 py-3 text-xs leading-5 text-charcoal/60">
-        no other sizes or variants are available for this piece right now.
-        please pick a return instead, or reach out to us for options.
+        No other sizes or variants are available for this piece right now.
+        Please pick a return instead, or reach out to us for options.
       </p>
     );
   }
@@ -79,7 +79,7 @@ export function ExchangeVariantChooser({
                     : "border-cocoa/22 bg-cream text-charcoal/72 hover:border-cocoa"
             }`}
           >
-            <span className="font-medium lowercase">{label}</span>
+            <span className="font-medium">{label}</span>
             <span
               className={`text-[10px] uppercase tracking-[0.12em] ${
                 active

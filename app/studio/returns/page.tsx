@@ -11,7 +11,7 @@ import { REJECT_REASONS } from "@/lib/returns/reject-reasons";
 import { getAdminReturns } from "@/lib/actions/admin/returns";
 import { formatINR } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "admin · returns" };
+export const metadata: Metadata = { title: "Admin · returns" };
 
 const STATUSES = [
   "requested",
@@ -111,8 +111,8 @@ export default async function AdminReturnsPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="commerce"
-        title="returns & exchanges"
+        eyebrow="Commerce"
+        title="Returns & exchanges"
         intro="Return + exchange requests raised by customers within the 3-day window. Change status inline; the customer sees their timeline update in real time."
       />
 
@@ -134,21 +134,21 @@ export default async function AdminReturnsPage({
         className="mt-6 flex gap-1 overflow-x-auto border-b border-cocoa/12"
       >
         <TypeTab
-          label="all"
+          label="All"
           count={counts.all}
           type="all"
           active={typeFilter === "all"}
           status={status}
         />
         <TypeTab
-          label="returns"
+          label="Returns"
           count={counts.returns}
           type="return"
           active={typeFilter === "return"}
           status={status}
         />
         <TypeTab
-          label="exchanges"
+          label="Exchanges"
           count={counts.exchanges}
           type="exchange"
           active={typeFilter === "exchange"}
@@ -204,8 +204,8 @@ export default async function AdminReturnsPage({
       <div className="mt-6">
         {filtered.length === 0 ? (
           <AdminEmpty
-            title="no requests match"
-            description="the queue is clear for this filter."
+            title="No requests match"
+            description="The queue is clear for this filter."
           />
         ) : (
           <ul className="space-y-4">

@@ -63,8 +63,8 @@ export function NewCollectionForm() {
 
   return (
     <FormShell onSubmit={handleSubmit}>
-      <FormSection title="basics">
-        <Field label="name" required wide>
+      <FormSection title="Basics">
+        <Field label="Name" required wide>
           <TextInput
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -73,7 +73,7 @@ export function NewCollectionForm() {
           />
         </Field>
         <Field
-          label="url slug"
+          label="Url slug"
           required
           wide
           hint={`will appear as /collections/${effectiveSlug || "your-slug"}`}
@@ -87,7 +87,7 @@ export function NewCollectionForm() {
             placeholder="slow-essentials"
           />
         </Field>
-        <Field label="description" wide>
+        <Field label="Description" wide>
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -97,10 +97,10 @@ export function NewCollectionForm() {
       </FormSection>
 
       <FormSection
-        title="hero image"
+        title="Hero image"
         description="Shown at the top of the collection page. Optional."
       >
-        <Field label="hero image url" wide>
+        <Field label="Hero image url" wide>
           <TextInput
             value={heroImageUrl}
             onChange={(e) => setHeroImageUrl(e.target.value)}
@@ -109,8 +109,8 @@ export function NewCollectionForm() {
         </Field>
       </FormSection>
 
-      <FormSection title="visibility">
-        <Field label="sort order" hint="Lower shows first on listing pages.">
+      <FormSection title="Visibility">
+        <Field label="Sort order" hint="Lower shows first on listing pages.">
           <TextInput
             inputMode="numeric"
             value={sortOrder}
@@ -118,7 +118,7 @@ export function NewCollectionForm() {
           />
         </Field>
         <CheckboxRow
-          label="active — show on the storefront"
+          label="Active — show on the storefront"
           checked={isActive}
           onChange={setIsActive}
         />
@@ -127,7 +127,7 @@ export function NewCollectionForm() {
       <SubmitBar
         cancelHref="/studio/collections"
         pending={pending}
-        label="create collection"
+        label="Create collection"
         error={error}
         disabled={!canSubmit}
       />
