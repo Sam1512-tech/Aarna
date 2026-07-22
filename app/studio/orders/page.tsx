@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AdminEmpty, AdminPageHeader } from "@/components/admin/admin-primitives";
+import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { getAdminOrders } from "@/lib/actions/admin/orders";
 import { OrdersTable } from "./orders-table";
 
@@ -63,7 +64,7 @@ export default async function AdminOrdersPage({
         intro="Live orders from the storefront. Filter by status or search by order number, email, or phone."
       />
 
-      <form method="get" className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
+      <AutoSubmitForm className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
         <label>
           <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
             search
@@ -115,7 +116,7 @@ export default async function AdminOrdersPage({
         >
           filter
         </button>
-      </form>
+      </AutoSubmitForm>
 
       <div className="mt-6">
         {result.items.length === 0 ? (

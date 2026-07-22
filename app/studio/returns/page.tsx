@@ -4,6 +4,7 @@ import {
   AdminEmpty,
   AdminPageHeader,
 } from "@/components/admin/admin-primitives";
+import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { ReturnStatusSelect } from "@/components/admin/return-status-select";
 import { ReturnPhotoGrid } from "@/components/admin/return-photo-grid";
 import { ReturnQcTrigger } from "@/components/admin/return-qc-trigger";
@@ -157,10 +158,7 @@ export default async function AdminReturnsPage({
       </div>
 
       {/* Status filter */}
-      <form
-        method="get"
-        className="mt-5 flex flex-wrap items-end gap-3"
-      >
+      <AutoSubmitForm className="mt-5 flex flex-wrap items-end gap-3">
         {typeFilter !== "all" ? (
           <input type="hidden" name="type" value={typeFilter} />
         ) : null}
@@ -181,12 +179,6 @@ export default async function AdminReturnsPage({
             ))}
           </select>
         </label>
-        <button
-          type="submit"
-          className="rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-cream transition duration-500 hover:bg-cocoa/90"
-        >
-          filter
-        </button>
         {status ? (
           <Link
             href={
@@ -199,7 +191,7 @@ export default async function AdminReturnsPage({
             clear
           </Link>
         ) : null}
-      </form>
+      </AutoSubmitForm>
 
       <div className="mt-6">
         {filtered.length === 0 ? (
