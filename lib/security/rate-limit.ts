@@ -1,12 +1,17 @@
 import { lt, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db, schema } from "@/lib/db";
+import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 
 const { rateLimitAttempts } = schema;
 
 export interface RateLimitOptions {
   maxAttempts: number;
   windowSeconds: number;
+  // Human-readable label for the admin alert email fired the moment this
+  // limit is actually breached (see checkRateLimit). Omit to rate-limit
+  // silently with no alert — used for the lower-stakes limits below.
+  alertLabel?: string;
 }
 
 export interface RateLimitResult {
@@ -19,10 +24,10 @@ export interface RateLimitResult {
 export const RATE_LIMITS = {
   // Two limits stack on login/OTP: by-email (stops someone hammering one
   // victim's account) and by-IP (stops one attacker spraying many emails).
-  loginByEmail: { maxAttempts: 10, windowSeconds: 15 * 60 },
-  loginByIp: { maxAttempts: 20, windowSeconds: 15 * 60 },
-  otpByEmail: { maxAttempts: 5, windowSeconds: 15 * 60 },
-  otpByIp: { maxAttempts: 10, windowSeconds: 15 * 60 },
+  loginByEmail: { maxAttempts: 10, windowSeconds: 15 * 60, alertLabel: "Repeated failed logins for one account" },
+  loginByIp: { maxAttempts: 20, windowSeconds: 15 * 60, alertLabel: "Repeated login attempts from one connection" },
+  otpByEmail: { maxAttempts: 5, windowSeconds: 15 * 60, alertLabel: "Repeated OTP requests for one email" },
+  otpByIp: { maxAttempts: 10, windowSeconds: 15 * 60, alertLabel: "Repeated OTP requests from one connection" },
   signupByIp: { maxAttempts: 5, windowSeconds: 60 * 60 },
   couponApplyByIp: { maxAttempts: 20, windowSeconds: 10 * 60 },
 } as const satisfies Record<string, RateLimitOptions>;
@@ -43,6 +48,13 @@ export const RATE_LIMITS = {
  * hiccuping should never itself lock out a legitimate customer. This is
  * different from e.g. webhook signature verification, which must fail
  * closed: this is a mitigation layer, not the actual security boundary.
+ *
+ * When `opts.alertLabel` is set, crossing the limit emails every admin —
+ * exactly once per (key, window), at the precise request that pushes the
+ * count from allowed to over-limit (count === maxAttempts + 1), not on
+ * every subsequent blocked request in the same window. Otherwise a
+ * sustained attacker retrying against an already-tripped limit would
+ * flood the admin's inbox with one email per request.
  */
 export async function checkRateLimit(
   key: string,
@@ -62,6 +74,14 @@ export async function checkRateLimit(
       .returning({ count: rateLimitAttempts.count });
 
     const count = row?.count ?? 1;
+
+    if (opts.alertLabel && count === opts.maxAttempts + 1) {
+      alertAdminSuspiciousActivity({
+        event: opts.alertLabel,
+        detail: `Rate limit exceeded for "${key}" — ${count} attempts within ${Math.round(opts.windowSeconds / 60)} minute(s) (limit: ${opts.maxAttempts}).`,
+      }).catch((err) => console.error("[rate-limit] alert failed:", err));
+    }
+
     return {
       allowed: count <= opts.maxAttempts,
       remaining: Math.max(0, opts.maxAttempts - count),
