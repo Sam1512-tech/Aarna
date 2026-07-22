@@ -14,8 +14,11 @@ export default async function AccountLayout({
     redirect("/login?next=/account");
   }
 
+  // `||`, not `??` — an account created via OTP/Google can end up with
+  // fullName as an empty string rather than null (no name was ever
+  // collected), and `??` only falls through on null/undefined.
   const displayName =
-    customer.fullName ?? customer.email?.split("@")[0] ?? "friend";
+    customer.fullName || customer.email?.split("@")[0] || "friend";
 
   return <AccountShell displayName={displayName}>{children}</AccountShell>;
 }

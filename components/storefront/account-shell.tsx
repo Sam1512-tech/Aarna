@@ -8,6 +8,7 @@ import {
   MapPin,
   Repeat,
   RotateCcw,
+  Settings,
   ShoppingBag,
   User,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const NAV: NavItem[] = [
     tab: "exchanges",
   },
   { href: "/account/returns", label: "Returns", Icon: RotateCcw, tab: "" },
+  { href: "/account/profile", label: "Profile", Icon: Settings },
 ];
 
 interface AccountShellProps {
