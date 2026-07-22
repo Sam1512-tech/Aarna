@@ -36,6 +36,7 @@ ALTER TABLE public.orders               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_images       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_variants     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rate_limit_attempts  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.returns              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reviews              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wishlists            ENABLE ROW LEVEL SECURITY;

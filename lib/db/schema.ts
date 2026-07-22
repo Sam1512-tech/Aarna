@@ -547,6 +547,32 @@ export const messageLog = pgTable("message_log", {
     .notNull(),
 });
 
+/**
+ * Backs the Postgres-based rate limiter (lib/security/rate-limit.ts). Fixed-
+ * window counting: one row per (rateKey, windowStart) — checking a key
+ * upserts+increments its current window's row. Using Postgres instead of an
+ * in-memory counter is deliberate: Vercel functions are ephemeral and scale
+ * across many instances, so an in-memory Map wouldn't coordinate attempts
+ * across them (each cold start / instance would get its own counter,
+ * effectively multiplying the real limit by however many instances handle
+ * a burst). This table is the single shared source of truth instead.
+ */
+export const rateLimitAttempts = pgTable(
+  "rate_limit_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    rateKey: varchar("rate_key", { length: 200 }).notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").default(1).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    keyWindow: uniqueIndex("rate_limit_key_window_idx").on(t.rateKey, t.windowStart),
+  }),
+);
+
 export const updatedAtTrigger = sql`
   CREATE OR REPLACE FUNCTION set_updated_at()
   RETURNS TRIGGER AS $$
