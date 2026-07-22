@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { mapDelhiveryStatus } from "@/lib/delhivery";
 import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
+import { canTransitionFulfillment } from "@/lib/orders/fulfillment-transitions";
 
 const { orders } = schema;
 
@@ -50,31 +51,39 @@ export async function POST(req: Request) {
 
   const next = mapDelhiveryStatus(statusLabel, statusType);
   if (next) {
-    await db
-      .update(orders)
-      .set({
-        fulfillmentStatus: next,
-        updatedAt: new Date(),
-        // coalesce, not an unconditional set — Delhivery can push "delivered"
-        // more than once (retries), and a repeat push must not push the
-        // return window's start date forward.
-        ...(next === "delivered"
-          ? { deliveredAt: sql`coalesce(${orders.deliveredAt}, now())` }
-          : {}),
-      })
-      .where(eq(orders.awbNumber, awb));
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.awbNumber, awb))
+      .limit(1);
 
-    // In-transit / shipped / out-for-delivery updates are left to Delhivery's own
-    // comms — we don't duplicate those. On delivery we send Aarna's own branded
-    // WhatsApp (a key milestone: return reminder + brand touch). No email here —
-    // delivery isn't one of Aarna's transactional emails. (docs/whatsapp-templates.md)
-    if (next === "delivered") {
-      const [order] = await db
-        .select()
-        .from(orders)
-        .where(eq(orders.awbNumber, awb))
-        .limit(1);
-      if (order) {
+    // Courier webhooks aren't guaranteed to arrive in order (retries, network
+    // delays) — an "out for delivery" push that arrives late, after
+    // "delivered" was already recorded, must never revert the order
+    // backwards. canTransitionFulfillment treats from===to as always allowed
+    // (a repeated "delivered" push is still fine — deliveredAt is coalesced
+    // below, not overwritten), so this only ever blocks genuine regressions.
+    if (order && canTransitionFulfillment(order.fulfillmentStatus, next)) {
+      await db
+        .update(orders)
+        .set({
+          fulfillmentStatus: next,
+          updatedAt: new Date(),
+          // coalesce, not an unconditional set — Delhivery can push "delivered"
+          // more than once (retries), and a repeat push must not push the
+          // return window's start date forward.
+          ...(next === "delivered"
+            ? { deliveredAt: sql`coalesce(${orders.deliveredAt}, now())` }
+            : {}),
+        })
+        .where(eq(orders.awbNumber, awb));
+
+      // In-transit / shipped / out-for-delivery updates are left to Delhivery's
+      // own comms — we don't duplicate those. On delivery we send Aarna's own
+      // branded WhatsApp (a key milestone: return reminder + brand touch). No
+      // email here — delivery isn't one of Aarna's transactional emails.
+      // (docs/whatsapp-templates.md)
+      if (next === "delivered") {
         await notifyWhatsApp({
           orderId: order.id,
           phone: order.phone,
@@ -87,6 +96,12 @@ export async function POST(req: Request) {
           ],
         });
       }
+    } else if (order) {
+      console.warn(
+        "[delhivery webhook] ignored out-of-order/invalid transition:",
+        awb,
+        `${order.fulfillmentStatus} -> ${next}`,
+      );
     }
   }
 

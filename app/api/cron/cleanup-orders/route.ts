@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { deleteStaleUnpaidOrders } from "@/lib/db/queries/orders";
+import {
+  deleteStaleUnpaidOrders,
+  releaseExpiredCheckoutHolds,
+} from "@/lib/db/queries/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +17,11 @@ const STALE_DAYS = 7;
  * `Authorization: Bearer <CRON_SECRET>` on cron-triggered requests; anything
  * without a matching header is rejected the same way the Delhivery webhook
  * gates on its shared token.
+ *
+ * Also runs releaseExpiredCheckoutHolds as a backstop — it's normally
+ * triggered opportunistically by the next checkout attempt (see
+ * initCheckout), but on a quiet day with no other checkouts, this is what
+ * still frees up stock reserved by an abandoned cart.
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -29,6 +37,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const releasedHolds = await releaseExpiredCheckoutHolds();
   const result = await deleteStaleUnpaidOrders(STALE_DAYS);
-  return NextResponse.json({ ok: true, ...result });
+  return NextResponse.json({ ok: true, releasedHolds, ...result });
 }

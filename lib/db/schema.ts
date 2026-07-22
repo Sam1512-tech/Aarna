@@ -349,6 +349,15 @@ export const orders = pgTable("orders", {
   fulfillmentStatus: orderFulfillmentStatus("fulfillment_status")
     .default("pending")
     .notNull(),
+  // True only for orders whose stock was actually decremented at checkout
+  // (initCheckout's atomic reservation). Defaults false so every order that
+  // predates this column — created back when checkout only checked stock
+  // without reserving it — is correctly never touched by the stock-restore
+  // path in releaseExpiredCheckoutHolds / markOrderPaymentFailed. Without
+  // this, restoring stock for a pre-existing pending order would "give back"
+  // a unit that was never actually taken, silently inflating that variant's
+  // real stock count.
+  stockReserved: boolean("stock_reserved").default(false).notNull(),
   invoiceNumber: varchar("invoice_number", { length: 30 }).unique(),
   razorpayOrderId: varchar("razorpay_order_id", { length: 60 }).unique(),
   razorpayPaymentId: varchar("razorpay_payment_id", { length: 60 }),
