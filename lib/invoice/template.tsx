@@ -69,8 +69,9 @@ export interface InvoiceData {
 
 const SELLER = {
   name: "Aarna Label",
-  address: "No. 3571, 1st H Cross, Behind Girinagar Police Station",
-  locality: "Giri Nagar, Bengaluru – 560085, Karnataka",
+  addressLine1: "No. 3571, 1st H Cross",
+  addressLine2: "Behind Girinagar Police Station,",
+  addressLine3: "Giri Nagar, Bengaluru – 560085",
   gstin: "29ACNFA3302J1ZD",
   phone: "+91 79-75639485",
   email: "hello@shopaarna.in",
@@ -232,8 +233,9 @@ function InvoicePage({ data }: { data: InvoiceData }) {
         <View style={s.infoBox}>
           <Text style={s.infoLabel}>Sold By</Text>
           <Text style={s.infoTextBold}>{SELLER.name}</Text>
-          <Text style={s.infoText}>{SELLER.address}</Text>
-          <Text style={s.infoText}>{SELLER.locality}</Text>
+          <Text style={s.infoText}>{SELLER.addressLine1}</Text>
+          <Text style={s.infoText}>{SELLER.addressLine2}</Text>
+          <Text style={s.infoText}>{SELLER.addressLine3}</Text>
           <Text style={s.infoText}>GSTIN: {SELLER.gstin}</Text>
           <Text style={s.infoText}>Ph: {SELLER.phone}</Text>
           <Text style={s.infoText}>{SELLER.email}</Text>
