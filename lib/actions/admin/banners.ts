@@ -23,7 +23,7 @@ function validateUrl(input: string, label: string): string {
 
 function revalidateBannerConsumers() {
   revalidatePath("/", "layout"); // homepage hero
-  revalidatePath("/admin/banners");
+  revalidatePath("/studio/banners");
 }
 
 // ── Read ─────────────────────────────────────────────────────────────────────

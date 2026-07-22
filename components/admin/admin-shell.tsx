@@ -28,17 +28,17 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { href: "/admin", label: "dashboard", Icon: BarChart3, exact: true },
-  { href: "/admin/categories", label: "categories", Icon: FolderTree },
-  { href: "/admin/products", label: "products", Icon: Package },
-  { href: "/admin/inventory", label: "inventory", Icon: Boxes },
-  { href: "/admin/orders", label: "orders", Icon: ShoppingBag },
-  { href: "/admin/returns", label: "returns", Icon: RotateCcw },
-  { href: "/admin/coupons", label: "coupons", Icon: Tag },
-  { href: "/admin/banners", label: "banners", Icon: ImageIcon },
-  { href: "/admin/homepage-videos", label: "homepage videos", Icon: Clapperboard },
-  { href: "/admin/collections", label: "collections", Icon: Layers },
-  { href: "/admin/reviews", label: "reviews", Icon: Star },
+  { href: "/studio", label: "dashboard", Icon: BarChart3, exact: true },
+  { href: "/studio/categories", label: "categories", Icon: FolderTree },
+  { href: "/studio/products", label: "products", Icon: Package },
+  { href: "/studio/inventory", label: "inventory", Icon: Boxes },
+  { href: "/studio/orders", label: "orders", Icon: ShoppingBag },
+  { href: "/studio/returns", label: "returns", Icon: RotateCcw },
+  { href: "/studio/coupons", label: "coupons", Icon: Tag },
+  { href: "/studio/banners", label: "banners", Icon: ImageIcon },
+  { href: "/studio/homepage-videos", label: "homepage videos", Icon: Clapperboard },
+  { href: "/studio/collections", label: "collections", Icon: Layers },
+  { href: "/studio/reviews", label: "reviews", Icon: Star },
 ];
 
 interface AdminShellProps {

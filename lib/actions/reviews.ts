@@ -147,7 +147,7 @@ export async function submitReview(
   }
 
   revalidatePath("/account/orders");
-  revalidatePath("/admin/reviews");
+  revalidatePath("/studio/reviews");
   return { ok: true };
 }
 

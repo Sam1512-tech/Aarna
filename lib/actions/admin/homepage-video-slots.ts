@@ -13,7 +13,7 @@ export type HomepageVideoPosition = "left" | "right";
 
 function revalidateHomepageVideoConsumers() {
   revalidatePath("/", "layout");
-  revalidatePath("/admin/homepage-videos");
+  revalidatePath("/studio/homepage-videos");
 }
 
 function validateUrl(input: string, label: string): string {

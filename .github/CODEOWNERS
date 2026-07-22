@@ -6,7 +6,7 @@
 
 # ── Frontend (Vismaya owns, Sam still reviews) ───────────────────────────────
 /app/(storefront)/                  @vismayahm21-lab @Sam1512-tech
-/app/admin/                         @vismayahm21-lab @Sam1512-tech
+/app/studio/                        @vismayahm21-lab @Sam1512-tech
 /components/                        @vismayahm21-lab @Sam1512-tech
 /hooks/                             @vismayahm21-lab @Sam1512-tech
 /store/                             @vismayahm21-lab @Sam1512-tech

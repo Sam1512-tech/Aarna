@@ -288,8 +288,8 @@ export async function updateOrderFulfillmentStatus(
     await applyStockMovement(items, 1, "return", existing[0].orderNumber);
   }
 
-  revalidatePath("/admin/orders");
-  revalidatePath(`/admin/orders/${existing[0].orderNumber}`);
+  revalidatePath("/studio/orders");
+  revalidatePath(`/studio/orders/${existing[0].orderNumber}`);
   revalidatePath("/account/orders"); // customer-facing order list
   return updated;
 }
@@ -325,8 +325,8 @@ export async function attachAwbNumber(orderId: string, awbNumber: string) {
     .where(eq(orders.id, orderId))
     .returning();
 
-  revalidatePath("/admin/orders");
-  revalidatePath(`/admin/orders/${existing[0].orderNumber}`);
+  revalidatePath("/studio/orders");
+  revalidatePath(`/studio/orders/${existing[0].orderNumber}`);
   revalidatePath("/account/orders");
   return updated;
 }
@@ -421,8 +421,8 @@ export async function createDelhiveryShipment(orderId: string) {
     .where(eq(orders.id, orderId))
     .returning();
 
-  revalidatePath("/admin/orders");
-  revalidatePath(`/admin/orders/${order.orderNumber}`);
+  revalidatePath("/studio/orders");
+  revalidatePath(`/studio/orders/${order.orderNumber}`);
   revalidatePath("/account/orders");
   return updated;
 }

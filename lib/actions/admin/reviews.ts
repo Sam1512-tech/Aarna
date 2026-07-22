@@ -97,7 +97,7 @@ export async function updateReviewStatus(id: string, status: ReviewStatus) {
 
   // Refresh the moderation queue. Approving/rejecting changes what shows on the
   // storefront product page, so refresh that too (path resolved from the slug).
-  revalidatePath("/admin/reviews");
+  revalidatePath("/studio/reviews");
   const slug = await db
     .select({ slug: products.slug })
     .from(products)
@@ -119,6 +119,6 @@ export async function deleteReview(id: string): Promise<{ ok: true }> {
   if (!existing[0]) throw new ActionError("Review not found");
 
   await db.delete(reviews).where(eq(reviews.id, id));
-  revalidatePath("/admin/reviews");
+  revalidatePath("/studio/reviews");
   return { ok: true };
 }

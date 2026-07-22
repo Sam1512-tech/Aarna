@@ -73,7 +73,7 @@ function revalidateProductConsumers(slug?: string) {
   revalidatePath("/", "layout");
   revalidatePath("/shop", "layout");
   if (slug) revalidatePath(`/product/${slug}`);
-  revalidatePath("/admin/products");
+  revalidatePath("/studio/products");
 }
 
 // ── Style code / SKU generation ─────────────────────────────────────────────
@@ -634,6 +634,6 @@ export async function reorderProductImages(
     }
   });
 
-  revalidatePath("/admin/products");
+  revalidatePath("/studio/products");
   return { ok: true };
 }

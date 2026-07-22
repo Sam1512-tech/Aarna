@@ -182,7 +182,7 @@ export async function updateReturnStatus(
     .where(eq(returns.id, returnId))
     .returning();
 
-  revalidatePath("/admin/returns");
+  revalidatePath("/studio/returns");
   revalidatePath("/account/returns");
 
   if (status === "approved" && row.status !== "approved") {
@@ -314,7 +314,7 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
     .where(eq(returns.id, returnId))
     .returning();
 
-  revalidatePath("/admin/returns");
+  revalidatePath("/studio/returns");
   revalidatePath("/account/returns");
 
   if (input.outcome === "pass") {

@@ -43,7 +43,7 @@ function validateSlug(slug: string): string {
 function revalidateCategoryConsumers() {
   revalidatePath("/", "layout"); // navbar (in root layout) + homepage
   revalidatePath("/shop", "layout"); // PLP shell
-  revalidatePath("/admin/categories");
+  revalidatePath("/studio/categories");
 }
 
 // ── Public actions ───────────────────────────────────────────────────────────
