@@ -11,6 +11,7 @@ import {
   checkPincodeServiceability,
   initCheckout,
 } from "@/lib/actions/checkout";
+import { createAddress } from "@/lib/actions/account";
 import { applyCoupon } from "@/lib/actions/cart";
 import { clearStoredCoupon, getStoredCoupon } from "@/lib/cart/coupon-storage";
 import type { CartState } from "@/lib/types";
@@ -63,6 +64,7 @@ const shippingSchema = z.object({
     .trim()
     .regex(/^[1-9]\d{5}$/, "6-digit PIN code"),
   whatsappOptIn: z.boolean(),
+  saveAddress: z.boolean(),
   // Optional — only business buyers who want a GST invoice fill this in, but
   // if they do, it must be a real GSTIN. Uppercased so a copy-pasted
   // lowercase GSTIN still validates.
@@ -200,6 +202,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
       state: "",
       pincode: "",
       whatsappOptIn: true,
+      saveAddress: false,
       gstNumber: "",
     },
   });
@@ -410,17 +413,28 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
         );
       }
 
+      const shippingAddress = {
+        fullName: data.fullName,
+        phone: data.phone,
+        line1: data.line1,
+        line2: data.line2 || undefined,
+        city: data.city,
+        state: data.state,
+        pincode: data.pincode,
+      };
+
+      // Save to the address book if asked — best-effort, fire-and-forget.
+      // Never let this delay or block payment; worst case the customer just
+      // has to retype it next time.
+      if (data.saveAddress) {
+        createAddress(shippingAddress).catch((err) => {
+          console.error("[checkout] save address failed:", err);
+        });
+      }
+
       const { razorpay } = await initCheckout({
         email: data.email,
-        shippingAddress: {
-          fullName: data.fullName,
-          phone: data.phone,
-          line1: data.line1,
-          line2: data.line2 || undefined,
-          city: data.city,
-          state: data.state,
-          pincode: data.pincode,
-        },
+        shippingAddress,
         billingSameAsShipping: true,
         whatsappOptIn: data.whatsappOptIn,
         couponCode: couponCode ?? undefined,
@@ -583,6 +597,16 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                   </p>
                 ) : null}
               </div>
+              <label className="flex cursor-pointer items-start gap-3 pt-1">
+                <input
+                  type="checkbox"
+                  {...register("saveAddress")}
+                  className="mt-1 h-4 w-4 cursor-pointer accent-cocoa"
+                />
+                <span className="text-sm leading-6 text-charcoal/72">
+                  Save this address for future orders
+                </span>
+              </label>
             </fieldset>
 
             <TrustStrip />
