@@ -15,7 +15,6 @@ import {
 
 const { orders, orderItems, productImages, productVariants } = schema;
 
-export type { FulfillmentStatus };
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded" | "partially_refunded";
 
 function assertValidTransition(from: FulfillmentStatus, to: FulfillmentStatus) {
