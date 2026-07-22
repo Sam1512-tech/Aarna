@@ -1,9 +1,9 @@
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, lt, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { InvoiceData } from "@/lib/invoice/generate";
 import { calculateOrderGst, isInterStateOrder } from "@/lib/invoice/generate";
 
-const { orders, orderItems, returns, carts, cartItems } = schema;
+const { orders, orderItems, returns, carts, cartItems, messageLog } = schema;
 
 export type OrderRow = typeof orders.$inferSelect;
 export type OrderItemRow = typeof orderItems.$inferSelect;
@@ -147,6 +147,51 @@ export async function recordRefund(params: {
     );
 
   return { order, isDuplicate };
+}
+
+/**
+ * Permanently deletes orders that never completed payment (payment_status
+ * "pending" or "failed") and are older than `staleDays`. Every checkout
+ * attempt inserts a real order row before Razorpay even opens (see
+ * initCheckout in lib/actions/checkout.ts), so an abandoned or declined
+ * checkout otherwise sits in the admin order list forever. Orders that
+ * reached "paid" — including ones later refunded, returned, or RTO'd by the
+ * courier — are never touched by this filter, since they're all
+ * payment_status "paid"/"refunded"/"partially_refunded", never
+ * "pending"/"failed".
+ *
+ * message_log.order_id has no ON DELETE cascade, so any log row is detached
+ * first — in practice a pending/failed order should never have one (every
+ * WhatsApp template only fires after payment succeeds), but this keeps the
+ * delete from ever failing on a stray row instead of silently skipping it.
+ */
+export async function deleteStaleUnpaidOrders(
+  staleDays = 7,
+): Promise<{ deletedCount: number; orderNumbers: string[] }> {
+  const cutoff = new Date(Date.now() - staleDays * 24 * 60 * 60 * 1000);
+
+  const stale = await db
+    .select({ id: orders.id, orderNumber: orders.orderNumber })
+    .from(orders)
+    .where(
+      and(
+        inArray(orders.paymentStatus, ["pending", "failed"]),
+        lt(orders.createdAt, cutoff),
+      ),
+    );
+
+  if (stale.length === 0) return { deletedCount: 0, orderNumbers: [] };
+
+  const ids = stale.map((o) => o.id);
+
+  await db
+    .update(messageLog)
+    .set({ orderId: null })
+    .where(inArray(messageLog.orderId, ids));
+
+  await db.delete(orders).where(inArray(orders.id, ids));
+
+  return { deletedCount: ids.length, orderNumbers: stale.map((o) => o.orderNumber) };
 }
 
 /**
