@@ -80,7 +80,7 @@ export function ReturnStatusSelect({
         router.refresh();
       } catch (err) {
         setCurrent(previous);
-        setError(actionErrorMessage(err, "couldn't update status"));
+        setError(actionErrorMessage(err, "Couldn't update status"));
       }
     });
   }
@@ -104,7 +104,7 @@ export function ReturnStatusSelect({
       setShowReject(false);
       router.refresh();
     } catch (err) {
-      throw new Error(actionErrorMessage(err, "couldn't reject"));
+      throw new Error(actionErrorMessage(err, "Couldn't reject"));
     }
   }
 

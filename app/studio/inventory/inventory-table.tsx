@@ -84,11 +84,11 @@ export function InventoryTable({ items: initial }: InventoryTableProps) {
                   </td>
                   <td className={t.td}>
                     {out ? (
-                      <StatusPill label="out of stock" tone="bad" />
+                      <StatusPill label="Out of stock" tone="bad" />
                     ) : low ? (
-                      <StatusPill label="low" tone="warn" />
+                      <StatusPill label="Low" tone="warn" />
                     ) : (
-                      <StatusPill label="ok" tone="ok" />
+                      <StatusPill label="Ok" tone="ok" />
                     )}
                   </td>
                   <td className={`${t.td} text-right`}>
@@ -174,7 +174,7 @@ function HistoryModal({ row, onClose }: { row: Row; onClose: () => void }) {
       <button
         type="button"
         onClick={onClose}
-        aria-label="close"
+        aria-label="Close"
         className="absolute inset-0 cursor-default"
       />
       <div className="relative z-10 w-full max-h-[85vh] max-w-lg overflow-y-auto rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_28px_70px_rgba(43,38,35,0.24)]">
@@ -194,7 +194,7 @@ function HistoryModal({ row, onClose }: { row: Row; onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="close"
+            aria-label="Close"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-cocoa transition duration-500 hover:bg-cocoa/10"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -302,7 +302,7 @@ function AdjustModal({
       <button
         type="button"
         onClick={onClose}
-        aria-label="close"
+        aria-label="Close"
         className="absolute inset-0 cursor-default"
       />
       <div className="relative z-10 w-full max-h-[85vh] max-w-md overflow-y-auto rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_28px_70px_rgba(43,38,35,0.24)]">
@@ -325,7 +325,7 @@ function AdjustModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="close"
+            aria-label="Close"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-cocoa transition duration-500 hover:bg-cocoa/10"
           >
             <X className="h-4 w-4" aria-hidden="true" />

@@ -32,7 +32,7 @@ export function HomepageFeatureToggle({
         await setHomepageFeatureCollection(id, !featured);
         router.refresh();
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't update"));
+        setError(actionErrorMessage(err, "Couldn't update"));
       }
     });
   }

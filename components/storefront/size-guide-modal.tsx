@@ -93,7 +93,7 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
               id="size-guide-title"
               className="mt-3 font-display text-4xl leading-tight text-maroon md:text-5xl"
             >
-              size guide
+              Size guide
             </h2>
           </div>
 
@@ -109,7 +109,7 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
                   fit type
                 </p>
                 <p className="mt-0.5 text-sm text-charcoal/85">
-                  comfortable fit
+                  Comfortable fit
                 </p>
               </div>
             </div>
@@ -123,14 +123,14 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
                   model height
                 </p>
                 <p className="mt-0.5 text-sm text-charcoal/85">
-                  5&apos;6&quot; · wearing S
+                  5&apos;6&quot; · Wearing S
                 </p>
               </div>
             </div>
           </div>
 
           <p className="mt-5 text-center text-sm leading-6 text-charcoal/65">
-            we&apos;ve laid out body measurements so you can pick the size
+            We&apos;ve laid out body measurements so you can pick the size
             that feels closest to yours.
           </p>
 
@@ -195,7 +195,7 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
           </div>
 
           <p className="mt-5 text-center text-xs leading-5 text-charcoal/55">
-            still unsure? drop us a note at{" "}
+            Still unsure? Drop us a note at{" "}
             <a
               href="mailto:hello@shopaarna.in"
               className="soft-link text-cocoa"

@@ -5,7 +5,7 @@ import { getAdminCollectionDetail } from "@/lib/actions/admin/collections";
 import { getAdminProducts } from "@/lib/actions/admin/products";
 import { CollectionEditView } from "./collection-edit-view";
 
-export const metadata: Metadata = { title: "admin · edit collection" };
+export const metadata: Metadata = { title: "Admin · edit collection" };
 
 export default async function AdminEditCollectionPage({
   params,
@@ -22,7 +22,7 @@ export default async function AdminEditCollectionPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="catalog · collections"
+        eyebrow="Catalog · collections"
         title={collection.name}
         intro="Curated grouping of products shown on the storefront."
       />

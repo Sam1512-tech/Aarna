@@ -167,23 +167,23 @@ function BasicsForm({
 
   return (
     <FormShell onSubmit={handleSubmit}>
-      <FormSection title="basics">
-        <Field label="title" required wide>
+      <FormSection title="Basics">
+        <Field label="Title" required wide>
           <TextInput
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
         </Field>
-        <Field label="url slug" required wide hint={`/product/${slug}`}>
+        <Field label="Url slug" required wide hint={`/product/${slug}`}>
           <TextInput
             value={slug}
             onChange={(e) => setSlug(slugify(e.target.value))}
           />
         </Field>
-        <Field label="style code" wide hint="auto-generated · used to build tag SKUs">
+        <Field label="Style code" wide hint="auto-generated · used to build tag SKUs">
           <TextInput value={product.styleCode ?? "—"} disabled readOnly className="font-mono" />
         </Field>
-        <Field label="category" wide>
+        <Field label="Category" wide>
           <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             <option value="">— uncategorised —</option>
             {categories.map((c) => (
@@ -191,33 +191,33 @@ function BasicsForm({
             ))}
           </Select>
         </Field>
-        <Field label="description" wide>
+        <Field label="Description" wide>
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
       </FormSection>
 
-      <FormSection title="pricing">
-        <Field label="selling price (₹)" required>
+      <FormSection title="Pricing">
+        <Field label="Selling price (₹)" required>
           <TextInput inputMode="decimal" value={priceRupees}
             onChange={(e) => setPriceRupees(e.target.value)} />
         </Field>
-        <Field label="mrp (₹)" hint="blank = same as selling price">
+        <Field label="Mrp (₹)" hint="blank = same as selling price">
           <TextInput inputMode="decimal" value={mrpRupees}
             onChange={(e) => setMrpRupees(e.target.value)} />
         </Field>
       </FormSection>
 
-      <FormSection title="care & compliance">
-        <Field label="fabric composition" wide>
+      <FormSection title="Care & compliance">
+        <Field label="Fabric composition" wide>
           <TextInput value={fabric} onChange={(e) => setFabric(e.target.value)} />
         </Field>
-        <Field label="wash care" wide>
+        <Field label="Wash care" wide>
           <TextInput value={washCare} onChange={(e) => setWashCare(e.target.value)} />
         </Field>
       </FormSection>
 
-      <FormSection title="visibility">
-        <Field label="status" wide>
+      <FormSection title="Visibility">
+        <Field label="Status" wide>
           <Select value={status} onChange={(e) => setStatus(e.target.value as ProductStatus)}>
             <option value="draft">draft — hidden</option>
             <option value="active">active — live</option>
@@ -232,7 +232,7 @@ function BasicsForm({
       <SubmitBar
         cancelHref="/studio/products"
         pending={pending}
-        label="save changes"
+        label="Save changes"
         error={error}
         disabled={!canSubmit}
       />
@@ -362,7 +362,7 @@ function VariantsSection({
           value={customSize}
           onChange={(e) => setCustomSize(e.target.value)}
           placeholder="custom size (e.g. Free Size, 34)"
-          aria-label="custom size"
+          aria-label="Custom size"
           className={`${variantInputClass} max-w-xs`}
         />
         <button
@@ -582,7 +582,7 @@ function AddTagRow({
             placeholder="e.g. maroon (optional)"
             value={color}
             onChange={(e) => setColor(e.target.value)}
-            aria-label="tag / color"
+            aria-label="Tag / color"
             className={`mt-1 ${variantInputClass}`}
           />
         </label>
@@ -594,7 +594,7 @@ function AddTagRow({
             placeholder={styleCode ? "auto" : "assigned on save"}
             value={effectiveSku}
             onChange={(e) => { setSku(e.target.value); setSkuEdited(true); }}
-            aria-label="sku"
+            aria-label="Sku"
             className={`mt-1 ${variantInputClass} font-mono`}
           />
         </label>
@@ -607,7 +607,7 @@ function AddTagRow({
             placeholder="0.00"
             value={priceRupees}
             onChange={(e) => setPriceRupees(e.target.value)}
-            aria-label="price"
+            aria-label="Price"
             className={`mt-1 ${variantInputClass}`}
           />
         </label>
@@ -620,7 +620,7 @@ function AddTagRow({
             placeholder="0"
             value={stock}
             onChange={(e) => setStock(e.target.value.replace(/\D/g, ""))}
-            aria-label="stock"
+            aria-label="Stock"
             className={`mt-1 ${variantInputClass}`}
           />
         </label>
@@ -722,15 +722,15 @@ function TagRow({
     <li className="py-3">
       <div className="grid items-center gap-3 sm:grid-cols-[1.4fr_1.4fr_1fr_1fr_auto]">
         <input value={v.color} onChange={(e) => setV({ ...v, color: e.target.value })}
-          placeholder="tag (e.g. color)" aria-label="tag / color" className={variantInputClass} />
+          placeholder="tag (e.g. color)" aria-label="Tag / color" className={variantInputClass} />
         <input value={v.sku} onChange={(e) => setV({ ...v, sku: e.target.value })}
-          placeholder="sku" aria-label="sku" className={`${variantInputClass} font-mono`} />
+          placeholder="sku" aria-label="Sku" className={`${variantInputClass} font-mono`} />
         <input inputMode="decimal" value={priceRupees}
           onChange={(e) => setPriceRupees(e.target.value)}
-          placeholder="price" aria-label="price" className={variantInputClass} />
+          placeholder="price" aria-label="Price" className={variantInputClass} />
         <input inputMode="numeric" value={stockStr}
           onChange={(e) => setStockStr(e.target.value.replace(/\D/g, ""))}
-          placeholder="stock" aria-label="stock" className={variantInputClass} />
+          placeholder="stock" aria-label="Stock" className={variantInputClass} />
         <div className="flex items-center justify-end gap-2">
           <button type="button" onClick={handleSave} disabled={!dirty || pending}
             className="rounded-full bg-cocoa px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-cream transition duration-500 hover:bg-cocoa/90 disabled:opacity-40">
@@ -844,7 +844,7 @@ function ImagesSection({
                 <Image src={img.url} alt={img.altText || "product image"} fill sizes="200px" className="object-cover" />
               </div>
               <button type="button" onClick={() => handleRemove(img.id)} disabled={pending}
-                aria-label="remove image"
+                aria-label="Remove image"
                 className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-cream/90 text-burnt-red opacity-0 shadow transition duration-300 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-cream">
                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               </button>

@@ -44,7 +44,7 @@ export function ReturnPhotoUploader({
 
     const remaining = MAX_PHOTOS - photos.length;
     if (remaining <= 0) {
-      setError(`up to ${MAX_PHOTOS} photos`);
+      setError(`Up to ${MAX_PHOTOS} photos`);
       return;
     }
 
@@ -55,7 +55,7 @@ export function ReturnPhotoUploader({
         return;
       }
       if (!ACCEPT.includes(f.type)) {
-        setError(`${f.name} isn't jpg / png / webp`);
+        setError(`${f.name} isn't JPG / PNG / WEBP`);
         return;
       }
     }
@@ -68,7 +68,7 @@ export function ReturnPhotoUploader({
           uploaded.push(url);
         } catch (err) {
           setError(
-            err instanceof Error ? err.message : "upload failed — try again",
+            err instanceof Error ? err.message : "Upload failed — try again",
           );
           break;
         }
@@ -157,7 +157,7 @@ export function ReturnPhotoUploader({
         <p className="mt-2 text-xs text-burnt-red">{error}</p>
       ) : (
         <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-charcoal/40">
-          jpg · png · webp · 5 mb max
+          JPG · PNG · WEBP · 5 MB max
         </p>
       )}
     </div>

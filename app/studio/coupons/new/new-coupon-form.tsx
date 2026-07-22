@@ -81,10 +81,10 @@ export function NewCouponForm() {
   return (
     <FormShell onSubmit={handleSubmit}>
       <FormSection
-        title="code"
+        title="Code"
         description="3-32 characters, letters/digits/dash/underscore. Auto-uppercased."
       >
-        <Field label="coupon code" required wide>
+        <Field label="Coupon code" required wide>
           <TextInput
             value={code}
             onChange={(e) =>
@@ -96,14 +96,14 @@ export function NewCouponForm() {
         </Field>
       </FormSection>
 
-      <FormSection title="discount">
-        <Field label="type" required>
+      <FormSection title="Discount">
+        <Field label="Type" required>
           <Select
             value={type}
             onChange={(e) => setType(e.target.value as CouponType)}
           >
-            <option value="percent">percentage off</option>
-            <option value="flat">flat rupee amount off</option>
+            <option value="percent">Percentage off</option>
+            <option value="flat">Flat rupee amount off</option>
           </Select>
         </Field>
         <Field
@@ -120,7 +120,7 @@ export function NewCouponForm() {
           />
         </Field>
         <Field
-          label="minimum order (₹)"
+          label="Minimum order (₹)"
           hint="Order subtotal required to redeem. Leave blank for none."
         >
           <TextInput
@@ -132,7 +132,7 @@ export function NewCouponForm() {
           />
         </Field>
         <Field
-          label="expires on"
+          label="Expires on"
           hint="Optional — coupon becomes invalid after this date."
         >
           <TextInput
@@ -143,9 +143,9 @@ export function NewCouponForm() {
         </Field>
       </FormSection>
 
-      <FormSection title="usage limits">
+      <FormSection title="Usage limits">
         <Field
-          label="total uses"
+          label="Total uses"
           hint="Cap across all customers. Blank = unlimited."
         >
           <TextInput
@@ -159,7 +159,7 @@ export function NewCouponForm() {
           />
         </Field>
         <Field
-          label="per customer"
+          label="Per customer"
           hint="How many times one customer can use it."
         >
           <TextInput
@@ -173,7 +173,7 @@ export function NewCouponForm() {
           />
         </Field>
         <CheckboxRow
-          label="active — customers can use this code right away"
+          label="Active — customers can use this code right away"
           checked={isActive}
           onChange={setIsActive}
         />
@@ -182,7 +182,7 @@ export function NewCouponForm() {
       <SubmitBar
         cancelHref="/studio/coupons"
         pending={pending}
-        label="create coupon"
+        label="Create coupon"
         error={error}
         disabled={!canSubmit}
       />

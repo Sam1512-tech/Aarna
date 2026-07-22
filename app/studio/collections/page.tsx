@@ -13,7 +13,7 @@ import {
   getAdminCollections,
 } from "@/lib/actions/admin/collections";
 
-export const metadata: Metadata = { title: "admin · collections" };
+export const metadata: Metadata = { title: "Admin · collections" };
 
 export default async function AdminCollectionsPage() {
   const collections = await getAdminCollections().catch(() => []);
@@ -22,8 +22,8 @@ export default async function AdminCollectionsPage() {
   return (
     <div>
       <AdminPageHeader
-        eyebrow="catalog"
-        title="collections"
+        eyebrow="Catalog"
+        title="Collections"
         intro="Curated groupings of products — like 'slow essentials' or seasonal edits."
         action={{
           href: "/studio/collections/new",
@@ -34,8 +34,8 @@ export default async function AdminCollectionsPage() {
       <div className="mt-6">
         {collections.length === 0 ? (
           <AdminEmpty
-            title="no collections yet"
-            description="collections let you group pieces together for the storefront (e.g. 'slow essentials')."
+            title="No collections yet"
+            description="Collections let you group pieces together for the storefront (e.g. 'slow essentials')."
             cta={{ href: "/studio/collections/new", label: "add your first collection" }}
           />
         ) : (

@@ -261,16 +261,16 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
         <Card>
           <SectionTitle>Payment</SectionTitle>
           <div className="mt-4 grid gap-3 text-sm">
-            <Row label="subtotal" value={formatINR(order.subtotal)} />
+            <Row label="Subtotal" value={formatINR(order.subtotal)} />
             {order.discount > 0 ? (
               <Row
                 label={`discount${order.couponCode ? ` (${order.couponCode})` : ""}`}
                 value={`− ${formatINR(order.discount)}`}
               />
             ) : null}
-            <Row label="shipping" value={formatINR(order.shippingFee)} />
+            <Row label="Shipping" value={formatINR(order.shippingFee)} />
             <div className="mt-1 border-t border-cocoa/10 pt-3">
-              <Row label="total" value={formatINR(order.total)} strong />
+              <Row label="Total" value={formatINR(order.total)} strong />
             </div>
             <p className="mt-1 text-xs text-charcoal/55">
               status · {order.paymentStatus}

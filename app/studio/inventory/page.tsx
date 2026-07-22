@@ -7,7 +7,7 @@ import { getInventory } from "@/lib/actions/admin/inventory";
 import { InventoryTable } from "./inventory-table";
 import { ReprintScanPanel } from "./reprint-scan-panel";
 
-export const metadata: Metadata = { title: "admin · inventory" };
+export const metadata: Metadata = { title: "Admin · inventory" };
 
 const LOW_STOCK_THRESHOLD = 5;
 
@@ -41,8 +41,8 @@ export default async function AdminInventoryPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="catalog"
-        title="inventory"
+        eyebrow="Catalog"
+        title="Inventory"
         intro={`Stock counts per variant. Rows at or below ${LOW_STOCK_THRESHOLD} units are highlighted.`}
       />
 
@@ -96,8 +96,8 @@ export default async function AdminInventoryPage({
       <div className="mt-6">
         {result.items.length === 0 ? (
           <AdminEmpty
-            title="no variants match"
-            description="try widening the filters or clearing the search."
+            title="No variants match"
+            description="Try widening the filters or clearing the search."
           />
         ) : (
           <InventoryTable

@@ -158,14 +158,14 @@ export function SubmitBar({
           href={cancelHref}
           className="inline-flex items-center rounded-full border border-cocoa/22 bg-cream px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa transition duration-500 hover:border-cocoa"
         >
-          cancel
+          Cancel
         </Link>
         <button
           type="submit"
           disabled={pending || disabled}
           className="inline-flex items-center gap-2 rounded-full bg-cocoa px-5 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream shadow-[0_10px_28px_rgba(140,106,90,0.22)] transition duration-500 hover:bg-cocoa/90 disabled:opacity-50"
         >
-          {pending ? "saving…" : label}
+          {pending ? "Saving…" : label}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>

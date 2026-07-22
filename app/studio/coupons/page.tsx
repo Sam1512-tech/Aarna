@@ -10,7 +10,7 @@ import { DeleteButton } from "@/components/admin/delete-button";
 import { deleteCoupon, getAdminCoupons } from "@/lib/actions/admin/coupons";
 import { formatINR } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "admin · coupons" };
+export const metadata: Metadata = { title: "Admin · coupons" };
 
 // Vercel functions default to UTC even in bom1 — pin every admin date to IST
 // so timestamps match the client's phone clock.
@@ -61,8 +61,8 @@ export default async function AdminCouponsPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="commerce"
-        title="coupons"
+        eyebrow="Commerce"
+        title="Coupons"
         intro="Discount codes customers apply at checkout."
         action={{ href: "/studio/coupons/new", label: "add coupon" }}
       />
@@ -98,8 +98,8 @@ export default async function AdminCouponsPage({
       <div className="mt-6">
         {result.items.length === 0 ? (
           <AdminEmpty
-            title="no coupons yet"
-            description="add a code — flat amount or percentage — to offer at checkout."
+            title="No coupons yet"
+            description="Add a code — flat amount or percentage — to offer at checkout."
             cta={{ href: "/studio/coupons/new", label: "add coupon" }}
           />
         ) : (
@@ -143,11 +143,11 @@ export default async function AdminCouponsPage({
                       <td className={t.td}>{fmtDate(c.expiresAt)}</td>
                       <td className={t.td}>
                         {!c.isActive ? (
-                          <StatusPill label="inactive" tone="muted" />
+                          <StatusPill label="Inactive" tone="muted" />
                         ) : expired ? (
-                          <StatusPill label="expired" tone="bad" />
+                          <StatusPill label="Expired" tone="bad" />
                         ) : (
-                          <StatusPill label="active" tone="ok" />
+                          <StatusPill label="Active" tone="ok" />
                         )}
                       </td>
                       <td className={t.td}>

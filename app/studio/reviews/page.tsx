@@ -9,7 +9,7 @@ import { DeleteButton } from "@/components/admin/delete-button";
 import { ReviewStatusSelect } from "@/components/admin/review-status-select";
 import { deleteReview, getAdminReviews } from "@/lib/actions/admin/reviews";
 
-export const metadata: Metadata = { title: "admin · reviews" };
+export const metadata: Metadata = { title: "Admin · reviews" };
 
 const STATUSES = ["pending", "approved", "rejected"] as const;
 type ReviewStatus = (typeof STATUSES)[number];
@@ -51,8 +51,8 @@ export default async function AdminReviewsPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="community"
-        title="reviews"
+        eyebrow="Community"
+        title="Reviews"
         intro="Customer reviews awaiting moderation or already published."
       />
 
@@ -85,8 +85,8 @@ export default async function AdminReviewsPage({
       <div className="mt-6">
         {result.items.length === 0 ? (
           <AdminEmpty
-            title="no reviews match"
-            description="the moderation queue is empty for this filter."
+            title="No reviews match"
+            description="The moderation queue is empty for this filter."
           />
         ) : (
           <div className={t.wrapper}>

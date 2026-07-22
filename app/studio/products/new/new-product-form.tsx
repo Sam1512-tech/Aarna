@@ -91,10 +91,10 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
   return (
     <FormShell onSubmit={handleSubmit}>
       <FormSection
-        title="basics"
+        title="Basics"
         description="These are the fields customers and search engines see first."
       >
-        <Field label="title" required wide>
+        <Field label="Title" required wide>
           <TextInput
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -103,7 +103,7 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
           />
         </Field>
         <Field
-          label="url slug"
+          label="Url slug"
           required
           wide
           hint={`will appear as /product/${effectiveSlug || "your-slug"}`}
@@ -117,7 +117,7 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
             placeholder="linen-slip-dress"
           />
         </Field>
-        <Field label="category" wide>
+        <Field label="Category" wide>
           <Select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
@@ -130,7 +130,7 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
             ))}
           </Select>
         </Field>
-        <Field label="description" wide>
+        <Field label="Description" wide>
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -140,10 +140,10 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
       </FormSection>
 
       <FormSection
-        title="pricing"
+        title="Pricing"
         description="Enter amounts in rupees. Both selling price and MRP show on the hang tag."
       >
-        <Field label="selling price (₹)" required>
+        <Field label="Selling price (₹)" required>
           <TextInput
             inputMode="decimal"
             value={priceRupees}
@@ -152,7 +152,7 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
           />
         </Field>
         <Field
-          label="mrp (₹)"
+          label="Mrp (₹)"
           hint="Required by legal metrology if selling at a discount. Leave blank if same as selling price."
         >
           <TextInput
@@ -165,17 +165,17 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
       </FormSection>
 
       <FormSection
-        title="care & compliance"
+        title="Care & compliance"
         description="Fabric and care instructions are legally required on garment labels."
       >
-        <Field label="fabric composition" wide>
+        <Field label="Fabric composition" wide>
           <TextInput
             value={fabric}
             onChange={(e) => setFabric(e.target.value)}
             placeholder="100% linen"
           />
         </Field>
-        <Field label="wash care" wide>
+        <Field label="Wash care" wide>
           <TextInput
             value={washCare}
             onChange={(e) => setWashCare(e.target.value)}
@@ -185,11 +185,11 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
       </FormSection>
 
       <FormSection
-        title="visibility"
+        title="Visibility"
         description="Draft products stay hidden. Publish once variants and photos are added."
       >
         <CheckboxRow
-          label="publish now (skip draft state)"
+          label="Publish now (skip draft state)"
           checked={publishNow}
           onChange={setPublishNow}
         />
@@ -198,7 +198,7 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
       <SubmitBar
         cancelHref="/studio/products"
         pending={pending}
-        label="create product"
+        label="Create product"
         error={error}
         disabled={!canSubmit}
       />

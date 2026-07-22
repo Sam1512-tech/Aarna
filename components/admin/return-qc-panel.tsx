@@ -50,21 +50,21 @@ export function ReturnQcPanel({
           note: note.trim() || undefined,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "couldn't submit qc");
+        setError(err instanceof Error ? err.message : "Couldn't submit QC");
       }
     });
   }
 
   const passLabel =
-    type === "exchange" ? "ship the swap" : `refund ${formatINR(refundAmount)}`;
+    type === "exchange" ? "Ship the swap" : `Refund ${formatINR(refundAmount)}`;
 
   return (
     <div className="mt-4 rounded-xl border border-cocoa/20 bg-cocoa/6 px-4 py-4 md:px-5 md:py-5">
       <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
-        quality check
+        Quality check
       </p>
       <p className="mt-1 text-xs leading-5 text-charcoal/60">
-        item received — inspect and choose an outcome. this closes the request.
+        Item received — inspect and choose an outcome. This closes the request.
       </p>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -88,10 +88,10 @@ export function ReturnQcPanel({
             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
           </span>
           <span className="text-sm font-medium text-charcoal/90">
-            pass — {passLabel}
+            Pass — {passLabel}
           </span>
           <span className="text-[10px] uppercase tracking-[0.14em] text-charcoal/50">
-            piece is in resellable condition
+            Piece is in resellable condition
           </span>
         </button>
 
@@ -115,10 +115,10 @@ export function ReturnQcPanel({
             <XCircle className="h-4 w-4" aria-hidden="true" />
           </span>
           <span className="text-sm font-medium text-charcoal/90">
-            fail — partial or no refund
+            Fail — partial or no refund
           </span>
           <span className="text-[10px] uppercase tracking-[0.14em] text-charcoal/50">
-            damaged, worn, or wrong item
+            Damaged, worn, or wrong item
           </span>
         </button>
       </div>
@@ -128,7 +128,7 @@ export function ReturnQcPanel({
           <div>
             <div className="flex items-baseline justify-between">
               <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
-                partial refund
+                Partial refund
               </p>
               <p className="text-xs text-charcoal/70">
                 <span className="tabular-nums">{partialPercent}%</span>
@@ -149,14 +149,14 @@ export function ReturnQcPanel({
               className="mt-2 w-full accent-maroon"
             />
             <div className="mt-1 flex justify-between text-[9px] uppercase tracking-[0.14em] text-charcoal/45">
-              <span>no refund</span>
-              <span>full refund</span>
+              <span>No refund</span>
+              <span>Full refund</span>
             </div>
           </div>
 
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
-              internal note{" "}
+              Internal note{" "}
               <span className="text-charcoal/40">(min 10 chars, visible to customer)</span>
             </p>
             <textarea
@@ -165,7 +165,7 @@ export function ReturnQcPanel({
               rows={2}
               maxLength={300}
               className="mt-2 block w-full resize-none rounded-lg border border-cocoa/20 bg-cream px-3 py-2 text-sm text-charcoal outline-none transition duration-500 placeholder:text-charcoal/40 focus:border-cocoa"
-              placeholder="what did you find? this becomes the customer's explanation."
+              placeholder="What did you find? This becomes the customer's explanation."
             />
           </div>
         </div>
@@ -186,12 +186,12 @@ export function ReturnQcPanel({
         }`}
       >
         {pending
-          ? "submitting…"
+          ? "Submitting…"
           : outcome === "pass"
-            ? `confirm — ${passLabel}`
+            ? `Confirm — ${passLabel}`
             : outcome === "fail"
-              ? `confirm — refund ${formatINR(partialAmount)}`
-              : "pick pass or fail"}
+              ? `Confirm — refund ${formatINR(partialAmount)}`
+              : "Pick pass or fail"}
       </button>
     </div>
   );

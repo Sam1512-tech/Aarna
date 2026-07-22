@@ -144,7 +144,7 @@ export function AccountReturnsView({
             className="inline-flex items-center gap-2 rounded-full bg-maroon px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-maroon/90"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            raise a request
+            Raise a request
           </button>
         ) : null}
       </div>
@@ -197,19 +197,19 @@ export function AccountReturnsView({
 function EmptyState({ tab, hasEligible }: { tab: Tab; hasEligible: boolean }) {
   const copy =
     tab === "exchanges"
-      ? "no exchange requests yet"
+      ? "No exchange requests yet"
       : tab === "returns"
-        ? "no returns yet"
-        : "no requests yet";
+        ? "No returns yet"
+        : "No requests yet";
   const sub = hasEligible
-    ? "raise a request within 3 days of delivery."
-    : "nothing eligible right now — requests are open for 3 days after delivery.";
+    ? "Raise a request within 3 days of delivery."
+    : "Nothing eligible right now — requests are open for 3 days after delivery.";
   return (
     <div className="mt-6 flex flex-col items-center rounded-2xl border border-cocoa/12 bg-cream/70 py-14 text-center">
       <span className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-cocoa/20 text-cocoa">
         <RotateCcw className="h-5 w-5" aria-hidden="true" />
       </span>
-      <h2 className="mt-5 font-display text-2xl lowercase text-maroon">
+      <h2 className="mt-5 font-display text-2xl text-maroon">
         {copy}
       </h2>
       <p className="mt-2 max-w-sm text-sm text-charcoal/60">{sub}</p>
@@ -287,12 +287,12 @@ function RequestCard({
               order · {row.orderNumber}
             </p>
           </div>
-          <p className="mt-2 font-display text-xl lowercase text-maroon">
-            {row.productTitle.toLowerCase()}
+          <p className="mt-2 font-display text-xl text-maroon">
+            {row.productTitle}
           </p>
           {row.variantLabel ? (
-            <p className="mt-0.5 text-xs lowercase text-charcoal/55">
-              {row.variantLabel.toLowerCase()} · qty {row.quantity}
+            <p className="mt-0.5 text-xs text-charcoal/55">
+              {row.variantLabel} · Qty {row.quantity}
             </p>
           ) : null}
         </div>
@@ -303,7 +303,7 @@ function RequestCard({
           </p>
           {type === "return" && row.refundAmount ? (
             <p className="mt-1 text-sm">
-              <span className="text-charcoal/55">refund </span>
+              <span className="text-charcoal/55">Refund </span>
               <span className="font-medium text-cocoa">
                 {formatINR(row.refundAmount)}
               </span>
@@ -327,7 +327,7 @@ function RequestCard({
             not approved
           </p>
           <p className="mt-1 text-sm leading-6 text-charcoal/75">
-            our team wasn&apos;t able to process this request. reach out to
+            Our team wasn&apos;t able to process this request. Reach out to
             hello@shopaarna.in with more details and we&apos;ll take another
             look.
           </p>
@@ -345,7 +345,7 @@ function RequestCard({
 
       {type === "exchange" && row.status === "refunded" ? (
         <p className="mt-4 text-xs leading-6 text-charcoal/55">
-          your swap is on the way — tracking will appear once dispatched.
+          Your swap is on the way — tracking will appear once dispatched.
         </p>
       ) : null}
     </li>

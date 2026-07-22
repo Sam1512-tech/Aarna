@@ -13,7 +13,7 @@ import {
   reorderCategories,
 } from "@/lib/actions/admin/categories";
 
-export const metadata: Metadata = { title: "admin · categories" };
+export const metadata: Metadata = { title: "Admin · categories" };
 
 export default async function AdminCategoriesPage() {
   const categories = await getAdminCategories().catch(() => []);
@@ -22,8 +22,8 @@ export default async function AdminCategoriesPage() {
   return (
     <div>
       <AdminPageHeader
-        eyebrow="catalog"
-        title="categories"
+        eyebrow="Catalog"
+        title="Categories"
         intro="The wardrobe paths customers browse by — shown in the nav and homepage exactly in this order."
         action={{ href: "/studio/categories/new", label: "add category" }}
       />
@@ -31,8 +31,8 @@ export default async function AdminCategoriesPage() {
       <div className="mt-6">
         {categories.length === 0 ? (
           <AdminEmpty
-            title="no categories yet"
-            description="add at least one category so products have somewhere to live on the storefront."
+            title="No categories yet"
+            description="Add at least one category so products have somewhere to live on the storefront."
             cta={{ href: "/studio/categories/new", label: "add your first category" }}
           />
         ) : (

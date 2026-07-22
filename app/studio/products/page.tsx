@@ -10,7 +10,7 @@ import { DeleteButton } from "@/components/admin/delete-button";
 import { deleteProduct, getAdminProducts } from "@/lib/actions/admin/products";
 import { formatINR } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "admin · products" };
+export const metadata: Metadata = { title: "Admin · products" };
 
 type Status = "draft" | "active" | "archived";
 const STATUSES: Status[] = ["draft", "active", "archived"];
@@ -44,8 +44,8 @@ export default async function AdminProductsPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="catalog"
-        title="products"
+        eyebrow="Catalog"
+        title="Products"
         intro="Every piece the storefront can show. Publish, archive, or edit inline."
         action={{ href: "/studio/products/new", label: "add product" }}
       />
@@ -93,8 +93,8 @@ export default async function AdminProductsPage({
       <div className="mt-6">
         {result.items.length === 0 ? (
           <AdminEmpty
-            title="no products yet"
-            description="pieces you add will appear here. drafts start hidden from the storefront until you set them to active."
+            title="No products yet"
+            description="Pieces you add will appear here. drafts start hidden from the storefront until you set them to active."
             cta={{ href: "/studio/products/new", label: "add your first product" }}
           />
         ) : (

@@ -88,7 +88,7 @@ export function AccountShell({ displayName, children }: AccountShellProps) {
               className="-m-2 inline-flex shrink-0 items-center gap-1.5 p-2 text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/60 transition duration-500 hover:text-burnt-red disabled:opacity-50 lg:hidden"
             >
               <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-              {pending ? "signing out…" : "sign out"}
+              {pending ? "Signing out…" : "Sign out"}
             </button>
           </div>
           <h1 className="mt-4 font-display text-[40px] leading-[1.04] text-maroon md:text-6xl">
@@ -157,7 +157,7 @@ export function AccountShell({ displayName, children }: AccountShellProps) {
                 className="mt-4 flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-charcoal/60 transition duration-500 hover:bg-burnt-red/8 hover:text-burnt-red disabled:opacity-50"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
-                {pending ? "signing out…" : "sign out"}
+                {pending ? "Signing out…" : "Sign out"}
               </button>
             </nav>
           </aside>

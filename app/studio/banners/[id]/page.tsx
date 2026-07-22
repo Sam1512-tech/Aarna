@@ -4,7 +4,7 @@ import { AdminPageHeader } from "@/components/admin/admin-primitives";
 import { getAdminBannerDetail } from "@/lib/actions/admin/banners";
 import { BannerEditView } from "./banner-edit-view";
 
-export const metadata: Metadata = { title: "admin · edit banner" };
+export const metadata: Metadata = { title: "Admin · edit banner" };
 
 export default async function AdminEditBannerPage({
   params,
@@ -18,7 +18,7 @@ export default async function AdminEditBannerPage({
   return (
     <div>
       <AdminPageHeader
-        eyebrow="content · banners"
+        eyebrow="Content · banners"
         title={banner.title ?? "edit banner"}
         intro="Homepage hero and promo banner. Cloudinary URLs for now — richer upload UI comes next."
       />

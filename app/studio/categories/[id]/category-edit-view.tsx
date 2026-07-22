@@ -48,18 +48,18 @@ export function CategoryEditView({ category }: { category: Category }) {
 
   return (
     <FormShell onSubmit={handleSubmit}>
-      <FormSection title="basics">
-        <Field label="name" required wide>
+      <FormSection title="Basics">
+        <Field label="Name" required wide>
           <TextInput value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="url slug" required wide hint={`/shop/${slug || "your-slug"}`}>
+        <Field label="Url slug" required wide hint={`/shop/${slug || "your-slug"}`}>
           <TextInput
             value={slug}
             onChange={(e) => setSlug(slugify(e.target.value))}
           />
         </Field>
         <Field
-          label="sort order"
+          label="Sort order"
           hint="Lower shows first in the nav and homepage."
         >
           <TextInput
@@ -71,7 +71,7 @@ export function CategoryEditView({ category }: { category: Category }) {
       </FormSection>
 
       <FormSection
-        title="homepage tile"
+        title="Homepage tile"
         description="Shown on the homepage's wardrobe-paths grid. Portrait works best."
       >
         <CategoryImagePicker
@@ -85,7 +85,7 @@ export function CategoryEditView({ category }: { category: Category }) {
       <SubmitBar
         cancelHref="/studio/categories"
         pending={pending}
-        label="save changes"
+        label="Save changes"
         error={error}
         disabled={!canSubmit}
       />
