@@ -1,6 +1,5 @@
 import { SiteFooter } from "@/components/storefront/site-footer";
 import { SiteHeader } from "@/components/storefront/site-header";
-import { getCart } from "@/lib/actions/cart";
 import { getCategories } from "@/lib/actions/products";
 
 export default async function StorefrontLayout({
@@ -8,13 +7,12 @@ export default async function StorefrontLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [categoryRows, cart] = await Promise.all([
-    getCategories(),
-    // getCart is guest-cart tolerant (cookie-based) so this works signed-out
-    // too. Fall back to empty on any failure so the whole layout never blows
-    // up over the header badge.
-    getCart().catch(() => ({ itemCount: 0 })),
-  ]);
+  // Deliberately no getCart() here. It reads the guest-cart cookie, and any
+  // dynamic API read in a shared layout forces every nested page onto
+  // per-request dynamic rendering — the whole storefront lost static
+  // generation/ISR over one header badge (see CLAUDE.md's "Badge trade-off").
+  // SiteHeader now hydrates the cart count client-side instead.
+  const categoryRows = await getCategories();
   const categories = categoryRows.map((category) => ({
     name: category.name,
     slug: category.slug,
@@ -22,7 +20,7 @@ export default async function StorefrontLayout({
 
   return (
     <>
-      <SiteHeader categories={categories} initialCartCount={cart.itemCount} />
+      <SiteHeader categories={categories} />
       <main className="flex-1">{children}</main>
       <SiteFooter categories={categories} />
     </>

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { getCart } from "@/lib/actions/cart";
 import { useCartCount } from "@/store/cart-count";
 
 interface CategoryLink {
@@ -13,10 +14,6 @@ interface CategoryLink {
 
 interface SiteHeaderProps {
   categories: CategoryLink[];
-  /** Server-fetched cart item count so the badge paints correctly on first
-      load. Once the client hydrates, the store takes over and stays in sync
-      with every cart mutation. */
-  initialCartCount?: number;
 }
 
 // /shop/new-arrivals still isn't a real route (no dedicated "new arrivals"
@@ -26,10 +23,7 @@ const primaryLinks: { href: string; label: string }[] = [
   { href: "/collections", label: "collections" },
 ];
 
-export function SiteHeader({
-  categories,
-  initialCartCount = 0,
-}: SiteHeaderProps) {
+export function SiteHeader({ categories }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const menuCloseRef = useRef<HTMLButtonElement>(null);
@@ -60,18 +54,22 @@ export function SiteHeader({
     }
   }, [menuOpen]);
 
-  // Hydrate the client store with the server value on mount so subsequent
-  // navigations + mutations pick up from where the server left off. If the
-  // store is already hydrated (e.g. mid-session re-render), don't clobber it
-  // with a possibly-stale server value.
+  // Hydrate the client store on mount by asking the server for the real
+  // count (guest-cart cookie or signed-in cart — the same getCart() /cart
+  // uses). Deliberately a client-side call rather than a server-fetched prop
+  // from the layout: reading the cart cookie during the layout's own render
+  // forced every storefront page onto dynamic rendering (see the comment in
+  // app/(storefront)/layout.tsx). Calling it here instead, after mount, keeps
+  // the page itself static/cacheable. If the store is already hydrated (e.g.
+  // mid-session re-render, or CartCountSync already ran on this route),
+  // don't clobber it with a possibly-stale refetch.
   useEffect(() => {
-    if (!useCartCount.getState().hydrated) {
-      useCartCount.getState().set(initialCartCount);
-    }
-  }, [initialCartCount]);
-  const storeCount = useCartCount((s) => s.count);
-  const storeHydrated = useCartCount((s) => s.hydrated);
-  const cartCount = storeHydrated ? storeCount : initialCartCount;
+    if (useCartCount.getState().hydrated) return;
+    getCart()
+      .then((cart) => useCartCount.getState().set(cart.itemCount))
+      .catch(() => useCartCount.getState().set(0));
+  }, []);
+  const cartCount = useCartCount((s) => s.count);
 
   return (
     <>
