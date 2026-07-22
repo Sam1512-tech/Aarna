@@ -44,9 +44,14 @@ function VideoPanel({
   return (
     <div
       className={`relative isolate overflow-hidden rounded-[26px] shadow-[0_22px_60px_rgba(43,38,35,0.08)] ${
-        // True 9:16 — matches the source portrait video exactly (1080x1920)
-        // at every breakpoint, so object-cover has nothing to crop.
-        aspectClassName ?? "aspect-[9/16]"
+        // 4:5 portrait — matches the product-card aspect used elsewhere on
+        // the site, and shorter than the previous 9:16 Reels-tall crop
+        // which dominated both mobile (~750px stacked) and desktop
+        // (~1100px per panel). max-h caps the absolute height so a wide
+        // desktop viewport can't push it past ~520px, and mobile stays
+        // under 70vh even with two panels stacked. Object-cover crops the
+        // source video horizontally when needed — keep subjects centered.
+        aspectClassName ?? "aspect-[4/5] max-h-[70vh] md:max-h-[520px]"
       }`}
     >
       {slot?.videoUrl ? (
