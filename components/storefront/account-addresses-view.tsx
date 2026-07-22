@@ -372,7 +372,13 @@ function AddressEditor({
           </label>
         </div>
 
-        <div className="mt-auto flex gap-3 border-t border-cocoa/10 p-6 pt-4 md:px-8 md:pb-8">
+        {/* Extra bottom clearance for the iPhone home-indicator safe area
+            (the app opts into viewport-fit=cover) — same fix already
+            applied to the cart toast + return-exchange-modal footer. */}
+        <div
+          className="mt-auto flex gap-3 border-t border-cocoa/10 px-6 pt-4 md:px-8"
+          style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+        >
           <button
             type="button"
             onClick={onCancel}

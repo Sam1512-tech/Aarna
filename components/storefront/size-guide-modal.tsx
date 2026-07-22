@@ -83,7 +83,13 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
 
-        <div className="overflow-y-auto px-6 pb-8 pt-6 md:px-10 md:pt-10">
+        {/* Extra bottom clearance for the iPhone home-indicator safe area
+            (the app opts into viewport-fit=cover) — same fix already
+            applied to the cart toast + return-exchange-modal footer. */}
+        <div
+          className="overflow-y-auto px-6 pt-6 md:px-10 md:pt-10"
+          style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
+        >
           {/* Header */}
           <div className="text-center">
             <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-cocoa">
