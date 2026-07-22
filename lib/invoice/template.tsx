@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import {
   Document,
+  Font,
   Image,
   Page,
   StyleSheet,
@@ -9,6 +10,11 @@ import {
 } from "@react-pdf/renderer";
 import path from "path";
 import type { GstRateBreakdown } from "./generate";
+
+// Addresses, SKUs, and names must wrap at word boundaries, never mid-word —
+// react-pdf's default hyphenation engine breaks e.g. "Police" into "Po-lice"
+// when a column is narrow. This forces every word to stay whole.
+Font.registerHyphenationCallback((word) => [word]);
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,7 +76,7 @@ const SELLER = {
   email: "hello@shopaarna.in",
 };
 
-const LOGO_PATH = path.join(process.cwd(), "public", "logo.png");
+const LOGO_PATH = path.join(process.cwd(), "public", "logo-invoice.png");
 
 // "Rs." not "₹" — the built-in Helvetica PDF font has no rupee glyph (it
 // renders as "¹"), and this is a legal tax document.
@@ -91,8 +97,8 @@ const s = StyleSheet.create({
   },
 
   // Header
-  header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
-  logo: { width: 130, height: 52, objectFit: "contain" },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  logo: { width: 210, height: 56, objectFit: "contain" },
   headerRight: { alignItems: "flex-end" },
   invoiceTitle: { fontSize: 18, fontFamily: "Helvetica-Bold", color: "#4B1323", letterSpacing: 2, marginBottom: 4 },
   invoiceMeta: { fontSize: 8, color: "#555", marginBottom: 2 },
@@ -102,8 +108,8 @@ const s = StyleSheet.create({
   thickDivider: { borderBottomWidth: 1, borderBottomColor: "#4B1323", marginVertical: 10 },
 
   // Two-column info
-  infoRow: { flexDirection: "row", marginBottom: 12 },
-  infoBox: { flex: 1 },
+  infoRow: { flexDirection: "row", gap: 24, marginBottom: 12 },
+  infoBox: { flex: 1, alignItems: "flex-start" },
   infoLabel: { fontSize: 7, fontFamily: "Helvetica-Bold", color: "#9D948E", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 },
   infoText: { fontSize: 8, color: "#111111", lineHeight: 1.5 },
   infoTextBold: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#111111" },
@@ -331,7 +337,7 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
           <View style={s.footerDivider} />
           <Text style={s.footerText}>
             This is a system-generated invoice and does not require a physical signature.{"\n"}
-            Returns accepted within 14 days of delivery. Visit shopaarna.in/returns for the return policy.{"\n"}
+            Returns accepted within 3 days of delivery. Visit shopaarna.in/return-policy for the return policy.{"\n"}
             Aarna Label · GSTIN: 29ACNFA3302J1ZD · hello@shopaarna.in · +91 79-75639485
           </Text>
         </View>
