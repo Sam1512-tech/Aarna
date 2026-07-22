@@ -123,17 +123,17 @@ export default async function HomePage() {
                     className="group block"
                   >
                     {tileImage ? (
-                      <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]">
+                      <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)]">
                         <Image
                           src={tileImage}
                           alt={category.name}
                           fill
-                          sizes="50vw"
-                          className="object-cover"
+                          sizes="(min-width: 768px) 50vw, 100vw"
+                          className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                         />
                       </div>
                     ) : (
-                      <div className="cloth-window aspect-[3/4] rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)] transition duration-1000 group-hover:scale-[1.015]" />
+                      <div className="cloth-window aspect-[3/4] rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)]" />
                     )}
                     <p className="mt-3 font-display text-2xl leading-tight text-maroon">
                       {category.name}
@@ -331,17 +331,17 @@ export default async function HomePage() {
                   className="group block"
                 >
                   {category.imageUrl ? (
-                    <div className="relative aspect-[4/5] overflow-hidden shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]">
+                    <div className="relative aspect-[4/5] overflow-hidden shadow-[0_18px_55px_rgba(43,38,35,0.07)]">
                       <Image
                         src={category.imageUrl}
                         alt={category.name}
                         fill
-                        sizes="(min-width: 1024px) 25vw, 50vw"
-                        className="object-cover"
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                       />
                     </div>
                   ) : (
-                    <div className="cloth-window aspect-[4/5] shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]" />
+                    <div className="cloth-window aspect-[4/5] shadow-[0_18px_55px_rgba(43,38,35,0.07)]" />
                   )}
                   <p className="mt-4 font-display text-3xl leading-tight text-maroon">
                     {category.name}
@@ -389,11 +389,11 @@ export default async function HomePage() {
                           alt={product.image.altText ?? product.title}
                           fill
                           sizes="(min-width: 1024px) 25vw, 50vw"
-                          className="object-cover transition duration-1000 group-hover:scale-[1.01]"
+                          className="object-cover transition duration-500 group-hover:scale-[1.01]"
                         />
                       </div>
                     ) : (
-                      <div className="cloth-window aspect-[3/4] transition duration-1000 group-hover:scale-[1.01]" />
+                      <div className="cloth-window aspect-[3/4] transition duration-500 group-hover:scale-[1.01]" />
                     )}
                     <div className="mt-4 space-y-1 text-base leading-6 text-charcoal/66">
                       <div className="flex items-start justify-between gap-5 text-charcoal">

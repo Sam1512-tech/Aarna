@@ -30,17 +30,17 @@ export default async function CollectionsPage() {
                 className="group block"
               >
                 {collection.heroImageUrl ? (
-                  <div className="relative aspect-[4/5] overflow-hidden shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]">
+                  <div className="relative aspect-[4/5] overflow-hidden shadow-[0_18px_55px_rgba(43,38,35,0.07)]">
                     <Image
                       src={collection.heroImageUrl}
                       alt={collection.name}
                       fill
-                      sizes="(min-width: 1024px) 33vw, 50vw"
-                      className="object-cover"
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                     />
                   </div>
                 ) : (
-                  <div className="cloth-window aspect-[4/5] shadow-[0_18px_55px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]" />
+                  <div className="cloth-window aspect-[4/5] shadow-[0_18px_55px_rgba(43,38,35,0.07)]" />
                 )}
                 <p className="mt-4 font-display text-3xl leading-tight text-maroon">
                   {collection.name}
