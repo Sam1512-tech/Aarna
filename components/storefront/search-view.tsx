@@ -327,9 +327,9 @@ export function SearchView({
                       href={`/shop/${c.slug}`}
                       className="group block w-[calc(50%-10px)] sm:w-[230px]"
                     >
-                      <div className="cloth-window aspect-[4/5] rounded-[20px] shadow-[0_16px_44px_rgba(43,38,35,0.07)] transition duration-1000 group-hover:scale-[1.01]" />
+                      <div className="cloth-window aspect-[4/5] rounded-[20px] shadow-[0_16px_44px_rgba(43,38,35,0.07)] transition duration-500 group-hover:scale-[1.01]" />
                       <p className="mt-3.5 font-display text-2xl leading-tight text-maroon">
-                        {c.name.toLowerCase()}
+                        {c.name}
                       </p>
                     </Link>
                   ))}
@@ -449,10 +449,10 @@ function ProductCard({
               alt={product.image.altText ?? product.title}
               fill
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-              className="object-cover transition-transform duration-1000 group-hover:scale-[1.03]"
+              className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (
-            <div className="cloth-window h-full w-full transition duration-1000 group-hover:scale-[1.03]" />
+            <div className="cloth-window h-full w-full transition duration-500 group-hover:scale-[1.03]" />
           )}
         </Link>
         {onSale ? (
