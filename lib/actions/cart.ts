@@ -7,6 +7,7 @@ import { db, schema } from "@/lib/db";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { CartLine, CartState } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/security/rate-limit";
 
 const {
   carts,
@@ -234,6 +235,17 @@ export async function applyCoupon(
   code: string,
 ): Promise<{ ok: boolean; message: string; cart: CartState; discount: number }> {
   const cart = await getCart();
+
+  const ip = await getClientIp();
+  const { allowed } = await checkRateLimit(`coupon-apply:ip:${ip}`, RATE_LIMITS.couponApplyByIp);
+  if (!allowed) {
+    return {
+      ok: false,
+      message: "Too many coupon attempts — please wait a few minutes and try again.",
+      cart,
+      discount: 0,
+    };
+  }
 
   const coupon = await db
     .select()

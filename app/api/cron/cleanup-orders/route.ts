@@ -3,6 +3,7 @@ import {
   deleteStaleUnpaidOrders,
   releaseExpiredCheckoutHolds,
 } from "@/lib/db/queries/orders";
+import { cleanupOldRateLimitAttempts } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,11 @@ const STALE_DAYS = 7;
  * triggered opportunistically by the next checkout attempt (see
  * initCheckout), but on a quiet day with no other checkouts, this is what
  * still frees up stock reserved by an abandoned cart.
+ *
+ * Also purges old rate_limit_attempts rows (lib/security/rate-limit.ts) —
+ * riding this same daily cron instead of a second Vercel Cron entry, since
+ * this is the only scheduled job in the project and rate-limit cleanup is
+ * just as much "daily maintenance" as the order cleanup above.
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -39,5 +45,6 @@ export async function GET(req: Request) {
 
   const releasedHolds = await releaseExpiredCheckoutHolds();
   const result = await deleteStaleUnpaidOrders(STALE_DAYS);
-  return NextResponse.json({ ok: true, releasedHolds, ...result });
+  const rateLimitRowsDeleted = await cleanupOldRateLimitAttempts();
+  return NextResponse.json({ ok: true, releasedHolds, rateLimitRowsDeleted, ...result });
 }

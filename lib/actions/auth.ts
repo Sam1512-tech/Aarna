@@ -5,6 +5,9 @@ import { db, schema } from "@/lib/db";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { mergeGuestCartOnLogin } from "@/lib/actions/cart";
 import { ActionError } from "@/lib/action-error";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/security/rate-limit";
+
+const TOO_MANY_ATTEMPTS = "Too many attempts — please wait a few minutes and try again.";
 
 const { customers, admins } = schema;
 
@@ -49,6 +52,12 @@ export async function signup(input: SignupInput): Promise<AuthResult> {
   const passErr = passwordPolicyError(input.password);
   if (passErr) return { ok: false, message: passErr };
 
+  const ip = await getClientIp();
+  const { allowed } = await checkRateLimit(`signup:ip:${ip}`, RATE_LIMITS.signupByIp);
+  if (!allowed) {
+    return { ok: false, message: "Too many accounts created from this connection — please try again later." };
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -83,6 +92,15 @@ export async function signup(input: SignupInput): Promise<AuthResult> {
 
 export async function login(input: LoginInput): Promise<AuthResult> {
   const email = normalizeEmail(input.email);
+
+  const ip = await getClientIp();
+  const [byEmail, byIp] = await Promise.all([
+    checkRateLimit(`login:email:${email}`, RATE_LIMITS.loginByEmail),
+    checkRateLimit(`login:ip:${ip}`, RATE_LIMITS.loginByIp),
+  ]);
+  if (!byEmail.allowed || !byIp.allowed) {
+    return { ok: false, message: TOO_MANY_ATTEMPTS };
+  }
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -228,6 +246,15 @@ export async function sendEmailOtp(email: string): Promise<AuthResult> {
   if (!normalized) return { ok: false, message: "Email is required" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     return { ok: false, message: "Please enter a valid email" };
+  }
+
+  const ip = await getClientIp();
+  const [byEmail, byIp] = await Promise.all([
+    checkRateLimit(`otp:email:${normalized}`, RATE_LIMITS.otpByEmail),
+    checkRateLimit(`otp:ip:${ip}`, RATE_LIMITS.otpByIp),
+  ]);
+  if (!byEmail.allowed || !byIp.allowed) {
+    return { ok: false, message: TOO_MANY_ATTEMPTS };
   }
 
   const supabase = await createSupabaseServerClient();
