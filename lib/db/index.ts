@@ -1,8 +1,21 @@
 import { drizzle } from "drizzle-orm/postgres-js";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-const connectionString = process.env.DATABASE_URL;
+// `next build`'s static-generation workers set this env var (see
+// node_modules/next/dist/build/index.js). Static generation runs once on a
+// single build machine, so it's safe to use the direct connection there even
+// though runtime request handling stays on the pooler (which exists for
+// connection-limit reasons that only matter at request scale, not one-shot
+// build time). The pooler has a documented habit of intermittently
+// hanging/cancelling queries — previously that only cost a single slow/failed
+// page load, but now that more pages attempt static generation (see the
+// storefront-layout cart-badge fix), the same flakiness can hang past Next's
+// 60s static-generation timeout and fail the whole deployment instead.
+const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
+const connectionString =
+  (isBuildPhase && process.env.DIRECT_URL) || process.env.DATABASE_URL;
 
 if (!connectionString) {
   throw new Error("DATABASE_URL is not set. Add it to .env.local.");
