@@ -1,13 +1,7 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import {
-  AdminEmpty,
-  AdminPageHeader,
-  StatusPill,
-  tableClasses,
-} from "@/components/admin/admin-primitives";
+import { AdminEmpty, AdminPageHeader } from "@/components/admin/admin-primitives";
 import { getAdminOrders } from "@/lib/actions/admin/orders";
-import { formatINR } from "@/lib/utils";
+import { OrdersTable } from "./orders-table";
 
 export const metadata: Metadata = { title: "Admin · orders" };
 
@@ -30,24 +24,6 @@ const FULFILLMENT_STATUSES = [
 
 type Payment = (typeof PAYMENT_STATUSES)[number];
 type Fulfillment = (typeof FULFILLMENT_STATUSES)[number];
-
-// Admin dates render in IST regardless of the server clock. Vercel functions
-// default to UTC even in the bom1 region (region controls latency, not local
-// time), so without `timeZone: 'Asia/Kolkata'` an order placed at 4 am IST
-// on Aug 15 would render as "Aug 14" in the queue — off by up to 5:30 h.
-function fmtDate(d: Date | string | null) {
-  if (!d) return "—";
-  const dt = typeof d === "string" ? new Date(d) : d;
-  return dt.toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "Asia/Kolkata",
-  });
-}
 
 export default async function AdminOrdersPage({
   searchParams,
@@ -77,7 +53,6 @@ export default async function AdminOrdersPage({
     pageSize: 30,
   }).catch(() => ({ items: [], total: 0, page: 1, pageSize: 30 }));
 
-  const t = tableClasses();
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
 
   return (
@@ -149,70 +124,7 @@ export default async function AdminOrdersPage({
             description="Try widening the filters or clearing the search."
           />
         ) : (
-          <div className={t.wrapper}>
-            <table className={t.table}>
-              <thead className={t.thead}>
-                <tr>
-                  <th className={t.th}>order</th>
-                  <th className={t.th}>placed</th>
-                  <th className={t.th}>customer</th>
-                  <th className={t.th}>total</th>
-                  <th className={t.th}>payment</th>
-                  <th className={t.th}>fulfillment</th>
-                  <th className={t.th}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.items.map((o) => (
-                  <tr key={o.id} className={t.tr}>
-                    <td className={t.td}>
-                      <p className="font-medium text-charcoal">{o.orderNumber}</p>
-                    </td>
-                    <td className={t.td}>{fmtDate(o.createdAt)}</td>
-                    <td className={t.td}>
-                      <p className="text-charcoal">{o.email}</p>
-                      {o.phone ? (
-                        <p className="text-xs text-charcoal/50">{o.phone}</p>
-                      ) : null}
-                    </td>
-                    <td className={t.td}>{formatINR(o.total)}</td>
-                    <td className={t.td}>
-                      <StatusPill
-                        label={o.paymentStatus.replaceAll("_", " ")}
-                        tone={
-                          o.paymentStatus === "paid"
-                            ? "ok"
-                            : o.paymentStatus === "failed"
-                              ? "bad"
-                              : "muted"
-                        }
-                      />
-                    </td>
-                    <td className={t.td}>
-                      <StatusPill
-                        label={o.fulfillmentStatus.replaceAll("_", " ")}
-                        tone={
-                          o.fulfillmentStatus === "delivered"
-                            ? "ok"
-                            : o.fulfillmentStatus === "cancelled"
-                              ? "bad"
-                              : "muted"
-                        }
-                      />
-                    </td>
-                    <td className={t.td}>
-                      <Link
-                        href={`/studio/orders/${o.orderNumber}`}
-                        className="soft-link text-[11px] font-bold uppercase tracking-[0.16em] text-cocoa"
-                      >
-                        open
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <OrdersTable items={result.items} />
         )}
       </div>
 
