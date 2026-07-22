@@ -4,7 +4,7 @@ import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
-import { generateInvoicePdf } from "@/lib/invoice/generate";
+import { generateInvoicePdf, generateInvoicePdfBatch } from "@/lib/invoice/generate";
 import { buildInvoiceData } from "@/lib/db/queries/orders";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { ActionError } from "@/lib/action-error";
@@ -457,6 +457,57 @@ export async function regenerateInvoicePdf(orderId: string): Promise<Buffer> {
     order.invoiceNumber,
   );
   return generateInvoicePdf(invoiceData);
+}
+
+const MAX_BATCH_INVOICES = 200;
+
+/**
+ * Re-generates invoice PDFs for several orders at once, merged into a single
+ * PDF (one page per invoice) — powers the "print selected invoices" action on
+ * the admin orders list, so printing a batch is one file, not N downloads.
+ * Orders without an invoice number (never paid) are silently skipped, same
+ * as a single missing variant is skipped in generateHangTagsForVariants.
+ */
+export async function regenerateInvoicePdfBatch(orderIds: string[]): Promise<Buffer> {
+  await requireAdmin();
+
+  if (orderIds.length === 0) throw new ActionError("Pick at least one order");
+  if (orderIds.length > MAX_BATCH_INVOICES) {
+    throw new ActionError(`Pick ${MAX_BATCH_INVOICES} orders or fewer at a time`);
+  }
+
+  const [orderRows, itemRows] = await Promise.all([
+    db.select().from(orders).where(inArray(orders.id, orderIds)),
+    db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds)),
+  ]);
+
+  const orderById = new Map(orderRows.map((o) => [o.id, o]));
+  const itemsByOrder = new Map<string, typeof itemRows>();
+  for (const item of itemRows) {
+    const bucket = itemsByOrder.get(item.orderId);
+    if (bucket) bucket.push(item);
+    else itemsByOrder.set(item.orderId, [item]);
+  }
+
+  // Preserve the order the caller (the admin's selection) passed in, and
+  // silently drop anything unpaid/missing rather than failing the whole batch.
+  const invoiceDataList = orderIds
+    .map((id) => orderById.get(id))
+    .filter((order) => order && order.invoiceNumber)
+    .map((order) =>
+      buildInvoiceData(
+        { ...order!, orderItems: itemsByOrder.get(order!.id) ?? [] },
+        order!.invoiceNumber!,
+      ),
+    );
+
+  if (invoiceDataList.length === 0) {
+    throw new ActionError(
+      "None of the selected orders have an invoice yet — invoices are generated when payment is captured.",
+    );
+  }
+
+  return generateInvoicePdfBatch(invoiceDataList);
 }
 
 // ── Stats (for admin dashboard) ──────────────────────────────────────────────

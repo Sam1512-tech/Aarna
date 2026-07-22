@@ -179,6 +179,30 @@ function amountInWords(paise: number): string {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function InvoiceDocument({ data }: { data: InvoiceData }) {
+  return (
+    <Document title={`Tax Invoice ${data.invoiceNumber}`} author="Aarna Label">
+      <InvoicePage data={data} />
+    </Document>
+  );
+}
+
+/**
+ * Batch variant — one Document, one Page per invoice. Used by the admin
+ * "print selected invoices" flow (see lib/actions/admin/orders.ts's
+ * regenerateInvoicePdfBatch) so the admin gets a single PDF to print or save,
+ * the same way generateHangTagPdf batches multiple tags into one file.
+ */
+export function InvoiceBatchDocument({ invoices }: { invoices: InvoiceData[] }) {
+  return (
+    <Document title="Tax Invoices" author="Aarna Label">
+      {invoices.map((data) => (
+        <InvoicePage key={data.invoiceNumber} data={data} />
+      ))}
+    </Document>
+  );
+}
+
+function InvoicePage({ data }: { data: InvoiceData }) {
   const {
     invoiceNumber, invoiceDate, orderNumber, orderDate,
     customer, items, subtotal, discount, shippingFee,
@@ -186,163 +210,161 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
   } = data;
 
   return (
-    <Document title={`Tax Invoice ${invoiceNumber}`} author="Aarna Label">
-      <Page size="A4" style={s.page}>
+    <Page size="A4" style={s.page}>
 
-        {/* ── Header ── */}
-        <View style={s.header}>
-          {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image, no alt concept in PDFs */}
-          <Image src={LOGO_PATH} style={s.logo} />
-          <View style={s.headerRight}>
-            <Text style={s.invoiceTitle}>TAX INVOICE</Text>
-            <Text style={s.invoiceMeta}>Invoice No: {invoiceNumber}</Text>
-            <Text style={s.invoiceMeta}>Invoice Date: {invoiceDate}</Text>
-            <Text style={s.invoiceMeta}>Order No: {orderNumber}</Text>
-            <Text style={s.invoiceMeta}>Order Date: {orderDate}</Text>
-          </View>
+      {/* ── Header ── */}
+      <View style={s.header}>
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image, no alt concept in PDFs */}
+        <Image src={LOGO_PATH} style={s.logo} />
+        <View style={s.headerRight}>
+          <Text style={s.invoiceTitle}>TAX INVOICE</Text>
+          <Text style={s.invoiceMeta}>Invoice No: {invoiceNumber}</Text>
+          <Text style={s.invoiceMeta}>Invoice Date: {invoiceDate}</Text>
+          <Text style={s.invoiceMeta}>Order No: {orderNumber}</Text>
+          <Text style={s.invoiceMeta}>Order Date: {orderDate}</Text>
+        </View>
+      </View>
+
+      <View style={s.thickDivider} />
+
+      {/* ── Seller + Buyer ── */}
+      <View style={s.infoRow}>
+        <View style={s.infoBox}>
+          <Text style={s.infoLabel}>Sold By</Text>
+          <Text style={s.infoTextBold}>{SELLER.name}</Text>
+          <Text style={s.infoText}>{SELLER.address}</Text>
+          <Text style={s.infoText}>{SELLER.locality}</Text>
+          <Text style={s.infoText}>GSTIN: {SELLER.gstin}</Text>
+          <Text style={s.infoText}>Ph: {SELLER.phone}</Text>
+          <Text style={s.infoText}>{SELLER.email}</Text>
         </View>
 
-        <View style={s.thickDivider} />
-
-        {/* ── Seller + Buyer ── */}
-        <View style={s.infoRow}>
-          <View style={s.infoBox}>
-            <Text style={s.infoLabel}>Sold By</Text>
-            <Text style={s.infoTextBold}>{SELLER.name}</Text>
-            <Text style={s.infoText}>{SELLER.address}</Text>
-            <Text style={s.infoText}>{SELLER.locality}</Text>
-            <Text style={s.infoText}>GSTIN: {SELLER.gstin}</Text>
-            <Text style={s.infoText}>Ph: {SELLER.phone}</Text>
-            <Text style={s.infoText}>{SELLER.email}</Text>
-          </View>
-
-          <View style={s.infoBox}>
-            <Text style={s.infoLabel}>Bill To</Text>
-            <Text style={s.infoTextBold}>{customer.name}</Text>
-            <Text style={s.infoText}>{customer.address.line1}</Text>
-            {customer.address.line2 ? <Text style={s.infoText}>{customer.address.line2}</Text> : null}
-            <Text style={s.infoText}>{customer.address.city}, {customer.address.state} – {customer.address.pincode}</Text>
-            <Text style={s.infoText}>Ph: {customer.phone}</Text>
-            <Text style={s.infoText}>{customer.email}</Text>
-            {customer.gstin ? (
-              <Text style={s.infoText}>GSTIN: {customer.gstin}</Text>
-            ) : null}
-          </View>
-
-          <View style={s.infoBox}>
-            <Text style={s.infoLabel}>Payment</Text>
-            <Text style={s.infoText}>Method: Online (Razorpay)</Text>
-            <Text style={s.infoText}>Status: Paid</Text>
-            <Text style={[s.infoText, { marginTop: 8 }]}>Place of Supply:</Text>
-            <Text style={s.infoTextBold}>{customer.address.state}</Text>
-            <Text style={[s.infoText, { marginTop: 4 }]}>
-              Tax Type: {isInterState ? "IGST" : "CGST + SGST"}
-            </Text>
-          </View>
+        <View style={s.infoBox}>
+          <Text style={s.infoLabel}>Bill To</Text>
+          <Text style={s.infoTextBold}>{customer.name}</Text>
+          <Text style={s.infoText}>{customer.address.line1}</Text>
+          {customer.address.line2 ? <Text style={s.infoText}>{customer.address.line2}</Text> : null}
+          <Text style={s.infoText}>{customer.address.city}, {customer.address.state} – {customer.address.pincode}</Text>
+          <Text style={s.infoText}>Ph: {customer.phone}</Text>
+          <Text style={s.infoText}>{customer.email}</Text>
+          {customer.gstin ? (
+            <Text style={s.infoText}>GSTIN: {customer.gstin}</Text>
+          ) : null}
         </View>
 
-        <View style={s.divider} />
-
-        {/* ── Line Items Table ── */}
-        <View style={s.table}>
-          <View style={s.tableHeader}>
-            <Text style={[s.tableHeaderText, s.colDesc]}>Description</Text>
-            <Text style={[s.tableHeaderText, s.colHsn]}>HSN</Text>
-            <Text style={[s.tableHeaderText, s.colSize]}>Size</Text>
-            <Text style={[s.tableHeaderText, s.colQty]}>Qty</Text>
-            <Text style={[s.tableHeaderText, s.colRate]}>Rate</Text>
-            <Text style={[s.tableHeaderText, s.colGstRate]}>GST%</Text>
-            <Text style={[s.tableHeaderText, s.colTotal]}>Total</Text>
-          </View>
-
-          {items.map((item, i) => (
-            <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
-              <View style={s.colDesc}>
-                <Text style={s.tableCell}>{item.description}</Text>
-                <Text style={s.tableCellSub}>SKU: {item.sku}</Text>
-              </View>
-              <Text style={[s.tableCell, s.colHsn]}>6211</Text>
-              <Text style={[s.tableCell, s.colSize]}>{item.size ?? "—"}</Text>
-              <Text style={[s.tableCell, s.colQty]}>{item.quantity}</Text>
-              <Text style={[s.tableCell, s.colRate]}>{INR(item.unitPrice)}</Text>
-              <Text style={[s.tableCell, s.colGstRate]}>{item.gstRatePercent}%</Text>
-              <Text style={[s.tableCell, s.colTotal]}>{INR(item.lineTotal)}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ── Totals ── */}
-        <View style={s.totalsSection}>
-          <View style={s.totalsBox}>
-            <View style={s.totalRow}>
-              <Text style={s.totalLabel}>Subtotal</Text>
-              <Text style={s.totalValue}>{INR(subtotal)}</Text>
-            </View>
-            {discount > 0 && (
-              <View style={s.totalRow}>
-                <Text style={s.totalLabel}>Discount</Text>
-                <Text style={s.totalValue}>– {INR(discount)}</Text>
-              </View>
-            )}
-            {shippingFee > 0 && (
-              <View style={s.totalRow}>
-                <Text style={s.totalLabel}>Shipping</Text>
-                <Text style={s.totalValue}>{INR(shippingFee)}</Text>
-              </View>
-            )}
-            {rateBreakdown.map((bucket) => (
-              <Fragment key={bucket.ratePercent}>
-                <View style={s.totalRow}>
-                  <Text style={s.totalLabel}>
-                    Taxable @ {bucket.ratePercent}%
-                  </Text>
-                  <Text style={s.totalValue}>{INR(bucket.taxableAmount)}</Text>
-                </View>
-                {isInterState ? (
-                  <View style={s.totalRow}>
-                    <Text style={s.totalLabel}>IGST @ {bucket.ratePercent}%</Text>
-                    <Text style={s.totalValue}>{INR(bucket.igst)}</Text>
-                  </View>
-                ) : (
-                  <>
-                    <View style={s.totalRow}>
-                      <Text style={s.totalLabel}>
-                        CGST @ {bucket.ratePercent / 2}%
-                      </Text>
-                      <Text style={s.totalValue}>{INR(bucket.cgst)}</Text>
-                    </View>
-                    <View style={s.totalRow}>
-                      <Text style={s.totalLabel}>
-                        SGST @ {bucket.ratePercent / 2}%
-                      </Text>
-                      <Text style={s.totalValue}>{INR(bucket.sgst)}</Text>
-                    </View>
-                  </>
-                )}
-              </Fragment>
-            ))}
-            <View style={s.grandTotalRow}>
-              <Text style={s.grandTotalLabel}>TOTAL</Text>
-              <Text style={s.grandTotalValue}>{INR(total)}</Text>
-            </View>
-          </View>
-        </View>
-
-        <Text style={s.amountWords}>
-          Amount in words: {amountInWords(total)}
-        </Text>
-
-        {/* ── Footer ── */}
-        <View style={s.footer}>
-          <View style={s.footerDivider} />
-          <Text style={s.footerText}>
-            This is a system-generated invoice and does not require a physical signature.{"\n"}
-            Returns accepted within 3 days of delivery. Visit shopaarna.in/return-policy for the return policy.{"\n"}
-            Aarna Label · GSTIN: 29ACNFA3302J1ZD · hello@shopaarna.in · +91 79-75639485
+        <View style={s.infoBox}>
+          <Text style={s.infoLabel}>Payment</Text>
+          <Text style={s.infoText}>Method: Online (Razorpay)</Text>
+          <Text style={s.infoText}>Status: Paid</Text>
+          <Text style={[s.infoText, { marginTop: 8 }]}>Place of Supply:</Text>
+          <Text style={s.infoTextBold}>{customer.address.state}</Text>
+          <Text style={[s.infoText, { marginTop: 4 }]}>
+            Tax Type: {isInterState ? "IGST" : "CGST + SGST"}
           </Text>
         </View>
+      </View>
 
-      </Page>
-    </Document>
+      <View style={s.divider} />
+
+      {/* ── Line Items Table ── */}
+      <View style={s.table}>
+        <View style={s.tableHeader}>
+          <Text style={[s.tableHeaderText, s.colDesc]}>Description</Text>
+          <Text style={[s.tableHeaderText, s.colHsn]}>HSN</Text>
+          <Text style={[s.tableHeaderText, s.colSize]}>Size</Text>
+          <Text style={[s.tableHeaderText, s.colQty]}>Qty</Text>
+          <Text style={[s.tableHeaderText, s.colRate]}>Rate</Text>
+          <Text style={[s.tableHeaderText, s.colGstRate]}>GST%</Text>
+          <Text style={[s.tableHeaderText, s.colTotal]}>Total</Text>
+        </View>
+
+        {items.map((item, i) => (
+          <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
+            <View style={s.colDesc}>
+              <Text style={s.tableCell}>{item.description}</Text>
+              <Text style={s.tableCellSub}>SKU: {item.sku}</Text>
+            </View>
+            <Text style={[s.tableCell, s.colHsn]}>6211</Text>
+            <Text style={[s.tableCell, s.colSize]}>{item.size ?? "—"}</Text>
+            <Text style={[s.tableCell, s.colQty]}>{item.quantity}</Text>
+            <Text style={[s.tableCell, s.colRate]}>{INR(item.unitPrice)}</Text>
+            <Text style={[s.tableCell, s.colGstRate]}>{item.gstRatePercent}%</Text>
+            <Text style={[s.tableCell, s.colTotal]}>{INR(item.lineTotal)}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* ── Totals ── */}
+      <View style={s.totalsSection}>
+        <View style={s.totalsBox}>
+          <View style={s.totalRow}>
+            <Text style={s.totalLabel}>Subtotal</Text>
+            <Text style={s.totalValue}>{INR(subtotal)}</Text>
+          </View>
+          {discount > 0 && (
+            <View style={s.totalRow}>
+              <Text style={s.totalLabel}>Discount</Text>
+              <Text style={s.totalValue}>– {INR(discount)}</Text>
+            </View>
+          )}
+          {shippingFee > 0 && (
+            <View style={s.totalRow}>
+              <Text style={s.totalLabel}>Shipping</Text>
+              <Text style={s.totalValue}>{INR(shippingFee)}</Text>
+            </View>
+          )}
+          {rateBreakdown.map((bucket) => (
+            <Fragment key={bucket.ratePercent}>
+              <View style={s.totalRow}>
+                <Text style={s.totalLabel}>
+                  Taxable @ {bucket.ratePercent}%
+                </Text>
+                <Text style={s.totalValue}>{INR(bucket.taxableAmount)}</Text>
+              </View>
+              {isInterState ? (
+                <View style={s.totalRow}>
+                  <Text style={s.totalLabel}>IGST @ {bucket.ratePercent}%</Text>
+                  <Text style={s.totalValue}>{INR(bucket.igst)}</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={s.totalRow}>
+                    <Text style={s.totalLabel}>
+                      CGST @ {bucket.ratePercent / 2}%
+                    </Text>
+                    <Text style={s.totalValue}>{INR(bucket.cgst)}</Text>
+                  </View>
+                  <View style={s.totalRow}>
+                    <Text style={s.totalLabel}>
+                      SGST @ {bucket.ratePercent / 2}%
+                    </Text>
+                    <Text style={s.totalValue}>{INR(bucket.sgst)}</Text>
+                  </View>
+                </>
+              )}
+            </Fragment>
+          ))}
+          <View style={s.grandTotalRow}>
+            <Text style={s.grandTotalLabel}>TOTAL</Text>
+            <Text style={s.grandTotalValue}>{INR(total)}</Text>
+          </View>
+        </View>
+      </View>
+
+      <Text style={s.amountWords}>
+        Amount in words: {amountInWords(total)}
+      </Text>
+
+      {/* ── Footer ── */}
+      <View style={s.footer}>
+        <View style={s.footerDivider} />
+        <Text style={s.footerText}>
+          This is a system-generated invoice and does not require a physical signature.{"\n"}
+          Returns accepted within 3 days of delivery. Visit shopaarna.in/return-policy for the return policy.{"\n"}
+          Aarna Label · GSTIN: 29ACNFA3302J1ZD · hello@shopaarna.in · +91 79-75639485
+        </Text>
+      </View>
+
+    </Page>
   );
 }

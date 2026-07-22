@@ -1,7 +1,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { gstRatePercentFor } from "@/lib/gst";
-import { InvoiceDocument, type InvoiceData } from "./template";
+import { InvoiceBatchDocument, InvoiceDocument, type InvoiceData } from "./template";
 
 export type { InvoiceData, InvoiceLineItem } from "./template";
 
@@ -165,6 +165,18 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   // Cast is safe — the runtime tree is correct.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const element = React.createElement(InvoiceDocument, { data }) as any;
+  const buffer = await renderToBuffer(element);
+  return Buffer.from(buffer);
+}
+
+/**
+ * Renders multiple invoices into a single PDF (one page per invoice) — for
+ * the admin "print selected invoices" flow, so printing 20 orders' invoices
+ * is one file instead of 20 separate downloads.
+ */
+export async function generateInvoicePdfBatch(dataList: InvoiceData[]): Promise<Buffer> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const element = React.createElement(InvoiceBatchDocument, { invoices: dataList }) as any;
   const buffer = await renderToBuffer(element);
   return Buffer.from(buffer);
 }
