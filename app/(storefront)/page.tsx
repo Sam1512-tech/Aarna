@@ -152,14 +152,19 @@ export default async function HomePage() {
           )}
         </section>
 
-        <section className="px-5 py-24">
+        {/* "Made to live in" and "Versatility" both sit on the same cream
+            background — their default py values used to stack (96 + 96 =
+            192px empty between them). Tightened to py-14 on both so the
+            two feel like one rhythmic cream chapter, then the Featured
+            collection below gets a proper color break. */}
+        <section className="px-5 py-14">
           <TwoVideoSection left={videoSlots.left} right={videoSlots.right} />
           <h2 className="mt-9 font-display text-[44px] leading-[1.05] text-maroon">
             Made to live in.
           </h2>
         </section>
 
-        <section className="bg-cream px-5 py-24 text-center">
+        <section className="bg-cream px-5 py-14 text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             Versatility
           </p>
@@ -182,7 +187,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="bg-cocoa/10 px-5 py-20">
+        <section className="bg-cocoa/10 px-5 py-16">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             {featuredEyebrow}
           </p>
@@ -251,7 +256,12 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-cream px-6 py-20 md:py-28">
+      {/* Made to live in → Versatility → Wardrobe paths are three consecutive
+          cream sections. Consecutive same-colour sections stack their py
+          values, so the empty runs between them used to be 240px+ on md.
+          Tightened all three to py-16/py-20 for a calmer rhythm — the color
+          break to the beige Featured collection below keeps its full pad. */}
+      <section className="bg-cream px-6 py-16 md:py-20">
         <div className="mx-auto max-w-7xl">
           <TwoVideoSection left={videoSlots.left} right={videoSlots.right} />
           <h2 className="mt-10 max-w-3xl font-display text-[56px] leading-[1.05] text-maroon md:text-[72px]">
@@ -260,7 +270,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-cream px-6 py-24 md:py-32">
+      <section className="bg-cream px-6 py-16 md:py-20">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
             Versatility
