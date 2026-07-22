@@ -7,6 +7,7 @@ import {
   BarChart3,
   Boxes,
   Clapperboard,
+  FileText,
   FolderTree,
   Image as ImageIcon,
   Layers,
@@ -39,6 +40,7 @@ const NAV: NavItem[] = [
   { href: "/studio/homepage-videos", label: "Homepage videos", Icon: Clapperboard },
   { href: "/studio/collections", label: "Collections", Icon: Layers },
   { href: "/studio/reviews", label: "Reviews", Icon: Star },
+  { href: "/studio/reports", label: "Reports", Icon: FileText },
 ];
 
 interface AdminShellProps {

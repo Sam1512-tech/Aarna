@@ -28,9 +28,19 @@ export function formatInvoiceNumber(financialYear: string, sequence: number): st
 /**
  * Determines whether an order is inter-state based on the customer's state.
  * Karnataka orders are intra-state (CGST+SGST), all others are inter-state (IGST).
+ *
+ * Strips diacritics before comparing — a real order was found with the
+ * state stored as "Karnātaka" (probably an address-autofill artifact), and
+ * a plain lowercase compare silently treated it as inter-state, charging
+ * IGST instead of CGST+SGST on that customer's invoice.
  */
 export function isInterStateOrder(customerState: string): boolean {
-  return customerState.trim().toLowerCase() !== "karnataka";
+  const normalized = customerState
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return normalized !== "karnataka";
 }
 
 export interface GstLineInput {
