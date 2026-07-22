@@ -504,6 +504,31 @@ export const admins = pgTable("admins", {
     .notNull(),
 });
 
+/**
+ * Records every meaningful admin write (create/update/delete/status-change)
+ * for accountability — "who changed what" once there's more than one admin,
+ * or for dispute resolution. Logged from lib/audit/log-admin-action.ts,
+ * called at the end of each mutating action after it succeeds (never
+ * blocks the actual action if logging itself fails — see that file).
+ */
+export const adminAuditLog = pgTable("admin_audit_log", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  adminId: uuid("admin_id")
+    .notNull()
+    .references(() => admins.id),
+  // e.g. "product.create", "order.fulfillment_status_update"
+  action: varchar("action", { length: 80 }).notNull(),
+  entityType: varchar("entity_type", { length: 60 }).notNull(),
+  entityId: varchar("entity_id", { length: 120 }),
+  // Free-form context: previous/new values for an update, the deleted
+  // row's identifying fields for a delete, etc. — whatever's useful to
+  // reconstruct what happened without needing the entity to still exist.
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export const messageLog = pgTable("message_log", {
   id: serial("id").primaryKey(),
   channel: messageChannel("channel").notNull(),

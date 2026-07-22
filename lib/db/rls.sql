@@ -18,6 +18,7 @@
 -- scoped policy for that table here (e.g. customers may read their own row).
 
 ALTER TABLE public.addresses            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_audit_log      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admins               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banners              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cart_items           ENABLE ROW LEVEL SECURITY;

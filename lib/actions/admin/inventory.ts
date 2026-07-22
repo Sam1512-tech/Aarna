@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { ActionError } from "@/lib/action-error";
+import { logAdminAction } from "@/lib/audit/log-admin-action";
 
 const { productVariants, products, inventoryMovements, productImages } = schema;
 
@@ -199,7 +200,7 @@ export interface AdjustStockInput {
 }
 
 export async function adjustStock(input: AdjustStockInput) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   if (!Number.isInteger(input.delta) || input.delta === 0) {
     throw new ActionError("Delta must be a non-zero integer");
@@ -208,7 +209,7 @@ export async function adjustStock(input: AdjustStockInput) {
   // Atomic update + audit log inside one transaction. Row-locked (FOR UPDATE)
   // so two concurrent adjustments on the same variant can't both read the
   // same stale stock and have the second silently overwrite the first.
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const variant = await tx
       .select({ id: productVariants.id, stock: productVariants.stock, sku: productVariants.sku })
       .from(productVariants)
@@ -242,6 +243,15 @@ export async function adjustStock(input: AdjustStockInput) {
     revalidatePath("/studio/products");
     return { variantId: input.variantId, previousStock: variant[0].stock, newStock };
   });
+
+  await logAdminAction(admin.id, "inventory.adjust", "product_variant", input.variantId, {
+    delta: input.delta,
+    reason: input.reason,
+    previousStock: result.previousStock,
+    newStock: result.newStock,
+  });
+
+  return result;
 }
 
 /**
@@ -251,7 +261,7 @@ export async function adjustStock(input: AdjustStockInput) {
 export async function bulkAdjustStock(
   items: AdjustStockInput[],
 ): Promise<{ adjusted: number }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (items.length === 0) return { adjusted: 0 };
 
   await db.transaction(async (tx) => {
@@ -292,6 +302,9 @@ export async function bulkAdjustStock(
 
   revalidatePath("/studio/inventory");
   revalidatePath("/studio/products");
+
+  await logAdminAction(admin.id, "inventory.bulk_adjust", "product_variant", null, { items });
+
   return { adjusted: items.length };
 }
 

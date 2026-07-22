@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { ActionError } from "@/lib/action-error";
+import { logAdminAction } from "@/lib/audit/log-admin-action";
 
 const { reviews, products, customers } = schema;
 
@@ -76,7 +77,7 @@ export async function getPendingReviewCount(): Promise<number> {
 const ALLOWED_STATUSES: ReviewStatus[] = ["pending", "approved", "rejected"];
 
 export async function updateReviewStatus(id: string, status: ReviewStatus) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   if (!ALLOWED_STATUSES.includes(status)) {
     throw new ActionError(`Invalid review status: ${status}`);
@@ -105,11 +106,13 @@ export async function updateReviewStatus(id: string, status: ReviewStatus) {
     .limit(1);
   if (slug[0]) revalidatePath(`/products/${slug[0].slug}`);
 
+  await logAdminAction(admin.id, "review.status_update", "review", id, { status });
+
   return updated;
 }
 
 export async function deleteReview(id: string): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select({ id: reviews.id })
@@ -120,5 +123,8 @@ export async function deleteReview(id: string): Promise<{ ok: true }> {
 
   await db.delete(reviews).where(eq(reviews.id, id));
   revalidatePath("/studio/reviews");
+
+  await logAdminAction(admin.id, "review.delete", "review", id);
+
   return { ok: true };
 }

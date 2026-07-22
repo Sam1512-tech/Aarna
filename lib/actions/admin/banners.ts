@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { ActionError } from "@/lib/action-error";
+import { logAdminAction } from "@/lib/audit/log-admin-action";
 
 const { banners } = schema;
 
@@ -55,7 +56,7 @@ export interface CreateBannerInput {
 }
 
 export async function createBanner(input: CreateBannerInput): Promise<Banner> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const imageUrl = validateUrl(input.imageUrl, "Image URL");
   const mobileImageUrl = input.mobileImageUrl
@@ -92,6 +93,9 @@ export async function createBanner(input: CreateBannerInput): Promise<Banner> {
     .returning();
 
   revalidateBannerConsumers();
+  await logAdminAction(admin.id, "banner.create", "banner", created.id, {
+    title: created.title,
+  });
   return created;
 }
 
@@ -112,7 +116,7 @@ export async function updateBanner(
   id: string,
   input: UpdateBannerInput,
 ): Promise<Banner> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select()
@@ -155,11 +159,14 @@ export async function updateBanner(
     .returning();
 
   revalidateBannerConsumers();
+  await logAdminAction(admin.id, "banner.update", "banner", id, {
+    changes: input,
+  });
   return updated;
 }
 
 export async function toggleBannerActive(id: string): Promise<Banner> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const existing = await db
     .select({ isActive: banners.isActive })
     .from(banners)
@@ -174,11 +181,14 @@ export async function toggleBannerActive(id: string): Promise<Banner> {
     .returning();
 
   revalidateBannerConsumers();
+  await logAdminAction(admin.id, "banner.toggle_active", "banner", id, {
+    isActive: updated.isActive,
+  });
   return updated;
 }
 
 export async function deleteBanner(id: string): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const result = await db
     .delete(banners)
     .where(eq(banners.id, id))
@@ -186,13 +196,14 @@ export async function deleteBanner(id: string): Promise<{ ok: true }> {
   if (!result[0]) throw new ActionError("Banner not found");
 
   revalidateBannerConsumers();
+  await logAdminAction(admin.id, "banner.delete", "banner", id);
   return { ok: true };
 }
 
 export async function reorderBanners(
   items: { id: string; sortOrder: number }[],
 ): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (items.length === 0) return { ok: true };
 
   await db.transaction(async (tx) => {
@@ -205,5 +216,6 @@ export async function reorderBanners(
   });
 
   revalidateBannerConsumers();
+  await logAdminAction(admin.id, "banner.reorder", "banner", null, { items });
   return { ok: true };
 }

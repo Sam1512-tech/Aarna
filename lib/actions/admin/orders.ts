@@ -8,6 +8,7 @@ import { generateInvoicePdf } from "@/lib/invoice/generate";
 import { buildInvoiceData } from "@/lib/db/queries/orders";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { ActionError } from "@/lib/action-error";
+import { logAdminAction } from "@/lib/audit/log-admin-action";
 import {
   canTransitionFulfillment,
   type FulfillmentStatus,
@@ -226,7 +227,7 @@ export async function updateOrderFulfillmentStatus(
   orderId: string,
   newStatus: FulfillmentStatus,
 ) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select({
@@ -271,6 +272,11 @@ export async function updateOrderFulfillmentStatus(
   revalidatePath("/studio/orders");
   revalidatePath(`/studio/orders/${existing[0].orderNumber}`);
   revalidatePath("/account/orders"); // customer-facing order list
+
+  await logAdminAction(admin.id, "order.fulfillment_status_update", "order", orderId, {
+    newStatus,
+  });
+
   return updated;
 }
 
@@ -280,7 +286,7 @@ export async function updateOrderFulfillmentStatus(
  * forward automatically.
  */
 export async function attachAwbNumber(orderId: string, awbNumber: string) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select({ fulfillmentStatus: orders.fulfillmentStatus, orderNumber: orders.orderNumber })
@@ -308,6 +314,11 @@ export async function attachAwbNumber(orderId: string, awbNumber: string) {
   revalidatePath("/studio/orders");
   revalidatePath(`/studio/orders/${existing[0].orderNumber}`);
   revalidatePath("/account/orders");
+
+  await logAdminAction(admin.id, "order.attach_awb", "order", orderId, {
+    awbNumber,
+  });
+
   return updated;
 }
 
@@ -324,7 +335,7 @@ const FALLBACK_ITEM_WEIGHT_GRAMS = 450; // typical garment when variant has no w
  * Delhivery then owns pickup + all customer shipping notifications.
  */
 export async function createDelhiveryShipment(orderId: string) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const order = await db
     .select()
@@ -404,6 +415,11 @@ export async function createDelhiveryShipment(orderId: string) {
   revalidatePath("/studio/orders");
   revalidatePath(`/studio/orders/${order.orderNumber}`);
   revalidatePath("/account/orders");
+
+  await logAdminAction(admin.id, "order.create_shipment", "order", orderId, {
+    awbNumber: updated.awbNumber,
+  });
+
   return updated;
 }
 
