@@ -2,8 +2,13 @@ import { and, eq, inArray, lt, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { InvoiceData } from "@/lib/invoice/generate";
 import { calculateOrderGst, isInterStateOrder } from "@/lib/invoice/generate";
+import { applyStockMovement } from "@/lib/db/queries/inventory";
 
 const { orders, orderItems, returns, carts, cartItems, messageLog } = schema;
+
+/** How long a checkout attempt holds its reserved stock before it's treated
+ * as abandoned and released back — see releaseExpiredCheckoutHolds. */
+export const CHECKOUT_HOLD_MINUTES = 20;
 
 export type OrderRow = typeof orders.$inferSelect;
 export type OrderItemRow = typeof orderItems.$inferSelect;
@@ -89,9 +94,18 @@ export async function getOrderByRazorpayPaymentId(
 }
 
 /**
- * Marks a still-pending order as failed. No-op if the order was already paid
- * (a late payment.failed event must never override a successful capture).
- * Returns true if a row was actually updated.
+ * Marks a still-pending order as failed and releases the stock initCheckout
+ * reserved for it. No-op if the order was already paid (a late
+ * payment.failed event must never override a successful capture) or already
+ * failed (e.g. released earlier by releaseExpiredCheckoutHolds — the WHERE
+ * clause only ever matches a row still "pending", so this can never
+ * double-restore stock for the same order). Returns true if a row was
+ * actually updated.
+ *
+ * Only restores stock when stock_reserved is true — an order created before
+ * this column existed never actually had its stock decremented at checkout
+ * (the old logic only checked stock, never reserved it), so "restoring" it
+ * would incorrectly inflate that variant's real stock count.
  */
 export async function markOrderPaymentFailed(
   razorpayOrderId: string,
@@ -105,8 +119,89 @@ export async function markOrderPaymentFailed(
         eq(orders.paymentStatus, "pending"),
       ),
     )
-    .returning({ id: orders.id });
-  return updated.length > 0;
+    .returning({
+      id: orders.id,
+      orderNumber: orders.orderNumber,
+      stockReserved: orders.stockReserved,
+    });
+
+  if (updated.length === 0) return false;
+
+  const { id, orderNumber, stockReserved } = updated[0];
+  if (stockReserved) {
+    const items = await db
+      .select({ variantId: orderItems.variantId, quantity: orderItems.quantity })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, id));
+    await applyStockMovement(items, 1, "return", orderNumber);
+  }
+
+  return true;
+}
+
+/**
+ * Releases stock held by checkout attempts that started but never completed
+ * payment within CHECKOUT_HOLD_MINUTES — closes the gap between "stock is
+ * reserved the instant checkout begins" (see initCheckout) and "the customer
+ * actually pays." A genuine decline is released immediately by
+ * markOrderPaymentFailed via the payment.failed webhook; this is the
+ * backstop for checkouts that got no webhook at all (closed tab before ever
+ * submitting payment). Called opportunistically at the start of every
+ * checkout attempt, plus as a daily backstop in the cleanup-orders cron —
+ * deliberately NOT a dedicated frequent cron, since Vercel's Hobby plan cron
+ * jobs run at most once a day.
+ *
+ * The UPDATE ... WHERE payment_status = 'pending' ... RETURNING atomically
+ * claims each row (Postgres row-level locking), so two concurrent callers
+ * (a real checkout's opportunistic call racing the daily cron) can never
+ * both "win" the same order and double-restore its stock.
+ *
+ * Only restores stock for rows with stock_reserved = true. An order created
+ * before that column existed never actually had its stock decremented at
+ * checkout (the old logic only checked stock, never reserved it) — this was
+ * caught live: an early version of this function restored stock for
+ * pre-existing pending test orders and inflated real variant stock counts
+ * in the dev DB, since those orders had nothing to give back.
+ */
+export async function releaseExpiredCheckoutHolds(
+  holdMinutes = CHECKOUT_HOLD_MINUTES,
+): Promise<number> {
+  const cutoff = new Date(Date.now() - holdMinutes * 60 * 1000);
+
+  const expired = await db
+    .update(orders)
+    .set({ paymentStatus: "failed", updatedAt: new Date() })
+    .where(and(eq(orders.paymentStatus, "pending"), lt(orders.createdAt, cutoff)))
+    .returning({
+      id: orders.id,
+      orderNumber: orders.orderNumber,
+      stockReserved: orders.stockReserved,
+    });
+
+  if (expired.length === 0) return 0;
+
+  const reservedOrders = expired.filter((o) => o.stockReserved);
+  if (reservedOrders.length > 0) {
+    const items = await db
+      .select({
+        orderId: orderItems.orderId,
+        variantId: orderItems.variantId,
+        quantity: orderItems.quantity,
+      })
+      .from(orderItems)
+      .where(inArray(orderItems.orderId, reservedOrders.map((o) => o.id)));
+
+    for (const order of reservedOrders) {
+      const lines = items
+        .filter((i) => i.orderId === order.id)
+        .map((i) => ({ variantId: i.variantId, quantity: i.quantity }));
+      if (lines.length > 0) {
+        await applyStockMovement(lines, 1, "return", order.orderNumber);
+      }
+    }
+  }
+
+  return expired.length;
 }
 
 /**

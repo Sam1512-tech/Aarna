@@ -1,16 +1,17 @@
 "use server";
 
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createRazorpayOrder } from "@/lib/razorpay";
 import { checkServiceability } from "@/lib/delhivery";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCart, applyCoupon } from "@/lib/actions/cart";
+import { releaseExpiredCheckoutHolds } from "@/lib/db/queries/orders";
 import type { AddressInput, CheckoutSummary } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { isValidGstin, normalizeGstin } from "@/lib/gst";
 
-const { customers, orders, orderItems, productVariants, coupons } = schema;
+const { customers, orders, orderItems, productVariants, inventoryMovements, coupons } = schema;
 
 const FREE_SHIPPING_THRESHOLD = 299900; // ₹2999 in paise
 const FLAT_SHIPPING_FEE = 9900; // ₹99 in paise
@@ -74,31 +75,17 @@ async function requireCheckoutCustomer(): Promise<{
 export async function initCheckout(
   input: CheckoutInitInput,
 ): Promise<{ summary: CheckoutSummary; razorpay: RazorpayOrderHandle }> {
+  // 0. Release any expired checkout holds first, so their stock is available
+  // again before this checkout's own stock check/reservation below (see
+  // releaseExpiredCheckoutHolds — this is what stands in for a frequent
+  // cron, which Vercel's Hobby plan doesn't allow).
+  await releaseExpiredCheckoutHolds();
+
   // 1. Get and validate cart
   const cart = await getCart();
   if (cart.lines.length === 0) throw new ActionError("Cart is empty");
 
-  // 2. Verify stock for every line in one query (re-check at checkout time)
-  const variantIds = cart.lines.map((l) => l.variantId);
-  const variantRows = await db
-    .select({
-      id: productVariants.id,
-      sku: productVariants.sku,
-      stock: productVariants.stock,
-      isActive: productVariants.isActive,
-    })
-    .from(productVariants)
-    .where(inArray(productVariants.id, variantIds));
-
-  const variantsById = new Map(variantRows.map((v) => [v.id, v]));
-  for (const line of cart.lines) {
-    const v = variantsById.get(line.variantId);
-    if (!v) throw new ActionError(`Variant ${line.variantId} not found`);
-    if (!v.isActive) throw new ActionError(`"${line.productTitle}" is no longer available`);
-    if (v.stock < line.quantity) throw new ActionError(`"${line.productTitle}" is out of stock`);
-  }
-
-  // 3. Apply coupon (re-validate server-side; don't trust client)
+  // 2. Apply coupon (re-validate server-side; don't trust client)
   let discount = 0;
   let couponCode: string | null = null;
   if (input.couponCode) {
@@ -108,7 +95,7 @@ export async function initCheckout(
     couponCode = input.couponCode.trim().toUpperCase();
   }
 
-  // 3b. GST number — optional, but if provided it must be a real GSTIN.
+  // 2b. GST number — optional, but if provided it must be a real GSTIN.
   // Never trust client-side validation alone for something that ends up on a
   // legal tax document.
   const gstNumber = normalizeGstin(input.gstNumber);
@@ -116,75 +103,127 @@ export async function initCheckout(
     throw new ActionError("That GST number doesn't look valid — check and try again");
   }
 
-  // 4. Calculate totals (all in paise)
+  // 3. Calculate totals (all in paise)
   const subtotal = cart.subtotal;
   const shippingFee = calculateShipping(subtotal - discount);
   const total = subtotal - discount + shippingFee;
 
   if (total <= 0) throw new ActionError("Invalid order total");
 
-  // 5. Resolve customer — must be signed in; the order is always tied to the
+  // 4. Resolve customer — must be signed in; the order is always tied to the
   // account email so it shows up in the dashboard (returns/exchanges).
   const customer = await requireCheckoutCustomer();
   const customerId = customer.id;
   const orderEmail = customer.email || input.email;
 
-  // 6. Generate order number, insert internal order
+  // 5. Generate order number. Postgres sequences are never transactional —
+  // a nextval() is never rolled back even if the reservation below fails —
+  // so this can safely happen outside the transaction (same as before;
+  // a failed checkout already "wastes" a number today).
   const orderNumber = await nextOrderNumber();
 
-  const [createdOrder] = await db
-    .insert(orders)
-    .values({
-      orderNumber,
-      customerId,
-      email: orderEmail,
-      phone: input.shippingAddress.phone,
-      whatsappOptIn: input.whatsappOptIn,
-      shippingAddress: input.shippingAddress,
-      billingAddress: input.billingSameAsShipping
-        ? input.shippingAddress
-        : (input.billingAddress ?? input.shippingAddress),
-      subtotal,
-      discount,
-      shippingFee,
-      total,
-      couponCode,
-      gstNumber,
-    })
-    .returning({ id: orders.id });
+  // 6. Reserve stock and create the order atomically in one transaction.
+  // Each variant is checked AND decremented under a row lock (SELECT ... FOR
+  // UPDATE) in the same step — closing the race where two concurrent
+  // checkouts for the last unit of a variant could both pass a plain
+  // read-only check (the old behavior) and both go on to pay for the same
+  // physical item. If this order never completes payment, the reservation
+  // is released by markOrderPaymentFailed (declined payment) or
+  // releaseExpiredCheckoutHolds (abandoned checkout, no webhook at all).
+  const orderId = await db.transaction(async (tx) => {
+    const skuByVariantId = new Map<string, string>();
 
-  // 7. Snapshot cart items into order_items (SKU pulled from variantsById)
-  await db.insert(orderItems).values(
-    cart.lines.map((line) => ({
-      orderId: createdOrder.id,
-      variantId: line.variantId,
-      productTitleSnapshot: line.productTitle,
-      variantLabelSnapshot: line.variantLabel,
-      skuSnapshot: variantsById.get(line.variantId)?.sku ?? "",
-      unitPriceSnapshot: line.unitPrice,
-      quantity: line.quantity,
-      lineTotal: line.unitPrice * line.quantity,
-    })),
-  );
+    for (const line of cart.lines) {
+      const [variant] = await tx
+        .select({
+          sku: productVariants.sku,
+          stock: productVariants.stock,
+          isActive: productVariants.isActive,
+        })
+        .from(productVariants)
+        .where(eq(productVariants.id, line.variantId))
+        .for("update");
 
-  // 8. Create Razorpay order
+      if (!variant) throw new ActionError(`Variant ${line.variantId} not found`);
+      if (!variant.isActive) {
+        throw new ActionError(`"${line.productTitle}" is no longer available`);
+      }
+      if (variant.stock < line.quantity) {
+        throw new ActionError(`"${line.productTitle}" is out of stock`);
+      }
+
+      await tx
+        .update(productVariants)
+        .set({ stock: variant.stock - line.quantity })
+        .where(eq(productVariants.id, line.variantId));
+
+      await tx.insert(inventoryMovements).values({
+        variantId: line.variantId,
+        delta: -line.quantity,
+        reason: "sale",
+        referenceId: orderNumber,
+      });
+
+      skuByVariantId.set(line.variantId, variant.sku);
+    }
+
+    const [createdOrder] = await tx
+      .insert(orders)
+      .values({
+        orderNumber,
+        customerId,
+        email: orderEmail,
+        phone: input.shippingAddress.phone,
+        whatsappOptIn: input.whatsappOptIn,
+        shippingAddress: input.shippingAddress,
+        billingAddress: input.billingSameAsShipping
+          ? input.shippingAddress
+          : (input.billingAddress ?? input.shippingAddress),
+        subtotal,
+        discount,
+        shippingFee,
+        total,
+        couponCode,
+        gstNumber,
+        stockReserved: true,
+      })
+      .returning({ id: orders.id });
+
+    // Snapshot cart items into order_items (SKU pulled from skuByVariantId)
+    await tx.insert(orderItems).values(
+      cart.lines.map((line) => ({
+        orderId: createdOrder.id,
+        variantId: line.variantId,
+        productTitleSnapshot: line.productTitle,
+        variantLabelSnapshot: line.variantLabel,
+        skuSnapshot: skuByVariantId.get(line.variantId) ?? "",
+        unitPriceSnapshot: line.unitPrice,
+        quantity: line.quantity,
+        lineTotal: line.unitPrice * line.quantity,
+      })),
+    );
+
+    return createdOrder.id;
+  });
+
+  // 7. Create Razorpay order
   const rpOrder = await createRazorpayOrder({
     amountInPaise: total,
     receipt: orderNumber,
     notes: {
-      internal_order_id: createdOrder.id,
+      internal_order_id: orderId,
       order_number: orderNumber,
       email: orderEmail,
     },
   });
 
-  // 9. Save razorpay_order_id on internal order
+  // 8. Save razorpay_order_id on internal order
   await db
     .update(orders)
     .set({ razorpayOrderId: rpOrder.id })
-    .where(eq(orders.id, createdOrder.id));
+    .where(eq(orders.id, orderId));
 
-  // 10. Bump coupon usage count if applied
+  // 9. Bump coupon usage count if applied
   if (couponCode) {
     await db
       .update(coupons)

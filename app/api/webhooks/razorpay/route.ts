@@ -41,24 +41,44 @@ export async function POST(req: Request) {
       // Idempotency — skip if already processed
       if (order.paymentStatus === "paid") break;
 
+      // Stock for this order was already reserved atomically at checkout
+      // (see initCheckout) — normally there's nothing left to do here. Two
+      // cases still need a decrement now:
+      //  - order.stockReserved is false: this order predates the reservation
+      //    logic entirely (created right around deploy, under the old
+      //    checkout that only checked stock without reserving it) — nothing
+      //    was ever decremented for it, regardless of paymentStatus.
+      //  - the reservation existed but was already given back — this
+      //    capture arrived so late that releaseExpiredCheckoutHolds or an
+      //    earlier payment.failed already released it (paymentStatus is
+      //    "failed" right now).
+      // Both are best-effort, same as the original unconditional decrement
+      // this replaced: a confirmed, paid order must never be blocked by an
+      // inventory-side failure, and if the unit already sold to someone else
+      // in the gap, that's a genuine oversold conflict for an admin to
+      // reconcile in /admin/inventory.
+      const needsStockDecrementNow =
+        !order.stockReserved || order.paymentStatus === "failed";
+
       const invoiceNumber = await nextInvoiceNumber();
       await markOrderPaid(order.id, invoiceNumber, payment.id);
 
-      // Decrement stock now that payment is confirmed. Best-effort — a
-      // confirmed, paid order must never be blocked by an inventory-side
-      // failure; a decrement that doesn't land here shows up as a stock
-      // mismatch an admin can reconcile in /admin/inventory.
-      await applyStockMovement(
-        order.orderItems.map((item) => ({
-          variantId: item.variantId,
-          quantity: item.quantity,
-        })),
-        -1,
-        "sale",
-        order.orderNumber,
-      ).catch((err) => {
-        console.error("[razorpay webhook] stock decrement failed:", err);
-      });
+      if (needsStockDecrementNow) {
+        await applyStockMovement(
+          order.orderItems.map((item) => ({
+            variantId: item.variantId,
+            quantity: item.quantity,
+          })),
+          -1,
+          "sale",
+          order.orderNumber,
+        ).catch((err) => {
+          console.error(
+            "[razorpay webhook] late-capture stock re-decrement failed:",
+            err,
+          );
+        });
+      }
 
       await clearPurchasedCartItems(order).catch((err) => {
         // Never let a cart-clear failure break payment processing

@@ -8,37 +8,18 @@ import { generateInvoicePdf } from "@/lib/invoice/generate";
 import { buildInvoiceData } from "@/lib/db/queries/orders";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { ActionError } from "@/lib/action-error";
+import {
+  canTransitionFulfillment,
+  type FulfillmentStatus,
+} from "@/lib/orders/fulfillment-transitions";
 
 const { orders, orderItems, productImages, productVariants } = schema;
 
-type FulfillmentStatus =
-  | "pending"
-  | "processing"
-  | "shipped"
-  | "out_for_delivery"
-  | "delivered"
-  | "cancelled"
-  | "returned";
-
+export type { FulfillmentStatus };
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded" | "partially_refunded";
 
-// Valid forward-only transitions for fulfillment status.
-// Admin can step forward through this list. Cancellation is only allowed from
-// the early states (before shipping). Returns flow through the returns table.
-const FORWARD_TRANSITIONS: Record<FulfillmentStatus, FulfillmentStatus[]> = {
-  pending: ["processing", "cancelled"],
-  processing: ["shipped", "cancelled"],
-  shipped: ["out_for_delivery"],
-  out_for_delivery: ["delivered"],
-  delivered: [], // returns are handled via the returns flow, not by editing the order
-  cancelled: [],
-  returned: [],
-};
-
 function assertValidTransition(from: FulfillmentStatus, to: FulfillmentStatus) {
-  if (from === to) return;
-  const allowed = FORWARD_TRANSITIONS[from];
-  if (!allowed.includes(to)) {
+  if (!canTransitionFulfillment(from, to)) {
     throw new ActionError(`Cannot move order from "${from}" to "${to}"`);
   }
 }
