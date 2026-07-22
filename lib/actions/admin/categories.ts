@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import type { Category } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
+import { logAdminAction } from "@/lib/audit/log-admin-action";
 
 const { categories, products } = schema;
 
@@ -73,7 +74,7 @@ export interface CreateCategoryInput {
 }
 
 export async function createCategory(input: CreateCategoryInput): Promise<Category> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const name = validateName(input.name);
   const slug = validateSlug(input.slug);
@@ -108,6 +109,10 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
     .returning();
 
   revalidateCategoryConsumers();
+  await logAdminAction(admin.id, "category.create", "category", created.id, {
+    name: created.name,
+    slug: created.slug,
+  });
   return created;
 }
 
@@ -124,7 +129,7 @@ export async function updateCategory(
   id: string,
   input: UpdateCategoryInput,
 ): Promise<Category> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select()
@@ -166,11 +171,12 @@ export async function updateCategory(
     .returning();
 
   revalidateCategoryConsumers();
+  await logAdminAction(admin.id, "category.update", "category", id, { changes: input });
   return updated;
 }
 
 export async function deleteCategory(id: string): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   // Block deletion if any products reference this category — protects against
   // accidental data orphaning. Admin must reassign products first.
@@ -202,6 +208,7 @@ export async function deleteCategory(id: string): Promise<{ ok: true }> {
   await db.delete(categories).where(eq(categories.id, id));
 
   revalidateCategoryConsumers();
+  await logAdminAction(admin.id, "category.delete", "category", id);
   return { ok: true };
 }
 
@@ -212,7 +219,7 @@ export async function deleteCategory(id: string): Promise<{ ok: true }> {
 export async function reorderCategories(
   items: { id: string; sortOrder: number }[],
 ): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (items.length === 0) return { ok: true };
 
   await db.transaction(async (tx) => {
@@ -225,5 +232,6 @@ export async function reorderCategories(
   });
 
   revalidateCategoryConsumers();
+  await logAdminAction(admin.id, "category.reorder", "category", null, { items });
   return { ok: true };
 }

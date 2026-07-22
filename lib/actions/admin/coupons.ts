@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { ActionError } from "@/lib/action-error";
+import { logAdminAction } from "@/lib/audit/log-admin-action";
 
 const { coupons } = schema;
 
@@ -105,7 +106,7 @@ export interface CreateCouponInput {
 }
 
 export async function createCoupon(input: CreateCouponInput) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const code = validateCode(input.code);
   const value = validateValue(input.type, input.value);
@@ -152,6 +153,8 @@ export async function createCoupon(input: CreateCouponInput) {
     })
     .returning();
 
+  await logAdminAction(admin.id, "coupon.create", "coupon", created.id, { code: created.code });
+
   revalidatePath("/studio/coupons");
   return created;
 }
@@ -168,7 +171,7 @@ export interface UpdateCouponInput {
 }
 
 export async function updateCoupon(id: string, input: UpdateCouponInput) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select()
@@ -241,12 +244,14 @@ export async function updateCoupon(id: string, input: UpdateCouponInput) {
     .where(eq(coupons.id, id))
     .returning();
 
+  await logAdminAction(admin.id, "coupon.update", "coupon", id, { changes: input });
+
   revalidatePath("/studio/coupons");
   return updated;
 }
 
 export async function toggleCouponActive(id: string) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const existing = await db
     .select({ isActive: coupons.isActive })
     .from(coupons)
@@ -260,12 +265,14 @@ export async function toggleCouponActive(id: string) {
     .where(eq(coupons.id, id))
     .returning();
 
+  await logAdminAction(admin.id, "coupon.toggle_active", "coupon", id, { isActive: updated.isActive });
+
   revalidatePath("/studio/coupons");
   return updated;
 }
 
 export async function deleteCoupon(id: string): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select({ usedCount: coupons.usedCount, code: coupons.code })
@@ -283,6 +290,9 @@ export async function deleteCoupon(id: string): Promise<{ ok: true }> {
   }
 
   await db.delete(coupons).where(eq(coupons.id, id));
+
+  await logAdminAction(admin.id, "coupon.delete", "coupon", id);
+
   revalidatePath("/studio/coupons");
   return { ok: true };
 }

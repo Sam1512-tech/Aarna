@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/actions/auth";
 import { sortBySize } from "@/lib/sizes";
 import type { Product, ProductWithVariants } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
+import { logAdminAction } from "@/lib/audit/log-admin-action";
 
 const {
   products,
@@ -239,7 +240,7 @@ export interface CreateProductInput {
 }
 
 export async function createProduct(input: CreateProductInput): Promise<Product> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const title = input.title.trim();
   if (!title) throw new ActionError("Product title is required");
@@ -288,6 +289,10 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
     .returning();
 
   revalidateProductConsumers(slug);
+  await logAdminAction(admin.id, "product.create", "product", created.id, {
+    title: created.title,
+    slug: created.slug,
+  });
   return created;
 }
 
@@ -307,7 +312,7 @@ export async function updateProduct(
   id: string,
   input: UpdateProductInput,
 ): Promise<Product> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select()
@@ -365,6 +370,9 @@ export async function updateProduct(
     .returning();
 
   revalidateProductConsumers(updated.slug);
+  await logAdminAction(admin.id, "product.update", "product", id, {
+    changes: input,
+  });
   return updated;
 }
 
@@ -376,7 +384,7 @@ export async function updateProductStatus(
 }
 
 export async function deleteProduct(id: string): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select({ slug: products.slug })
@@ -395,6 +403,7 @@ export async function deleteProduct(id: string): Promise<{ ok: true }> {
   await db.delete(products).where(eq(products.id, id));
 
   revalidateProductConsumers(existing[0].slug);
+  await logAdminAction(admin.id, "product.delete", "product", id);
   return { ok: true };
 }
 
@@ -413,7 +422,7 @@ export async function createVariant(
   productId: string,
   input: CreateVariantInput,
 ) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const price = validatePrice(input.price, "Variant price");
 
@@ -465,6 +474,12 @@ export async function createVariant(
     .returning();
 
   revalidateProductConsumers(product[0].slug);
+  await logAdminAction(admin.id, "variant.create", "product_variant", created.id, {
+    productId,
+    sku: created.sku,
+    size: input.size,
+    color: input.color,
+  });
   return created;
 }
 
@@ -482,7 +497,7 @@ export async function updateVariant(
   variantId: string,
   input: UpdateVariantInput,
 ) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select()
@@ -524,11 +539,14 @@ export async function updateVariant(
     .where(eq(products.id, updated.productId))
     .limit(1);
   revalidateProductConsumers(product[0]?.slug);
+  await logAdminAction(admin.id, "variant.update", "product_variant", variantId, {
+    changes: input,
+  });
   return updated;
 }
 
 export async function deleteVariant(variantId: string): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select({ productId: productVariants.productId })
@@ -547,6 +565,7 @@ export async function deleteVariant(variantId: string): Promise<{ ok: true }> {
     .where(eq(products.id, existing[0].productId))
     .limit(1);
   revalidateProductConsumers(product[0]?.slug);
+  await logAdminAction(admin.id, "variant.delete", "product_variant", variantId);
   return { ok: true };
 }
 
@@ -563,7 +582,7 @@ export async function addProductImage(
   productId: string,
   input: AddProductImageInput,
 ) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   if (!input.url.trim()) throw new ActionError("Image URL is required");
 
@@ -595,11 +614,15 @@ export async function addProductImage(
     .returning();
 
   revalidateProductConsumers(product[0].slug);
+  await logAdminAction(admin.id, "product_image.create", "product_image", created.id, {
+    productId,
+    url: input.url,
+  });
   return created;
 }
 
 export async function removeProductImage(imageId: string): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select({ productId: productImages.productId })
@@ -616,13 +639,14 @@ export async function removeProductImage(imageId: string): Promise<{ ok: true }>
     .where(eq(products.id, existing[0].productId))
     .limit(1);
   revalidateProductConsumers(product[0]?.slug);
+  await logAdminAction(admin.id, "product_image.delete", "product_image", imageId);
   return { ok: true };
 }
 
 export async function reorderProductImages(
   items: { id: string; sortOrder: number }[],
 ): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (items.length === 0) return { ok: true };
 
   await db.transaction(async (tx) => {
@@ -635,5 +659,8 @@ export async function reorderProductImages(
   });
 
   revalidatePath("/studio/products");
+  await logAdminAction(admin.id, "product_image.reorder", "product_image", null, {
+    items,
+  });
   return { ok: true };
 }

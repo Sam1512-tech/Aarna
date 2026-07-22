@@ -9,6 +9,7 @@ import {
   Clapperboard,
   FileText,
   FolderTree,
+  History,
   Image as ImageIcon,
   Layers,
   LogOut,
@@ -41,6 +42,7 @@ const NAV: NavItem[] = [
   { href: "/studio/collections", label: "Collections", Icon: Layers },
   { href: "/studio/reviews", label: "Reviews", Icon: Star },
   { href: "/studio/reports", label: "Reports", Icon: FileText },
+  { href: "/studio/audit-log", label: "Audit log", Icon: History },
 ];
 
 interface AdminShellProps {

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { ActionError } from "@/lib/action-error";
+import { logAdminAction } from "@/lib/audit/log-admin-action";
 
 const { collections, collectionProducts, products, productImages } = schema;
 
@@ -132,7 +133,7 @@ export interface CreateCollectionInput {
 }
 
 export async function createCollection(input: CreateCollectionInput) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const name = input.name.trim();
   if (!name) throw new ActionError("Collection name is required");
@@ -167,6 +168,9 @@ export async function createCollection(input: CreateCollectionInput) {
     .returning();
 
   revalidateCollectionConsumers(slug);
+  await logAdminAction(admin.id, "collection.create", "collection", created.id, {
+    name: created.name,
+  });
   return created;
 }
 
@@ -183,7 +187,7 @@ export async function updateCollection(
   id: string,
   input: UpdateCollectionInput,
 ) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select()
@@ -227,11 +231,14 @@ export async function updateCollection(
     .returning();
 
   revalidateCollectionConsumers(updated.slug);
+  await logAdminAction(admin.id, "collection.update", "collection", id, {
+    changes: input,
+  });
   return updated;
 }
 
 export async function toggleCollectionActive(id: string) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const existing = await db
     .select({ isActive: collections.isActive, slug: collections.slug })
     .from(collections)
@@ -246,6 +253,9 @@ export async function toggleCollectionActive(id: string) {
     .returning();
 
   revalidateCollectionConsumers(existing[0].slug);
+  await logAdminAction(admin.id, "collection.toggle_active", "collection", id, {
+    isActive: updated.isActive,
+  });
   return updated;
 }
 
@@ -261,7 +271,7 @@ export async function setHomepageFeatureCollection(
   id: string,
   featured: boolean,
 ): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select({ id: collections.id })
@@ -289,11 +299,14 @@ export async function setHomepageFeatureCollection(
   }
 
   revalidateCollectionConsumers();
+  await logAdminAction(admin.id, "collection.set_homepage_feature", "collection", id, {
+    featured,
+  });
   return { ok: true };
 }
 
 export async function deleteCollection(id: string): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const existing = await db
     .select({ slug: collections.slug })
@@ -306,6 +319,7 @@ export async function deleteCollection(id: string): Promise<{ ok: true }> {
   await db.delete(collections).where(eq(collections.id, id));
 
   revalidateCollectionConsumers(existing[0].slug);
+  await logAdminAction(admin.id, "collection.delete", "collection", id);
   return { ok: true };
 }
 
@@ -315,7 +329,7 @@ export async function addProductsToCollection(
   collectionId: string,
   productIds: string[],
 ): Promise<{ added: number }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (productIds.length === 0) return { added: 0 };
 
   const collection = await db
@@ -341,6 +355,9 @@ export async function addProductsToCollection(
   await db.insert(collectionProducts).values(rows).onConflictDoNothing();
 
   revalidateCollectionConsumers(collection[0].slug);
+  await logAdminAction(admin.id, "collection.add_products", "collection", collectionId, {
+    productIds,
+  });
   return { added: productIds.length };
 }
 
@@ -348,7 +365,7 @@ export async function removeProductsFromCollection(
   collectionId: string,
   productIds: string[],
 ): Promise<{ removed: number }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (productIds.length === 0) return { removed: 0 };
 
   const collection = await db
@@ -368,6 +385,9 @@ export async function removeProductsFromCollection(
     );
 
   revalidateCollectionConsumers(collection[0].slug);
+  await logAdminAction(admin.id, "collection.remove_products", "collection", collectionId, {
+    productIds,
+  });
   return { removed: productIds.length };
 }
 
@@ -375,7 +395,7 @@ export async function reorderProductsInCollection(
   collectionId: string,
   items: { productId: string; sortOrder: number }[],
 ): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (items.length === 0) return { ok: true };
 
   const collection = await db
@@ -400,13 +420,16 @@ export async function reorderProductsInCollection(
   });
 
   revalidateCollectionConsumers(collection[0].slug);
+  await logAdminAction(admin.id, "collection.reorder_products", "collection", collectionId, {
+    items,
+  });
   return { ok: true };
 }
 
 export async function reorderCollections(
   items: { id: string; sortOrder: number }[],
 ): Promise<{ ok: true }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (items.length === 0) return { ok: true };
 
   await db.transaction(async (tx) => {
@@ -419,5 +442,6 @@ export async function reorderCollections(
   });
 
   revalidateCollectionConsumers();
+  await logAdminAction(admin.id, "collection.reorder", "collection", null, { items });
   return { ok: true };
 }

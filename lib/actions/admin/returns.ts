@@ -15,6 +15,7 @@ import {
 import { REJECT_REASONS } from "@/lib/returns/reject-reasons";
 import type { AddressInput } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
+import { logAdminAction } from "@/lib/audit/log-admin-action";
 
 const { returns, orderItems, orders } = schema;
 
@@ -104,7 +105,7 @@ export async function updateReturnStatus(
   status: ReturnStatus,
   details?: UpdateReturnStatusDetails,
 ) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   if (!RETURN_STATUSES.includes(status)) {
     throw new ActionError(`Invalid return status: ${status}`);
@@ -228,6 +229,11 @@ export async function updateReturnStatus(
     });
   }
 
+  await logAdminAction(admin.id, "return.status_update", "return", returnId, {
+    status,
+    ...details,
+  });
+
   return updated;
 }
 
@@ -247,7 +253,7 @@ export interface MarkReturnQcInput {
  * exchanges, so no new return_status value is needed for that path.
  */
 export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   if (input.outcome === "fail" && (!input.note || input.note.trim().length < 10)) {
     throw new ActionError("A note (min 10 characters) is required when QC fails");
@@ -367,6 +373,11 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
       ],
     });
   }
+
+  await logAdminAction(admin.id, "return.qc", "return", returnId, {
+    outcome: input.outcome,
+    partialPercent: input.partialPercent,
+  });
 
   return updated;
 }
