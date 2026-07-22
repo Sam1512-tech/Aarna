@@ -10,7 +10,7 @@ import {
 } from "@react-pdf/renderer";
 import path from "path";
 
-const LOGO_PATH = path.join(process.cwd(), "public", "logo.png");
+const LOGO_PATH = path.join(process.cwd(), "public", "logo-invoice.png");
 
 const s = StyleSheet.create({
   page: {
@@ -22,8 +22,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 30,
     backgroundColor: "#FFFFFF",
   },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
-  logo: { width: 100, height: 40, objectFit: "contain" },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+  logo: { width: 170, height: 46, objectFit: "contain" },
   headerRight: { alignItems: "flex-end" },
   title: { fontSize: 14, fontFamily: "Helvetica-Bold", color: "#4B1323", letterSpacing: 1 },
   dateRange: { fontSize: 8, color: "#555", marginTop: 3 },
