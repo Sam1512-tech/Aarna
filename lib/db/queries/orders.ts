@@ -3,6 +3,8 @@ import { db, schema } from "@/lib/db";
 import type { InvoiceData } from "@/lib/invoice/generate";
 import { calculateOrderGst, isInterStateOrder } from "@/lib/invoice/generate";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
+import { fetchRazorpayOrderStatus } from "@/lib/razorpay";
+import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 
 const { orders, orderItems, returns, carts, cartItems, messageLog } = schema;
 
@@ -255,6 +257,20 @@ export async function recordRefund(params: {
  * payment_status "paid"/"refunded"/"partially_refunded", never
  * "pending"/"failed".
  *
+ * Before actually deleting, every candidate that has a razorpayOrderId is
+ * re-checked directly against Razorpay's own API — our own paymentStatus can
+ * be wrong (a payment.captured webhook that never landed, e.g. a
+ * misconfigured or missing RAZORPAY_WEBHOOK_SECRET, a real incident this
+ * project already hit once) and this is the last chance to catch that before
+ * the order — and everything that proves the customer actually paid — is
+ * gone for good. A candidate is only deleted if Razorpay confirms it was
+ * genuinely never paid, OR it never got far enough to have a
+ * razorpayOrderId at all (nothing to check — no payment could exist).
+ * Anything Razorpay says IS paid, or that the check itself fails to
+ * determine (a transient API error), is left alone and reported separately
+ * — deletion is the one place here that must fail closed, not open — and an
+ * admin is alerted so a human can reconcile it by hand.
+ *
  * message_log.order_id has no ON DELETE cascade, so any log row is detached
  * first — in practice a pending/failed order should never have one (every
  * WhatsApp template only fires after payment succeeds), but this keeps the
@@ -262,11 +278,20 @@ export async function recordRefund(params: {
  */
 export async function deleteStaleUnpaidOrders(
   staleDays = 7,
-): Promise<{ deletedCount: number; orderNumbers: string[] }> {
+): Promise<{
+  deletedCount: number;
+  orderNumbers: string[];
+  heldForReviewCount: number;
+  heldForReviewOrderNumbers: string[];
+}> {
   const cutoff = new Date(Date.now() - staleDays * 24 * 60 * 60 * 1000);
 
   const stale = await db
-    .select({ id: orders.id, orderNumber: orders.orderNumber })
+    .select({
+      id: orders.id,
+      orderNumber: orders.orderNumber,
+      razorpayOrderId: orders.razorpayOrderId,
+    })
     .from(orders)
     .where(
       and(
@@ -275,9 +300,56 @@ export async function deleteStaleUnpaidOrders(
       ),
     );
 
-  if (stale.length === 0) return { deletedCount: 0, orderNumbers: [] };
+  if (stale.length === 0) {
+    return { deletedCount: 0, orderNumbers: [], heldForReviewCount: 0, heldForReviewOrderNumbers: [] };
+  }
 
-  const ids = stale.map((o) => o.id);
+  const safeToDelete: typeof stale = [];
+  const heldForReview: typeof stale = [];
+
+  for (const order of stale) {
+    if (!order.razorpayOrderId) {
+      // Checkout never even reached Razorpay — no payment could exist.
+      safeToDelete.push(order);
+      continue;
+    }
+    try {
+      const rpStatus = await fetchRazorpayOrderStatus(order.razorpayOrderId);
+      if (rpStatus.status === "paid" || rpStatus.amountPaid > 0) {
+        heldForReview.push(order);
+      } else {
+        safeToDelete.push(order);
+      }
+    } catch (err) {
+      // Can't confirm it's safe — never guess in favor of an irreversible
+      // delete. Leave it for the next run and flag it now.
+      console.error(
+        `[cleanup-orders] Razorpay status check failed for ${order.orderNumber} (${order.razorpayOrderId}) — holding, not deleting:`,
+        err,
+      );
+      heldForReview.push(order);
+    }
+  }
+
+  if (heldForReview.length > 0) {
+    await alertAdminSuspiciousActivity({
+      event: "Stale-order cleanup held orders back for manual review",
+      detail: `${heldForReview.length} order(s) marked pending/failed locally but Razorpay shows as paid (or their status couldn't be confirmed), so they were NOT deleted: ${heldForReview.map((o) => o.orderNumber).join(", ")}. Check /studio/orders and reconcile payment status by hand.`,
+    }).catch((err) => {
+      console.error("[cleanup-orders] failed to alert admin about held orders:", err);
+    });
+  }
+
+  if (safeToDelete.length === 0) {
+    return {
+      deletedCount: 0,
+      orderNumbers: [],
+      heldForReviewCount: heldForReview.length,
+      heldForReviewOrderNumbers: heldForReview.map((o) => o.orderNumber),
+    };
+  }
+
+  const ids = safeToDelete.map((o) => o.id);
 
   await db
     .update(messageLog)
@@ -286,7 +358,12 @@ export async function deleteStaleUnpaidOrders(
 
   await db.delete(orders).where(inArray(orders.id, ids));
 
-  return { deletedCount: ids.length, orderNumbers: stale.map((o) => o.orderNumber) };
+  return {
+    deletedCount: ids.length,
+    orderNumbers: safeToDelete.map((o) => o.orderNumber),
+    heldForReviewCount: heldForReview.length,
+    heldForReviewOrderNumbers: heldForReview.map((o) => o.orderNumber),
+  };
 }
 
 /**
