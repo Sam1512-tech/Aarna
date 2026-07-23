@@ -4,13 +4,15 @@ import type { InvoiceData } from "@/lib/invoice/generate";
 import {
   calculateOrderGst,
   currentFinancialYear,
+  invoiceSequenceName,
   isInterStateOrder,
 } from "@/lib/invoice/generate";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { fetchRazorpayOrderStatus } from "@/lib/razorpay";
 import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 
-const { orders, orderItems, returns, carts, cartItems, messageLog, coupons } = schema;
+const { orders, orderItems, returns, carts, cartItems, messageLog, coupons, orderRefundEvents } =
+  schema;
 
 /** How long a checkout attempt holds its reserved stock before it's treated
  * as abandoned and released back — see releaseExpiredCheckoutHolds. */
@@ -45,6 +47,62 @@ export type MarkOrderPaidResult =
   | { won: false; invoiceNumber: null };
 
 /**
+ * Creates the per-financial-year invoice sequence the first time it's
+ * needed for that FY, bootstrapped to continue past the highest invoice
+ * number already issued under that prefix rather than blindly starting at
+ * 1. No-op (one cheap existence check, no locking) once the sequence
+ * already exists — true for every call after the first one made for a
+ * given FY, which is the overwhelming majority of calls in practice.
+ *
+ * This bootstrap is what makes the fix safe to deploy mid-year: before this
+ * change every invoice number came off one single global `invoice_seq`, so
+ * real orders can already carry numbers like "AL/26-27/00004" for the
+ * CURRENT financial year at the exact moment `invoice_seq_26_27` is created
+ * for the first time. A fresh sequence blindly starting at 1 would
+ * immediately collide with the existing "AL/26-27/00001" row — a real
+ * `orders_invoice_number_unique` violation this was caught by, live,
+ * verifying the fix against the dev DB (see the PR description). Every
+ * FUTURE financial year never hits this: by definition no order can carry
+ * an "AL/<future-fy>/…" number before that FY starts, so `existingMax` is
+ * always 0 there and the sequence legitimately starts at 1 — this same
+ * function handles both cases without needing a separate one-off migration
+ * per year.
+ */
+async function ensureInvoiceSequence(
+  sequenceName: string,
+  invoicePrefix: string,
+): Promise<void> {
+  const [{ existed }] = (await db.execute(
+    sql`SELECT to_regclass(${sequenceName}) IS NOT NULL AS existed`,
+  )) as unknown as { existed: boolean }[];
+  if (existed) return;
+
+  await db.transaction(async (tx) => {
+    // Advisory lock scoped to this transaction, keyed off the sequence
+    // name — serializes two orders paying at the exact moment a brand-new
+    // FY's sequence is first needed, so they can't both race the
+    // create-then-bootstrap sequence below off a stale pre-lock read.
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${sequenceName}))`);
+
+    const [{ existed: existedAfterLock }] = (await tx.execute(
+      sql`SELECT to_regclass(${sequenceName}) IS NOT NULL AS existed`,
+    )) as unknown as { existed: boolean }[];
+    if (existedAfterLock) return; // another concurrent call already won this
+
+    await tx.execute(sql`CREATE SEQUENCE IF NOT EXISTS ${sql.raw(sequenceName)} START 1`);
+
+    const [{ existingMax }] = (await tx.execute(
+      sql`SELECT COALESCE(MAX(substring(invoice_number from '\\d+$')::int), 0) AS "existingMax"
+          FROM orders WHERE invoice_number LIKE ${invoicePrefix + "%"}`,
+    )) as unknown as { existingMax: number }[];
+
+    if (existingMax > 0) {
+      await tx.execute(sql`SELECT setval(${sequenceName}, ${existingMax}, true)`);
+    }
+  });
+}
+
+/**
  * Marks an order paid. Guarded to only fire from `pending` or `failed` — NOT
  * a blanket `paymentStatus <> 'paid'` — so that two concurrent
  * `payment.captured` deliveries for the same order (Razorpay documents
@@ -65,6 +123,13 @@ export type MarkOrderPaidResult =
  * for a write that never lands, leaving an unexplained gap in the
  * financial-year invoice sequence.
  *
+ * The sequence itself is scoped per financial year (`invoiceSequenceName`)
+ * — created lazily here on first use each FY via `ensureInvoiceSequence`,
+ * not via a one-off migration script, since the sequence name is only known
+ * at call time. This is what makes the count actually restart at 00001
+ * every April rather than continuing to climb across financial years
+ * forever.
+ *
  * Returns whether this call was the one that actually transitioned the
  * order — the caller uses that to decide whether to run the paid-order side
  * effects (invoice, stock, coupon count, notifications) at all.
@@ -73,13 +138,16 @@ export async function markOrderPaid(
   orderId: string,
   razorpayPaymentId: string,
 ): Promise<MarkOrderPaidResult> {
-  await db.execute(sql`CREATE SEQUENCE IF NOT EXISTS invoice_seq START 1`);
-  const invoicePrefix = `AL/${currentFinancialYear()}/`;
+  const financialYear = currentFinancialYear();
+  const sequenceName = invoiceSequenceName(financialYear);
+  const invoicePrefix = `AL/${financialYear}/`;
+
+  await ensureInvoiceSequence(sequenceName, invoicePrefix);
 
   const updated = await db
     .update(orders)
     .set({
-      invoiceNumber: sql`${invoicePrefix} || lpad(nextval('invoice_seq')::text, 5, '0')`,
+      invoiceNumber: sql`${invoicePrefix} || lpad(nextval('${sql.raw(sequenceName)}')::text, 5, '0')`,
       razorpayPaymentId,
       paymentStatus: "paid",
       fulfillmentStatus: "processing",
@@ -292,40 +360,107 @@ export async function releaseExpiredCheckoutHolds(
  * Records a processed Razorpay refund:
  *  - flips the order to "refunded" (full) or "partially_refunded"
  *  - marks any return row carrying this refund id as "refunded"
- * Returns the order plus whether it was already fully refunded (webhook retry),
- * so the caller can avoid sending a duplicate refund email. Null if no order
- * matches the refunded payment.
+ * Returns the order plus whether this refund event was already processed
+ * (webhook retry), so the caller can avoid sending a duplicate refund email.
+ * Null if no order matches the refunded payment.
+ *
+ * Guards against two races, the same class `markOrderPaid` and
+ * `incrementCouponUsage` already close elsewhere in this file:
+ *
+ *  1. Razorpay documents at-least-once webhook delivery — two near-
+ *     simultaneous `refund.processed` deliveries for the exact SAME refund
+ *     must only apply its side effects (status flip, email) once. Deriving
+ *     `isDuplicate` from a plain read of `order.paymentStatus` doesn't close
+ *     this: both deliveries can read "not yet refunded" before either write
+ *     lands. And unlike `markOrderPaid` (a single one-way transition), a
+ *     plain "did paymentStatus change" check can't serve as the idempotency
+ *     signal here either — a legitimate SECOND partial refund on an order
+ *     that's already "partially_refunded" and stays "partially_refunded"
+ *     after it (still short of the total) produces a no-op status UPDATE
+ *     too, indistinguishable from a true duplicate by that signal alone.
+ *  2. An order refunded across multiple SEPARATE partial refunds (the
+ *     normal shape now that returns are processed per item) must reach
+ *     "refunded" once the sum of every refund issued for the order covers
+ *     order.total — not just whichever single event's amount is being
+ *     evaluated right now. Nothing in the schema tracked a running total.
+ *
+ * Both are closed by `order_refund_events` (schema.ts): an append-only
+ * ledger, one row per Razorpay refund id, unique on razorpayRefundId. All of
+ * the below runs in one transaction:
+ *   - the order row is locked (SELECT ... FOR UPDATE) so two DIFFERENT
+ *     refund events landing concurrently for the same order (e.g. two
+ *     items' QC passing back to back) can't both compute a stale cumulative
+ *     sum and neither correctly flips it to "refunded";
+ *   - the refund event is claimed via INSERT ... ON CONFLICT DO NOTHING
+ *     keyed on razorpayRefundId — a redelivered webhook for the same event
+ *     inserts nothing, so `isDuplicate` is derived from whether the INSERT
+ *     actually landed a row, not from the earlier read;
+ *   - the new paymentStatus is computed from SUM(amount_paise) across every
+ *     event recorded for the order so far (including the one just
+ *     inserted), not this single event's amount.
  */
 export async function recordRefund(params: {
   razorpayPaymentId: string;
   razorpayRefundId: string;
   amountRefundedPaise: number;
 }): Promise<{ order: OrderRow; isDuplicate: boolean } | null> {
-  const order = await getOrderByRazorpayPaymentId(params.razorpayPaymentId);
-  if (!order) return null;
+  return db.transaction(async (tx) => {
+    const [order] = await tx
+      .select()
+      .from(orders)
+      .where(eq(orders.razorpayPaymentId, params.razorpayPaymentId))
+      .for("update");
+    if (!order) return null;
 
-  const isDuplicate = order.paymentStatus === "refunded";
+    const claimed = await tx
+      .insert(orderRefundEvents)
+      .values({
+        orderId: order.id,
+        razorpayRefundId: params.razorpayRefundId,
+        amountPaise: params.amountRefundedPaise,
+      })
+      .onConflictDoNothing({ target: orderRefundEvents.razorpayRefundId })
+      .returning({ id: orderRefundEvents.id });
 
-  const nextStatus =
-    params.amountRefundedPaise >= order.total ? "refunded" : "partially_refunded";
+    if (claimed.length === 0) {
+      // Same refund id already recorded — a redelivered webhook for an
+      // event this function already processed. Order is returned as-is
+      // (already reflects that event); no further writes, no email.
+      return { order, isDuplicate: true };
+    }
 
-  await db
-    .update(orders)
-    .set({ paymentStatus: nextStatus, updatedAt: new Date() })
-    .where(eq(orders.id, order.id));
+    const [{ total: cumulativeRefunded }] = await tx
+      .select({
+        total: sql<number>`coalesce(sum(${orderRefundEvents.amountPaise}), 0)::int`,
+      })
+      .from(orderRefundEvents)
+      .where(eq(orderRefundEvents.orderId, order.id));
 
-  // Resolve the return that triggered this refund (idempotent on retries).
-  await db
-    .update(returns)
-    .set({ status: "refunded", resolvedAt: new Date() })
-    .where(
-      and(
-        eq(returns.razorpayRefundId, params.razorpayRefundId),
-        ne(returns.status, "refunded"),
-      ),
-    );
+    const nextStatus: "refunded" | "partially_refunded" =
+      cumulativeRefunded >= order.total ? "refunded" : "partially_refunded";
 
-  return { order, isDuplicate };
+    const [updatedOrder] = await tx
+      .update(orders)
+      .set({ paymentStatus: nextStatus, updatedAt: new Date() })
+      .where(eq(orders.id, order.id))
+      .returning();
+
+    // Resolve the return that triggered this refund (idempotent — a return
+    // row can only reach "refunded" once, guarded elsewhere by markReturnQc's
+    // own row lock, but this stays defensive in case the return's own write
+    // didn't land for some reason before this webhook arrived).
+    await tx
+      .update(returns)
+      .set({ status: "refunded", resolvedAt: new Date() })
+      .where(
+        and(
+          eq(returns.razorpayRefundId, params.razorpayRefundId),
+          ne(returns.status, "refunded"),
+        ),
+      );
+
+    return { order: updatedOrder ?? order, isDuplicate: false };
+  });
 }
 
 /**
