@@ -454,6 +454,39 @@ export const orderItems = pgTable(
   }),
 );
 
+// One row per processed Razorpay refund event (`refund.processed` webhook),
+// unique on razorpayRefundId — an append-only ledger that recordRefund
+// (lib/db/queries/orders.ts) uses for two things at once:
+//   1. Idempotency — Razorpay documents at-least-once webhook delivery, so a
+//      redelivered event for the exact same refund hits the unique
+//      constraint (INSERT ... ON CONFLICT DO NOTHING) and is recognized as a
+//      duplicate instead of re-triggering the customer email.
+//   2. Cumulative refund total — an order can be refunded across multiple
+//      separate partial refunds (one per returned item, the normal shape
+//      now that returns are processed per item). Summing amountPaise across
+//      every event for an order is what lets recordRefund correctly flip
+//      paymentStatus to "refunded" once the running total actually covers
+//      the order total, instead of comparing a single event's amount.
+export const orderRefundEvents = pgTable(
+  "order_refund_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    razorpayRefundId: varchar("razorpay_refund_id", { length: 60 })
+      .notNull()
+      .unique(),
+    amountPaise: integer("amount_paise").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    orderIdx: index("order_refund_events_order_idx").on(t.orderId),
+  }),
+);
+
 export const reviews = pgTable(
   "reviews",
   {

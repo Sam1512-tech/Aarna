@@ -32,6 +32,7 @@ ALTER TABLE public.homepage_video_slots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_movements  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.message_log          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_refund_events  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_images       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_variants     ENABLE ROW LEVEL SECURITY;

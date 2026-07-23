@@ -26,6 +26,30 @@ export function formatInvoiceNumber(financialYear: string, sequence: number): st
 }
 
 /**
+ * Derives the Postgres sequence name for a given financial year, e.g.
+ * "26-27" -> "invoice_seq_26_27". Used by markOrderPaid
+ * (lib/db/queries/orders.ts) to scope the invoice-number sequence per FY —
+ * one global sequence would never reset, so the first invoice of a new FY
+ * would silently continue the previous year's count instead of restarting
+ * at 00001, misrepresenting invoice counts on every tax document.
+ *
+ * The result gets spliced into raw SQL by the caller (CREATE SEQUENCE
+ * doesn't accept its name as a bound parameter), so it's validated against
+ * a strict pattern first — `currentFinancialYear()`'s output is fully
+ * internally computed, not user input, but this refuses to ever pass an
+ * unexpected value through unescaped rather than assuming that always holds.
+ */
+export function invoiceSequenceName(financialYear: string): string {
+  const name = `invoice_seq_${financialYear.replace("-", "_")}`;
+  if (!/^invoice_seq_\d{2}_\d{2}$/.test(name)) {
+    throw new Error(
+      `Unexpected invoice sequence name derived from financial year "${financialYear}": ${name}`,
+    );
+  }
+  return name;
+}
+
+/**
  * Determines whether an order is inter-state based on the customer's state.
  * Karnataka orders are intra-state (CGST+SGST), all others are inter-state (IGST).
  *
