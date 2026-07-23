@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { generateInvoicePdf, generateInvoicePdfBatch } from "@/lib/invoice/generate";
 import { buildInvoiceData } from "@/lib/db/queries/orders";
+import { sendEmail } from "@/lib/resend";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { ActionError } from "@/lib/action-error";
 import { logAdminAction } from "@/lib/audit/log-admin-action";
@@ -457,6 +458,62 @@ export async function regenerateInvoicePdf(orderId: string): Promise<Buffer> {
     order.invoiceNumber,
   );
   return generateInvoicePdf(invoiceData);
+}
+
+/**
+ * Manually re-sends the order-confirmation email (with invoice PDF
+ * attached) for an already-paid order. The `payment.captured` webhook sends
+ * this automatically, but that step is deliberately best-effort — a
+ * transient failure there (a Resend outage, a PDF-rendering hiccup) never
+ * blocks the payment itself, which means it can also leave a real customer
+ * never having received their confirmation with no automatic retry. This is
+ * the recovery path an admin uses once alerted to that (see the webhook's
+ * own alertAdminSuspiciousActivity call), rather than the customer having to
+ * notice and ask.
+ */
+export async function resendOrderConfirmationEmail(orderId: string): Promise<{ ok: true }> {
+  const admin = await requireAdmin();
+
+  const order = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!order) throw new ActionError("Order not found");
+  if (order.paymentStatus !== "paid" && order.paymentStatus !== "partially_refunded") {
+    throw new ActionError("Order hasn't been paid — nothing to send a confirmation for");
+  }
+  if (!order.invoiceNumber) {
+    throw new ActionError(
+      "Order has no invoice number — invoice is generated when payment is captured.",
+    );
+  }
+
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, order.id));
+
+  const orderWithItems = { ...order, orderItems: items };
+  const invoiceData = buildInvoiceData(orderWithItems, order.invoiceNumber);
+  const pdfBuffer = await generateInvoicePdf(invoiceData);
+  const pdfFilename = `${order.invoiceNumber.replace(/\//g, "-")}.pdf`;
+
+  await sendEmail({
+    to: order.email,
+    subject: `Order Confirmed — ${order.orderNumber} | Aarna`,
+    templateKey: "order_receipt",
+    data: { order: orderWithItems, invoiceNumber: order.invoiceNumber },
+    attachments: [{ filename: pdfFilename, content: pdfBuffer }],
+  });
+
+  await logAdminAction(admin.id, "order.resend_confirmation_email", "order", orderId, {
+    email: order.email,
+  });
+
+  return { ok: true };
 }
 
 const MAX_BATCH_INVOICES = 200;

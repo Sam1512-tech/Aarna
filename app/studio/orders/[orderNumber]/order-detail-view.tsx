@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import { useState, useTransition } from "react";
-import { Truck, Package, FileDown, RefreshCw } from "lucide-react";
+import { Truck, Package, FileDown, Mail, RefreshCw } from "lucide-react";
 import { StatusPill } from "@/components/admin/admin-primitives";
 import {
   attachAwbNumber,
   createDelhiveryShipment,
+  resendOrderConfirmationEmail,
   updateOrderFulfillmentStatus,
 } from "@/lib/actions/admin/orders";
 import { formatINR } from "@/lib/utils";
@@ -174,6 +175,21 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
       }
     });
   }
+
+  function handleResendConfirmation() {
+    startTransition(async () => {
+      try {
+        await resendOrderConfirmationEmail(order.id);
+        announce(`Confirmation email resent to ${order.email}.`);
+      } catch (err) {
+        announce(actionErrorMessage(err, "Couldn't resend confirmation email"), true);
+      }
+    });
+  }
+
+  const canResendConfirmation =
+    (order.paymentStatus === "paid" || order.paymentStatus === "partially_refunded") &&
+    Boolean(order.invoiceNumber);
 
   return (
     <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_0.9fr]">
@@ -392,6 +408,24 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
           <p className="mt-2 text-xs text-charcoal/50">
             Regenerates the GST invoice PDF from current order data.
           </p>
+
+          {canResendConfirmation ? (
+            <>
+              <button
+                type="button"
+                onClick={handleResendConfirmation}
+                disabled={pending}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full border border-cocoa/22 bg-cream px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa transition duration-500 hover:border-cocoa disabled:opacity-50"
+              >
+                <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                resend confirmation email
+              </button>
+              <p className="mt-2 text-xs text-charcoal/50">
+                Re-sends the order confirmation with the invoice PDF
+                attached — use this if a customer says they never got it.
+              </p>
+            </>
+          ) : null}
         </Card>
 
         {notice ? (

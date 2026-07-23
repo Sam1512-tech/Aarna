@@ -121,20 +121,36 @@ export async function POST(req: Request) {
         console.error("[razorpay webhook] cart clear failed:", err);
       });
 
-      const invoiceData = buildInvoiceData(order, invoiceNumber);
-      const pdfBuffer = await generateInvoicePdf(invoiceData);
-      const pdfFilename = `${invoiceNumber.replace(/\//g, "-")}.pdf`;
+      // The order is already committed "paid" (markOrderPaid above) and
+      // paymentStatus === "paid" is the webhook's own idempotency pre-check
+      // at the top of this handler — so if anything in here throws
+      // uncaught, Razorpay's at-least-once retry would re-deliver this same
+      // event, hit that pre-check, and skip this whole block forever. Never
+      // let a PDF-rendering hiccup or a malformed legacy address (isInterStateOrder
+      // can throw on one) leave a real customer permanently without their
+      // confirmation with no automatic recovery — catch it, alert an admin
+      // with a concrete recovery path, and keep the webhook response 200.
+      try {
+        const invoiceData = buildInvoiceData(order, invoiceNumber);
+        const pdfBuffer = await generateInvoicePdf(invoiceData);
+        const pdfFilename = `${invoiceNumber.replace(/\//g, "-")}.pdf`;
 
-      await sendEmail({
-        to: order.email,
-        subject: `Order Confirmed — ${order.orderNumber} | Aarna`,
-        templateKey: "order_receipt",
-        data: { order, invoiceNumber },
-        attachments: [{ filename: pdfFilename, content: pdfBuffer }],
-      }).catch((err) => {
-        // Never let email failure break the webhook response
-        console.error("[razorpay webhook] email send failed:", err);
-      });
+        await sendEmail({
+          to: order.email,
+          subject: `Order Confirmed — ${order.orderNumber} | Aarna`,
+          templateKey: "order_receipt",
+          data: { order, invoiceNumber },
+          attachments: [{ filename: pdfFilename, content: pdfBuffer }],
+        });
+      } catch (err) {
+        console.error("[razorpay webhook] invoice generation/email failed:", err);
+        await alertAdminSuspiciousActivity({
+          event: "Order confirmation email failed to send",
+          detail: `Order ${order.orderNumber} (${invoiceNumber}) was paid successfully but the invoice PDF/confirmation email failed: ${err instanceof Error ? err.message : String(err)}. This never retries automatically (the webhook's own idempotency check skips re-processing a paid order). Use "Resend confirmation email" on /studio/orders/${order.orderNumber} once the underlying issue is fixed.`,
+        }).catch((alertErr) => {
+          console.error("[razorpay webhook] failure alert itself failed:", alertErr);
+        });
+      }
 
       // WhatsApp order confirmation (opt-in gated; no-op until Interakt is live)
       await notifyWhatsApp({
