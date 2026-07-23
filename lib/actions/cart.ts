@@ -17,6 +17,7 @@ const {
   products,
   productImages,
   coupons,
+  orders,
 } = schema;
 
 const GUEST_COOKIE = "aarna_cart";
@@ -268,6 +269,37 @@ export async function applyCoupon(
   if (c.usageLimit !== null && c.usedCount >= c.usageLimit) {
     return { ok: false, message: "Coupon usage limit reached", cart, discount: 0 };
   }
+
+  // Per-customer redemption limit. Only enforceable for signed-in customers
+  // (guest carts have no stable identity to count redemptions against — but
+  // checkout requires sign-in anyway, see requireCheckoutCustomer in
+  // checkout.ts, so this always applies by the time an order is actually
+  // placed). Counts actual PAID redemptions, not abandoned/failed checkouts —
+  // matches how usage is counted at payment-confirmation time in
+  // incrementCouponUsage (lib/db/queries/orders.ts).
+  const customerId = await getCurrentCustomerId();
+  if (customerId) {
+    const priorRedemptions = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.customerId, customerId),
+          eq(orders.couponCode, c.code),
+          inArray(orders.paymentStatus, ["paid", "partially_refunded", "refunded"]),
+        ),
+      );
+    const timesUsed = priorRedemptions[0]?.count ?? 0;
+    if (timesUsed >= c.perCustomerLimit) {
+      return {
+        ok: false,
+        message: "You've already used this coupon the maximum number of times",
+        cart,
+        discount: 0,
+      };
+    }
+  }
+
   if (cart.subtotal < c.minOrderAmount) {
     return {
       ok: false,
