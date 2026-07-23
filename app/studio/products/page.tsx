@@ -54,7 +54,7 @@ export default async function AdminProductsPage({
 
       <AutoSubmitForm className="mt-6 flex flex-wrap items-end gap-3">
         <label className="min-w-56 flex-1">
-          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/72">
             search
           </span>
           <input
@@ -65,7 +65,7 @@ export default async function AdminProductsPage({
           />
         </label>
         <label>
-          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/72">
             status
           </span>
           <select

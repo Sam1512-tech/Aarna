@@ -169,7 +169,7 @@ export default async function AdminReturnsPage({
           <input type="hidden" name="type" value={typeFilter} />
         ) : null}
         <label>
-          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/72">
             status
           </span>
           <select
