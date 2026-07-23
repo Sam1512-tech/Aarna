@@ -120,31 +120,25 @@ export async function submitReview(
   const productId = row[0].productId;
   const body = input.body?.trim() || null;
 
-  const existing = await db
-    .select({ id: reviews.id })
-    .from(reviews)
-    .where(
-      and(
-        eq(reviews.productId, productId),
-        eq(reviews.customerId, customer.id),
-      ),
-    )
-    .limit(1);
-
-  if (existing[0]) {
-    await db
-      .update(reviews)
-      .set({ rating, body, status: "pending" })
-      .where(eq(reviews.id, existing[0].id));
-  } else {
-    await db.insert(reviews).values({
+  // Upsert on (product_id, customer_id) — see the unique index in
+  // lib/db/schema.ts. A single ON CONFLICT statement instead of a
+  // check-then-insert/update means a double-click or flaky-network retry
+  // can't create two rows for one customer on one product (which would have
+  // double-counted in the average rating); it's also inherently race-free,
+  // unlike the two-step read-then-write it replaces.
+  await db
+    .insert(reviews)
+    .values({
       productId,
       customerId: customer.id,
       rating,
       body,
       status: "pending",
+    })
+    .onConflictDoUpdate({
+      target: [reviews.productId, reviews.customerId],
+      set: { rating, body, status: "pending" },
     });
-  }
 
   revalidatePath("/account/orders");
   revalidatePath("/studio/reviews");

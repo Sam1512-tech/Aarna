@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -165,29 +166,36 @@ export const collections = pgTable("collections", {
     .notNull(),
 });
 
-export const products = pgTable("products", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  title: varchar("title", { length: 200 }).notNull(),
-  slug: varchar("slug", { length: 220 }).notNull().unique(),
-  // Short human code (e.g. "DR001") derived from category + a per-category
-  // sequence, generated once at creation. Nullable so pre-existing rows
-  // don't need a backfill; createVariant() backfills it lazily on first use.
-  styleCode: varchar("style_code", { length: 20 }).unique(),
-  description: text("description"),
-  fabric: varchar("fabric", { length: 120 }),
-  washCare: text("wash_care"),
-  basePrice: integer("base_price").notNull(),
-  mrp: integer("mrp"),
-  status: productStatus("status").default("draft").notNull(),
-  categoryId: uuid("category_id").references(() => categories.id),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    title: varchar("title", { length: 200 }).notNull(),
+    slug: varchar("slug", { length: 220 }).notNull().unique(),
+    // Short human code (e.g. "DR001") derived from category + a per-category
+    // sequence, generated once at creation. Nullable so pre-existing rows
+    // don't need a backfill; createVariant() backfills it lazily on first use.
+    styleCode: varchar("style_code", { length: 20 }).unique(),
+    description: text("description"),
+    fabric: varchar("fabric", { length: 120 }),
+    washCare: text("wash_care"),
+    basePrice: integer("base_price").notNull(),
+    mrp: integer("mrp"),
+    status: productStatus("status").default("draft").notNull(),
+    categoryId: uuid("category_id").references(() => categories.id),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    // Every /shop/[category] page load filters on this.
+    categoryIdx: index("product_category_id_idx").on(t.categoryId),
+  }),
+);
 
 export const productVariants = pgTable(
   "product_variants",
@@ -216,16 +224,23 @@ export const productVariants = pgTable(
   }),
 );
 
-export const productImages = pgTable("product_images", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  productId: uuid("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-  variantColor: varchar("variant_color", { length: 60 }),
-  url: text("url").notNull(),
-  altText: varchar("alt_text", { length: 220 }),
-  sortOrder: integer("sort_order").default(0).notNull(),
-});
+export const productImages = pgTable(
+  "product_images",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    variantColor: varchar("variant_color", { length: 60 }),
+    url: text("url").notNull(),
+    altText: varchar("alt_text", { length: 220 }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+  },
+  (t) => ({
+    // Every PDP load fetches a product's gallery by productId.
+    productIdx: index("product_image_product_id_idx").on(t.productId),
+  }),
+);
 
 export const collectionProducts = pgTable(
   "collection_products",
@@ -255,37 +270,59 @@ export const customers = pgTable("customers", {
     .notNull(),
 });
 
-export const addresses = pgTable("addresses", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  customerId: uuid("customer_id")
-    .notNull()
-    .references(() => customers.id, { onDelete: "cascade" }),
-  fullName: varchar("full_name", { length: 160 }).notNull(),
-  phone: varchar("phone", { length: 20 }).notNull(),
-  line1: varchar("line1", { length: 200 }).notNull(),
-  line2: varchar("line2", { length: 200 }),
-  city: varchar("city", { length: 100 }).notNull(),
-  state: varchar("state", { length: 100 }).notNull(),
-  pincode: varchar("pincode", { length: 10 }).notNull(),
-  isDefault: boolean("is_default").default(false).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
-
-export const carts = pgTable("carts", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  customerId: uuid("customer_id").references(() => customers.id, {
-    onDelete: "cascade",
+export const addresses = pgTable(
+  "addresses",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    fullName: varchar("full_name", { length: 160 }).notNull(),
+    phone: varchar("phone", { length: 20 }).notNull(),
+    line1: varchar("line1", { length: 200 }).notNull(),
+    line2: varchar("line2", { length: 200 }),
+    city: varchar("city", { length: 100 }).notNull(),
+    state: varchar("state", { length: 100 }).notNull(),
+    pincode: varchar("pincode", { length: 10 }).notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    // Every account-address read/write filters by customerId.
+    customerIdx: index("address_customer_id_idx").on(t.customerId),
   }),
-  guestToken: varchar("guest_token", { length: 64 }).unique(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+);
+
+export const carts = pgTable(
+  "carts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    customerId: uuid("customer_id").references(() => customers.id, {
+      onDelete: "cascade",
+    }),
+    guestToken: varchar("guest_token", { length: 64 }).unique(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    // Partial — guest carts have a null customerId and are deliberately not
+    // covered (only guestToken's own unique constraint applies there). This
+    // caps a signed-in customer at one cart row, closing a race where two
+    // concurrent first-time cart operations (two tabs, phone+laptop) could
+    // both find no existing cart and both insert one. See
+    // resolveOrCreateCartId in lib/actions/cart.ts for the paired
+    // ON CONFLICT DO NOTHING + re-select.
+    customerUnique: uniqueIndex("cart_customer_id_idx")
+      .on(t.customerId)
+      .where(sql`${t.customerId} IS NOT NULL`),
+  }),
+);
 
 export const cartItems = pgTable(
   "cart_items",
@@ -326,91 +363,130 @@ export const coupons = pgTable("coupons", {
     .notNull(),
 });
 
-export const orders = pgTable("orders", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  orderNumber: varchar("order_number", { length: 30 }).notNull().unique(),
-  customerId: uuid("customer_id").references(() => customers.id),
-  email: varchar("email", { length: 255 }).notNull(),
-  phone: varchar("phone", { length: 20 }).notNull(),
-  whatsappOptIn: boolean("whatsapp_opt_in").default(false).notNull(),
-  shippingAddress: jsonb("shipping_address").notNull(),
-  billingAddress: jsonb("billing_address"),
-  subtotal: integer("subtotal").notNull(),
-  discount: integer("discount").default(0).notNull(),
-  shippingFee: integer("shipping_fee").default(0).notNull(),
-  total: integer("total").notNull(),
-  couponCode: varchar("coupon_code", { length: 40 }),
-  // Buyer's GSTIN, optional — only business customers who want it on the tax
-  // invoice provide one. Format-validated at checkout (lib/gst.ts).
-  gstNumber: varchar("gst_number", { length: 15 }),
-  paymentStatus: orderPaymentStatus("payment_status")
-    .default("pending")
-    .notNull(),
-  fulfillmentStatus: orderFulfillmentStatus("fulfillment_status")
-    .default("pending")
-    .notNull(),
-  // True only for orders whose stock was actually decremented at checkout
-  // (initCheckout's atomic reservation). Defaults false so every order that
-  // predates this column — created back when checkout only checked stock
-  // without reserving it — is correctly never touched by the stock-restore
-  // path in releaseExpiredCheckoutHolds / markOrderPaymentFailed. Without
-  // this, restoring stock for a pre-existing pending order would "give back"
-  // a unit that was never actually taken, silently inflating that variant's
-  // real stock count.
-  stockReserved: boolean("stock_reserved").default(false).notNull(),
-  invoiceNumber: varchar("invoice_number", { length: 30 }).unique(),
-  razorpayOrderId: varchar("razorpay_order_id", { length: 60 }).unique(),
-  razorpayPaymentId: varchar("razorpay_payment_id", { length: 60 }),
-  awbNumber: varchar("awb_number", { length: 60 }),
-  delhiveryOrderId: varchar("delhivery_order_id", { length: 60 }),
-  notes: text("notes"),
-  placedAt: timestamp("placed_at", { withTimezone: true }),
-  // Set once, when fulfillmentStatus transitions to "delivered" (Delhivery
-  // webhook or admin manual override) — the real source of truth for the
-  // return window, replacing the old `updatedAt` proxy (any order edit bumps
-  // updatedAt, not just delivery, so it could silently stretch or shrink the
-  // customer's return window).
-  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderNumber: varchar("order_number", { length: 30 }).notNull().unique(),
+    customerId: uuid("customer_id").references(() => customers.id),
+    email: varchar("email", { length: 255 }).notNull(),
+    phone: varchar("phone", { length: 20 }).notNull(),
+    whatsappOptIn: boolean("whatsapp_opt_in").default(false).notNull(),
+    shippingAddress: jsonb("shipping_address").notNull(),
+    billingAddress: jsonb("billing_address"),
+    subtotal: integer("subtotal").notNull(),
+    discount: integer("discount").default(0).notNull(),
+    shippingFee: integer("shipping_fee").default(0).notNull(),
+    total: integer("total").notNull(),
+    couponCode: varchar("coupon_code", { length: 40 }),
+    // Buyer's GSTIN, optional — only business customers who want it on the tax
+    // invoice provide one. Format-validated at checkout (lib/gst.ts).
+    gstNumber: varchar("gst_number", { length: 15 }),
+    paymentStatus: orderPaymentStatus("payment_status")
+      .default("pending")
+      .notNull(),
+    fulfillmentStatus: orderFulfillmentStatus("fulfillment_status")
+      .default("pending")
+      .notNull(),
+    // True only for orders whose stock was actually decremented at checkout
+    // (initCheckout's atomic reservation). Defaults false so every order that
+    // predates this column — created back when checkout only checked stock
+    // without reserving it — is correctly never touched by the stock-restore
+    // path in releaseExpiredCheckoutHolds / markOrderPaymentFailed. Without
+    // this, restoring stock for a pre-existing pending order would "give back"
+    // a unit that was never actually taken, silently inflating that variant's
+    // real stock count.
+    stockReserved: boolean("stock_reserved").default(false).notNull(),
+    invoiceNumber: varchar("invoice_number", { length: 30 }).unique(),
+    razorpayOrderId: varchar("razorpay_order_id", { length: 60 }).unique(),
+    razorpayPaymentId: varchar("razorpay_payment_id", { length: 60 }),
+    awbNumber: varchar("awb_number", { length: 60 }),
+    delhiveryOrderId: varchar("delhivery_order_id", { length: 60 }),
+    notes: text("notes"),
+    placedAt: timestamp("placed_at", { withTimezone: true }),
+    // Set once, when fulfillmentStatus transitions to "delivered" (Delhivery
+    // webhook or admin manual override) — the real source of truth for the
+    // return window, replacing the old `updatedAt` proxy (any order edit bumps
+    // updatedAt, not just delivery, so it could silently stretch or shrink the
+    // customer's return window).
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    // Customer's own order-history page — every order belongs to a
+    // customer now that guest checkout is gone (customerId is nullable in
+    // the type only for legacy pre-#116 rows).
+    customerCreatedIdx: index("order_customer_created_idx").on(
+      t.customerId,
+      t.createdAt.desc(),
+    ),
+  }),
+);
 
-export const orderItems = pgTable("order_items", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  orderId: uuid("order_id")
-    .notNull()
-    .references(() => orders.id, { onDelete: "cascade" }),
-  variantId: uuid("variant_id")
-    .notNull()
-    .references(() => productVariants.id),
-  productTitleSnapshot: varchar("product_title_snapshot", { length: 220 })
-    .notNull(),
-  variantLabelSnapshot: varchar("variant_label_snapshot", { length: 120 }),
-  skuSnapshot: varchar("sku_snapshot", { length: 80 }).notNull(),
-  unitPriceSnapshot: integer("unit_price_snapshot").notNull(),
-  quantity: integer("quantity").notNull(),
-  lineTotal: integer("line_total").notNull(),
-});
+export const orderItems = pgTable(
+  "order_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => productVariants.id),
+    productTitleSnapshot: varchar("product_title_snapshot", { length: 220 })
+      .notNull(),
+    variantLabelSnapshot: varchar("variant_label_snapshot", { length: 120 }),
+    skuSnapshot: varchar("sku_snapshot", { length: 80 }).notNull(),
+    unitPriceSnapshot: integer("unit_price_snapshot").notNull(),
+    quantity: integer("quantity").notNull(),
+    lineTotal: integer("line_total").notNull(),
+  },
+  (t) => ({
+    // Order detail, invoice generation, and the GST report's per-line query
+    // all fetch order_items by orderId — Postgres doesn't auto-index a FK
+    // on the referencing side.
+    orderIdx: index("order_item_order_id_idx").on(t.orderId),
+  }),
+);
 
-export const reviews = pgTable("reviews", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  productId: uuid("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-  customerId: uuid("customer_id")
-    .notNull()
-    .references(() => customers.id, { onDelete: "cascade" }),
-  rating: integer("rating").notNull(),
-  body: text("body"),
-  status: reviewStatus("status").default("pending").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    rating: integer("rating").notNull(),
+    body: text("body"),
+    status: reviewStatus("status").default("pending").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    // One review per customer per product — submitReview() upserts on this
+    // (see lib/actions/reviews.ts) instead of a check-then-insert, so a
+    // double-click/flaky retry can't create two rows and double-count in
+    // the average rating.
+    productCustomerUnique: uniqueIndex("review_product_customer_idx").on(
+      t.productId,
+      t.customerId,
+    ),
+    // getApprovedReviews(productId) runs on every PDP load, unauthenticated.
+    productStatusIdx: index("review_product_status_idx").on(
+      t.productId,
+      t.status,
+    ),
+  }),
+);
 
 export const wishlists = pgTable(
   "wishlists",
@@ -430,52 +506,65 @@ export const wishlists = pgTable(
   }),
 );
 
-export const returns = pgTable("returns", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  orderItemId: uuid("order_item_id")
-    .notNull()
-    .references(() => orderItems.id, { onDelete: "cascade" }),
-  reason: varchar("reason", { length: 200 }).notNull(),
-  reasonCategory: varchar("reason_category", { length: 60 }),
-  status: returnStatus("status").default("requested").notNull(),
-  // "return" | "exchange" — replaces the old convention of prefixing `reason`
-  // with "Exchange requested." to fake a type (see lib/exchange.ts history).
-  type: returnType("type").default("return").notNull(),
-  // Exchange target — which variant the customer wants instead. Null for
-  // plain returns, and null for exchanges until the customer picks one via
-  // ExchangeVariantChooser (PR 2). set null on delete: losing the specific
-  // variant shouldn't block resolving an otherwise-valid request.
-  desiredVariantId: uuid("desired_variant_id").references(
-    () => productVariants.id,
-    { onDelete: "set null" },
-  ),
-  // Customer-submitted evidence photos (damage, wrong item, etc.) — Cloudinary
-  // URLs, 0-3 per request. See components/storefront/return-photo-uploader.tsx.
-  photos: jsonb("photos").$type<string[]>().default(sql`'[]'::jsonb`).notNull(),
-  refundAmount: integer("refund_amount"),
-  razorpayRefundId: varchar("razorpay_refund_id", { length: 60 }),
-  // Reverse pickup AWB (studio ← customer) — pre-existing column, covers what
-  // would otherwise be a duplicate "reverseAwb".
-  delhiveryReversePickupId: varchar("delhivery_reverse_pickup_id", {
-    length: 60,
+export const returns = pgTable(
+  "returns",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => orderItems.id, { onDelete: "cascade" }),
+    reason: varchar("reason", { length: 200 }).notNull(),
+    reasonCategory: varchar("reason_category", { length: 60 }),
+    status: returnStatus("status").default("requested").notNull(),
+    // "return" | "exchange" — replaces the old convention of prefixing `reason`
+    // with "Exchange requested." to fake a type (see lib/exchange.ts history).
+    type: returnType("type").default("return").notNull(),
+    // Exchange target — which variant the customer wants instead. Null for
+    // plain returns, and null for exchanges until the customer picks one via
+    // ExchangeVariantChooser (PR 2). set null on delete: losing the specific
+    // variant shouldn't block resolving an otherwise-valid request.
+    desiredVariantId: uuid("desired_variant_id").references(
+      () => productVariants.id,
+      { onDelete: "set null" },
+    ),
+    // Customer-submitted evidence photos (damage, wrong item, etc.) — Cloudinary
+    // URLs, 0-3 per request. See components/storefront/return-photo-uploader.tsx.
+    photos: jsonb("photos").$type<string[]>().default(sql`'[]'::jsonb`).notNull(),
+    refundAmount: integer("refund_amount"),
+    razorpayRefundId: varchar("razorpay_refund_id", { length: 60 }),
+    // Reverse pickup AWB (studio ← customer) — pre-existing column, covers what
+    // would otherwise be a duplicate "reverseAwb".
+    delhiveryReversePickupId: varchar("delhivery_reverse_pickup_id", {
+      length: 60,
+    }),
+    // Outbound swap shipment AWB (exchange only) — distinct from
+    // delhiveryReversePickupId, which tracks the *original* piece coming back.
+    outboundAwb: varchar("outbound_awb", { length: 60 }),
+    // Structured reason code from ReturnRejectPicker's REJECT_REASONS (e.g.
+    // "window_expired") — a plain varchar like reasonCategory above, not a DB
+    // enum, so the admin-facing reason list can grow without a migration.
+    rejectionReason: varchar("rejection_reason", { length: 60 }),
+    // Free-text note visible to the customer — populated from either the
+    // reject picker's "other" note or the QC panel's fail note (the two are
+    // mutually exclusive: a rejected request never reaches QC, and vice versa).
+    adminNote: text("admin_note"),
+    qcOutcome: returnQcOutcome("qc_outcome"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => ({
+    // One return request per order item — requestReturn() (lib/actions/
+    // account.ts) does a check-then-insert; without this, two near-
+    // simultaneous requests for the same item could both pass the check and
+    // insert two independently-refundable rows. Plain (non-partial): both
+    // requestReturn() and getReturnableItems() already treat ANY existing
+    // return row — regardless of status — as blocking a new request, so
+    // there's no "rejected returns can be re-requested" case to carve out.
+    orderItemUnique: uniqueIndex("return_order_item_idx").on(t.orderItemId),
   }),
-  // Outbound swap shipment AWB (exchange only) — distinct from
-  // delhiveryReversePickupId, which tracks the *original* piece coming back.
-  outboundAwb: varchar("outbound_awb", { length: 60 }),
-  // Structured reason code from ReturnRejectPicker's REJECT_REASONS (e.g.
-  // "window_expired") — a plain varchar like reasonCategory above, not a DB
-  // enum, so the admin-facing reason list can grow without a migration.
-  rejectionReason: varchar("rejection_reason", { length: 60 }),
-  // Free-text note visible to the customer — populated from either the
-  // reject picker's "other" note or the QC panel's fail note (the two are
-  // mutually exclusive: a rejected request never reaches QC, and vice versa).
-  adminNote: text("admin_note"),
-  qcOutcome: returnQcOutcome("qc_outcome"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
-});
+);
 
 export const inventoryMovements = pgTable("inventory_movements", {
   id: serial("id").primaryKey(),
