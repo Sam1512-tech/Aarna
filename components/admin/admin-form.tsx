@@ -9,6 +9,11 @@ import { ArrowRight } from "lucide-react";
  * HTML (no shadcn yet) so styling stays consistent with the list pages.
  */
 
+/** Re-exported for backwards-compatible imports — canonical implementation
+ * lives in lib/utils.ts since it's a pure string helper with no JSX/React
+ * dependency. Don't reintroduce a second implementation here. */
+export { slugify } from "@/lib/utils";
+
 export function FormShell({
   onSubmit,
   children,
@@ -171,15 +176,4 @@ export function SubmitBar({
       </div>
     </div>
   );
-}
-
-/** Convert a title into a URL-safe slug. Used across create forms. */
-export function slugify(title: string) {
-  return title
-    .toLowerCase()
-    .trim()
-    .replace(/['"]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
 }
