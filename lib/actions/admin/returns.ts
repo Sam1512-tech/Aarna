@@ -258,67 +258,91 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
   if (input.outcome === "fail" && (!input.note || input.note.trim().length < 10)) {
     throw new ActionError("A note (min 10 characters) is required when QC fails");
   }
-
-  const [row] = await db
-    .select({
-      status: returns.status,
-      type: returns.type,
-      refundAmount: returns.refundAmount,
-      lineTotal: orderItems.lineTotal,
-      variantId: orderItems.variantId,
-      quantity: orderItems.quantity,
-      orderId: orders.id,
-      orderNumber: orders.orderNumber,
-      phone: orders.phone,
-      whatsappOptIn: orders.whatsappOptIn,
-      shippingAddress: orders.shippingAddress,
-      razorpayPaymentId: orders.razorpayPaymentId,
-    })
-    .from(returns)
-    .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
-    .innerJoin(orders, eq(orders.id, orderItems.orderId))
-    .where(eq(returns.id, returnId))
-    .limit(1);
-  if (!row) throw new ActionError("Return not found");
-  if (row.status !== "received") {
-    throw new ActionError("QC can only be recorded once the item has been received");
+  if (
+    input.partialPercent !== undefined &&
+    (!Number.isFinite(input.partialPercent) ||
+      input.partialPercent < 0 ||
+      input.partialPercent > 100)
+  ) {
+    throw new ActionError("Partial refund percent must be between 0 and 100");
   }
 
-  const baseRefund = row.refundAmount ?? row.lineTotal;
-  const finalRefund =
-    input.outcome === "pass"
-      ? row.type === "exchange"
-        ? 0
-        : baseRefund
-      : Math.round((baseRefund * (input.partialPercent ?? 0)) / 100);
-
-  // Issue the actual refund before touching our own records — money
-  // actually moving is the part that can't be silently "marked done" if it
-  // didn't happen.
-  let razorpayRefundId: string | undefined;
-  if (finalRefund > 0) {
-    if (!row.razorpayPaymentId) {
-      throw new ActionError("No Razorpay payment on this order — refund manually");
+  // The read, the Razorpay refund call, and the status write all happen
+  // inside one transaction with the return row locked (SELECT ... FOR
+  // UPDATE) — closing a real race where two concurrent QC submissions (an
+  // admin double-clicking "Pass" on a slow connection, or two open tabs)
+  // could both read status "received" before either write landed, and both
+  // call Razorpay's refund endpoint for the same return. A second
+  // concurrent call now blocks on the lock until the first transaction
+  // commits, then reads status "refunded" and correctly fails the guard
+  // below instead of ever reaching Razorpay a second time. This briefly
+  // locks the joined order/order-item rows too (FOR UPDATE with a join
+  // locks every joined table by default) — acceptable for a low-frequency
+  // admin action, not a customer-facing hot path.
+  const { row, updated, finalRefund } = await db.transaction(async (tx) => {
+    const [r] = await tx
+      .select({
+        status: returns.status,
+        type: returns.type,
+        refundAmount: returns.refundAmount,
+        lineTotal: orderItems.lineTotal,
+        variantId: orderItems.variantId,
+        quantity: orderItems.quantity,
+        orderId: orders.id,
+        orderNumber: orders.orderNumber,
+        phone: orders.phone,
+        whatsappOptIn: orders.whatsappOptIn,
+        shippingAddress: orders.shippingAddress,
+        razorpayPaymentId: orders.razorpayPaymentId,
+      })
+      .from(returns)
+      .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .where(eq(returns.id, returnId))
+      .for("update");
+    if (!r) throw new ActionError("Return not found");
+    if (r.status !== "received") {
+      throw new ActionError("QC can only be recorded once the item has been received");
     }
-    const refund = await createRefund(row.razorpayPaymentId, finalRefund, {
-      returnId,
-      orderNumber: row.orderNumber,
-    });
-    razorpayRefundId = refund.id;
-  }
 
-  const [updated] = await db
-    .update(returns)
-    .set({
-      status: "refunded",
-      qcOutcome: input.outcome,
-      refundAmount: finalRefund,
-      adminNote: input.note?.trim() || null,
-      ...(razorpayRefundId ? { razorpayRefundId } : {}),
-      resolvedAt: new Date(),
-    })
-    .where(eq(returns.id, returnId))
-    .returning();
+    const baseRefund = r.refundAmount ?? r.lineTotal;
+    const computedRefund =
+      input.outcome === "pass"
+        ? r.type === "exchange"
+          ? 0
+          : baseRefund
+        : Math.round((baseRefund * (input.partialPercent ?? 0)) / 100);
+
+    // Issue the actual refund before touching our own records — money
+    // actually moving is the part that can't be silently "marked done" if it
+    // didn't happen.
+    let razorpayRefundId: string | undefined;
+    if (computedRefund > 0) {
+      if (!r.razorpayPaymentId) {
+        throw new ActionError("No Razorpay payment on this order — refund manually");
+      }
+      const refund = await createRefund(r.razorpayPaymentId, computedRefund, {
+        returnId,
+        orderNumber: r.orderNumber,
+      });
+      razorpayRefundId = refund.id;
+    }
+
+    const [u] = await tx
+      .update(returns)
+      .set({
+        status: "refunded",
+        qcOutcome: input.outcome,
+        refundAmount: computedRefund,
+        adminNote: input.note?.trim() || null,
+        ...(razorpayRefundId ? { razorpayRefundId } : {}),
+        resolvedAt: new Date(),
+      })
+      .where(eq(returns.id, returnId))
+      .returning();
+
+    return { row: r, updated: u, finalRefund: computedRefund };
+  });
 
   revalidatePath("/studio/returns");
   revalidatePath("/account/returns");
