@@ -237,28 +237,6 @@ export async function updateCollection(
   return updated;
 }
 
-export async function toggleCollectionActive(id: string) {
-  const admin = await requireAdmin();
-  const existing = await db
-    .select({ isActive: collections.isActive, slug: collections.slug })
-    .from(collections)
-    .where(eq(collections.id, id))
-    .limit(1);
-  if (!existing[0]) throw new ActionError("Collection not found");
-
-  const [updated] = await db
-    .update(collections)
-    .set({ isActive: !existing[0].isActive })
-    .where(eq(collections.id, id))
-    .returning();
-
-  revalidateCollectionConsumers(existing[0].slug);
-  await logAdminAction(admin.id, "collection.toggle_active", "collection", id, {
-    isActive: updated.isActive,
-  });
-  return updated;
-}
-
 /**
  * Sets (or clears) whether a collection is the one featured on the homepage.
  * At most one collection can be featured — turning this on for one
@@ -423,25 +401,5 @@ export async function reorderProductsInCollection(
   await logAdminAction(admin.id, "collection.reorder_products", "collection", collectionId, {
     items,
   });
-  return { ok: true };
-}
-
-export async function reorderCollections(
-  items: { id: string; sortOrder: number }[],
-): Promise<{ ok: true }> {
-  const admin = await requireAdmin();
-  if (items.length === 0) return { ok: true };
-
-  await db.transaction(async (tx) => {
-    for (const item of items) {
-      await tx
-        .update(collections)
-        .set({ sortOrder: item.sortOrder })
-        .where(eq(collections.id, item.id));
-    }
-  });
-
-  revalidateCollectionConsumers();
-  await logAdminAction(admin.id, "collection.reorder", "collection", null, { items });
   return { ok: true };
 }
