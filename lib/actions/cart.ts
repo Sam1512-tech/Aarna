@@ -56,11 +56,29 @@ async function resolveOrCreateCartId(opts: { createIfMissing: boolean }) {
       .limit(1);
     if (existing[0]) return existing[0].id;
     if (!opts.createIfMissing) return null;
+
+    // Two concurrent first-time cart operations for the same signed-in
+    // customer (two tabs, phone+laptop) can both reach here after both
+    // missed the select above. carts.customer_id has a partial unique index
+    // (WHERE customer_id IS NOT NULL — see lib/db/schema.ts) backing this:
+    // the loser of the race no-ops on insert and re-selects the winner's
+    // row instead of creating a second, orphaned cart.
     const [created] = await db
       .insert(carts)
       .values({ customerId })
+      .onConflictDoNothing({
+        target: carts.customerId,
+        where: sql`${carts.customerId} IS NOT NULL`,
+      })
       .returning({ id: carts.id });
-    return created.id;
+    if (created) return created.id;
+
+    const [afterRace] = await db
+      .select({ id: carts.id })
+      .from(carts)
+      .where(eq(carts.customerId, customerId))
+      .limit(1);
+    return afterRace.id;
   }
 
   // Guest path — cookie keyed
@@ -77,10 +95,25 @@ async function resolveOrCreateCartId(opts: { createIfMissing: boolean }) {
   if (!opts.createIfMissing) return null;
 
   guestToken = guestToken ?? randomUUID();
+  // Same defensive shape as the customer-cart branch above, against
+  // carts.guest_token's existing unique constraint — a concurrent request
+  // carrying the same not-yet-persisted guest cookie shouldn't be able to
+  // throw a duplicate-key error or race to create two rows.
   const [created] = await db
     .insert(carts)
     .values({ guestToken })
+    .onConflictDoNothing({ target: carts.guestToken })
     .returning({ id: carts.id });
+
+  let cartId = created?.id;
+  if (!cartId) {
+    const [afterRace] = await db
+      .select({ id: carts.id })
+      .from(carts)
+      .where(eq(carts.guestToken, guestToken))
+      .limit(1);
+    cartId = afterRace.id;
+  }
 
   cookieStore.set(GUEST_COOKIE, guestToken, {
     httpOnly: true,
@@ -90,7 +123,7 @@ async function resolveOrCreateCartId(opts: { createIfMissing: boolean }) {
     path: "/",
   });
 
-  return created.id;
+  return cartId;
 }
 
 async function hydrateCart(cartId: string): Promise<CartState> {
@@ -314,11 +347,33 @@ export async function mergeGuestCartOnLogin(): Promise<CartState> {
     .limit(1);
 
   if (!userCart[0]) {
+    // Same race as resolveOrCreateCartId's customer branch above, and the
+    // same fix — a third call site inserting into carts by customerId with
+    // no conflict handling, previously missed when that fix was written.
+    // Two concurrent logins for the same customer (phone + laptop around
+    // the same moment, each with their own guest cart) can both reach here
+    // after both missed the select above; without onConflictDoNothing the
+    // loser's plain insert now throws against the partial unique index on
+    // carts.customer_id — and since callers of this function swallow any
+    // exception silently (lib/actions/auth.ts's login/verifyEmailOtp both
+    // .catch() this call so a cart-merge failure never blocks sign-in), the
+    // loser's guest cart is never merged and never deleted: its items
+    // silently vanish with no error surfaced and no log line.
     const [created] = await db
       .insert(carts)
       .values({ customerId })
+      .onConflictDoNothing({
+        target: carts.customerId,
+        where: sql`${carts.customerId} IS NOT NULL`,
+      })
       .returning({ id: carts.id });
-    userCart = [created];
+    userCart = created
+      ? [created]
+      : await db
+          .select({ id: carts.id })
+          .from(carts)
+          .where(eq(carts.customerId, customerId))
+          .limit(1);
   }
 
   // Move all guest items into user cart — on conflict, sum quantities
