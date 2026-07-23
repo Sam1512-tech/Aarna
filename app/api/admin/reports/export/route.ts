@@ -8,6 +8,7 @@ import { resolveReportDateRange, type ReportPreset } from "@/lib/reports/date-ra
 import { buildCsv, CSV_BOM } from "@/lib/reports/csv";
 import { buildReportXlsx } from "@/lib/reports/xlsx";
 import { generateReportPdf } from "@/lib/reports/report-pdf";
+import { ActionError } from "@/lib/action-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -96,8 +97,16 @@ export async function GET(req: Request) {
   try {
     range = resolveReportDateRange(preset, from, to);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "invalid date range";
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error("[admin reports export] date range resolution failed:", err);
+    // Only ActionError messages are safe to show an admin verbatim — route
+    // handlers don't get Next's server-action digest masking.
+    if (err instanceof ActionError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: "Something went wrong — please try again" },
+      { status: 500 },
+    );
   }
 
   const title = type === "gst" ? "GST Sales Register" : "Sales Report";
@@ -223,7 +232,12 @@ export async function GET(req: Request) {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "report generation failed";
+    console.error(`[admin reports export] ${type} ${format} export failed:`, err);
+    // Only ActionError messages are safe to show an admin verbatim — route
+    // handlers don't get Next's server-action digest masking, so anything
+    // else (DB hiccup, xlsx/PDF-lib exception) must stay generic.
+    const message =
+      err instanceof ActionError ? err.message : "Something went wrong — please try again";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
