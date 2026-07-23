@@ -7,7 +7,7 @@ import { ProductReviews } from "@/components/storefront/product-reviews";
 import { getProductBySlug, getRelatedProducts } from "@/lib/actions/products";
 import { getApprovedReviews } from "@/lib/actions/reviews";
 import { productMetadata } from "@/lib/seo/metadata";
-import { buildBreadcrumbLd, buildProductLd } from "@/lib/seo/schemas";
+import { buildBreadcrumbLd, buildProductLd, safeJsonLd } from "@/lib/seo/schemas";
 
 export async function generateMetadata({
   params,
@@ -60,11 +60,11 @@ export default async function ProductDetailPage({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(productLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbLd) }}
       />
 
       <ProductDetailView
