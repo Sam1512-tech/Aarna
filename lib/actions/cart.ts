@@ -347,11 +347,33 @@ export async function mergeGuestCartOnLogin(): Promise<CartState> {
     .limit(1);
 
   if (!userCart[0]) {
+    // Same race as resolveOrCreateCartId's customer branch above, and the
+    // same fix — a third call site inserting into carts by customerId with
+    // no conflict handling, previously missed when that fix was written.
+    // Two concurrent logins for the same customer (phone + laptop around
+    // the same moment, each with their own guest cart) can both reach here
+    // after both missed the select above; without onConflictDoNothing the
+    // loser's plain insert now throws against the partial unique index on
+    // carts.customer_id — and since callers of this function swallow any
+    // exception silently (lib/actions/auth.ts's login/verifyEmailOtp both
+    // .catch() this call so a cart-merge failure never blocks sign-in), the
+    // loser's guest cart is never merged and never deleted: its items
+    // silently vanish with no error surfaced and no log line.
     const [created] = await db
       .insert(carts)
       .values({ customerId })
+      .onConflictDoNothing({
+        target: carts.customerId,
+        where: sql`${carts.customerId} IS NOT NULL`,
+      })
       .returning({ id: carts.id });
-    userCart = [created];
+    userCart = created
+      ? [created]
+      : await db
+          .select({ id: carts.id })
+          .from(carts)
+          .where(eq(carts.customerId, customerId))
+          .limit(1);
   }
 
   // Move all guest items into user cart — on conflict, sum quantities
