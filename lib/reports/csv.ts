@@ -5,10 +5,12 @@
  * `CSV_BOM` when writing the response body.
  */
 
+import { neutralizeFormulaCell } from "./sanitize";
+
 export const CSV_BOM = "﻿";
 
 function escapeCsvCell(value: string | number): string {
-  const str = String(value);
+  const str = String(neutralizeFormulaCell(value));
   if (/[",\r\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }

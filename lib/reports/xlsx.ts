@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { neutralizeFormulaCell } from "./sanitize";
 
 const MAROON = "FF4B1323";
 const CREAM = "FFFAF7F2";
@@ -43,7 +44,11 @@ export async function buildReportXlsx(
   });
 
   rows.forEach((row, i) => {
-    const excelRow = sheet.addRow(row);
+    // Row data can contain customer-controlled fields (e.g. shipping name)
+    // — neutralize any that would be read as a live formula when the
+    // exported workbook is opened. Headers/totals are app-generated, not
+    // user input, so they're left alone.
+    const excelRow = sheet.addRow(row.map(neutralizeFormulaCell));
     if (i % 2 === 1) {
       excelRow.eachCell((cell) => {
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CREAM } };
