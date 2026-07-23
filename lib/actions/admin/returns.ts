@@ -17,7 +17,7 @@ import type { AddressInput } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { logAdminAction } from "@/lib/audit/log-admin-action";
 
-const { returns, orderItems, orders } = schema;
+const { returns, orderItems, orders, productVariants, products } = schema;
 
 const RETURN_STATUSES = [
   "requested",
@@ -71,10 +71,19 @@ export async function getAdminReturns(filters: AdminReturnFilters = {}) {
         variantLabel: orderItems.variantLabelSnapshot,
         sku: orderItems.skuSnapshot,
         lineTotal: orderItems.lineTotal,
+        // Exchange target — null for plain returns. Surfaced so an admin
+        // can see, at every stage (not just at QC), whether there's
+        // actually stock to send before committing to the swap.
+        desiredProductTitle: products.title,
+        desiredSize: productVariants.size,
+        desiredColor: productVariants.color,
+        desiredStock: productVariants.stock,
       })
       .from(returns)
       .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
       .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .leftJoin(productVariants, eq(productVariants.id, returns.desiredVariantId))
+      .leftJoin(products, eq(products.id, productVariants.productId))
       .where(whereClause)
       .orderBy(desc(returns.createdAt))
       .limit(pageSize)
@@ -284,6 +293,7 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
       .select({
         status: returns.status,
         type: returns.type,
+        desiredVariantId: returns.desiredVariantId,
         refundAmount: returns.refundAmount,
         lineTotal: orderItems.lineTotal,
         variantId: orderItems.variantId,
@@ -303,6 +313,29 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
     if (!r) throw new ActionError("Return not found");
     if (r.status !== "received") {
       throw new ActionError("QC can only be recorded once the item has been received");
+    }
+
+    // An exchange QC pass is the moment we commit to shipping a replacement
+    // — re-check the desired variant's stock right now, not just at the
+    // original request. The gap between a customer requesting an exchange
+    // and QC actually passing (approval + reverse-transit + inspection time)
+    // can be days; the desired size can sell out to someone else in that
+    // window with nothing flagging it, since outbound swap shipping is
+    // still a fully manual step (see the restock comment below). Blocking
+    // here — rather than only warning — matches "pass" meaning "the swap
+    // ships": QC can still be marked pass once the admin has actually
+    // restocked/reserved a replacement, or the admin can fail QC instead.
+    if (input.outcome === "pass" && r.type === "exchange" && r.desiredVariantId) {
+      const [desired] = await tx
+        .select({ stock: productVariants.stock })
+        .from(productVariants)
+        .where(eq(productVariants.id, r.desiredVariantId))
+        .limit(1);
+      if (!desired || desired.stock <= 0) {
+        throw new ActionError(
+          "The requested replacement size/colour is out of stock — resolve that before passing QC (restock it, or fail QC and contact the customer).",
+        );
+      }
     }
 
     const baseRefund = r.refundAmount ?? r.lineTotal;
