@@ -17,7 +17,12 @@ const supabaseWs = supabaseUrl.replace(/^https:/, "wss:");
 //     own media-src allowance (no directive here means the browser falls
 //     back to default-src 'self' for <video>/<audio>, silently blocking
 //     playback — this was already broken for the public storefront's video
-//     section before this picker existed).
+//     section before this picker existed). The admin image picker (shared
+//     across categories/banners/collections/products) also loads
+//     Cloudinary's Upload Widget script client-side
+//     (lib/cloudinary/widget-client.ts, https://widget.cloudinary.com) and
+//     that widget uploads directly to Cloudinary's API from the browser —
+//     both need a *.cloudinary.com allowance, not just img-src.
 //   - Supabase: every supabase-js call (auth, session refresh) is an XHR to
 //     this project's URL. Google sign-in itself is a full top-level page
 //     navigation (see components/storefront/google-signin-button.tsx), not an
@@ -29,12 +34,12 @@ const supabaseWs = supabaseUrl.replace(/^https:/, "wss:");
 // injected via XSS that isn't already one of the hosts below).
 const CSP = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://*.razorpay.com`,
+  `script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://*.razorpay.com https://*.cloudinary.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://res.cloudinary.com",
   "media-src 'self' https://res.cloudinary.com",
   "font-src 'self' data:",
-  `connect-src 'self' ${supabaseUrl} ${supabaseWs} https://*.razorpay.com`.trim(),
+  `connect-src 'self' ${supabaseUrl} ${supabaseWs} https://*.razorpay.com https://*.cloudinary.com`.trim(),
   "frame-src 'self' https://*.razorpay.com",
   "frame-ancestors 'none'",
   "form-action 'self' https://accounts.google.com",

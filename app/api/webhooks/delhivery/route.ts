@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { mapDelhiveryStatus } from "@/lib/delhivery";
@@ -15,6 +16,24 @@ const RETURN_WINDOW_DAYS = 3;
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Plain !== comparison short-circuits on the first differing byte, leaking
+// how many leading characters of the token an attacker guessed correctly
+// via response timing. Match the timingSafeEqual pattern already used by
+// the Razorpay (lib/razorpay/index.ts) and WhatsApp (lib/whatsapp/index.ts)
+// webhooks. timingSafeEqual throws when the two buffers differ in length,
+// so a wrong-length token must be caught and treated as a clean mismatch,
+// not an unhandled exception.
+function tokensMatch(provided: string, expected: string): boolean {
+  const providedBuf = Buffer.from(provided);
+  const expectedBuf = Buffer.from(expected);
+  if (providedBuf.length !== expectedBuf.length) return false;
+  try {
+    return crypto.timingSafeEqual(providedBuf, expectedBuf);
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(req: Request) {
   // Delhivery does not HMAC-sign webhooks. We gate on a shared secret token that
   // is appended to the push URL (e.g. ?token=...) and matched server-side.
@@ -28,7 +47,7 @@ export async function POST(req: Request) {
   const url = new URL(req.url);
   const provided =
     url.searchParams.get("token") ?? req.headers.get("x-delhivery-token");
-  if (provided !== token) {
+  if (!provided || !tokensMatch(provided, token)) {
     return NextResponse.json({ error: "invalid token" }, { status: 401 });
   }
 

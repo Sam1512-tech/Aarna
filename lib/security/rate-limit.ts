@@ -1,5 +1,6 @@
 import { lt, sql } from "drizzle-orm";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 
@@ -62,7 +63,13 @@ export const RATE_LIMITS = {
  * count from allowed to over-limit (count === maxAttempts + 1), not on
  * every subsequent blocked request in the same window. Otherwise a
  * sustained attacker retrying against an already-tripped limit would
- * flood the admin's inbox with one email per request.
+ * flood the admin's inbox with one email per request. The send itself is
+ * scheduled via Next's `after()` rather than awaited or fired-and-forgotten,
+ * so it can't get cut off by the serverless instance freezing right after
+ * the response goes out, without adding the email's latency to every
+ * caller's response time. Every call site is a server action invoked from
+ * within a real request (login/signup/OTP forms, coupon apply), which is a
+ * valid `after()` context.
  */
 export async function checkRateLimit(
   key: string,
@@ -84,10 +91,20 @@ export async function checkRateLimit(
     const count = row?.count ?? 1;
 
     if (opts.alertLabel && count === opts.maxAttempts + 1) {
-      alertAdminSuspiciousActivity({
-        event: opts.alertLabel,
-        detail: `Rate limit exceeded for "${key}" — ${count} attempts within ${Math.round(opts.windowSeconds / 60)} minute(s) (limit: ${opts.maxAttempts}).`,
-      }).catch((err) => console.error("[rate-limit] alert failed:", err));
+      // Scheduled via `after()` rather than fired-and-forgotten: on Vercel's
+      // serverless runtime, the function instance is free to freeze the
+      // moment the response is sent, and a bare `.catch()` with no `await`
+      // has no guarantee the in-flight Resend call survives that — it can
+      // be silently dropped mid-request with nothing logged, since the
+      // process was frozen, not errored. `after()` keeps the response fast
+      // (the alert doesn't block it) while guaranteeing Next keeps the
+      // instance alive until this callback actually settles.
+      after(() =>
+        alertAdminSuspiciousActivity({
+          event: opts.alertLabel!,
+          detail: `Rate limit exceeded for "${key}" — ${count} attempts within ${Math.round(opts.windowSeconds / 60)} minute(s) (limit: ${opts.maxAttempts}).`,
+        }).catch((err) => console.error("[rate-limit] alert failed:", err)),
+      );
     }
 
     return {

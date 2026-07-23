@@ -3,6 +3,7 @@ import { verifyWebhookSignature } from "@/lib/razorpay";
 import { generateInvoicePdf } from "@/lib/invoice/generate";
 import {
   buildInvoiceData,
+  checkCouponPerCustomerOverage,
   clearPurchasedCartItems,
   getOrderByRazorpayId,
   incrementCouponUsage,
@@ -96,6 +97,35 @@ export async function POST(req: Request) {
           }
         } catch (err) {
           console.error("[razorpay webhook] coupon usage increment failed:", err);
+        }
+
+        // Per-customer limit: applyCoupon's own pre-payment check only sees
+        // ALREADY-PAID redemptions, so it's TOCTOU-racy against two
+        // concurrent checkouts by the same customer — both can pass before
+        // either finishes paying. Detected here, after the fact, same
+        // never-block-a-captured-payment rule as the global-limit check
+        // above; just alerts an admin if this payment pushed the customer
+        // over their own per-coupon cap.
+        if (order.customerId) {
+          try {
+            const overage = await checkCouponPerCustomerOverage(order.customerId, order.couponCode);
+            if (overage?.overLimit) {
+              console.warn(
+                "[razorpay webhook] coupon per-customer limit exceeded:",
+                order.couponCode,
+                order.orderNumber,
+                overage,
+              );
+              await alertAdminSuspiciousActivity({
+                event: "Coupon redeemed past its per-customer limit",
+                detail: `Order ${order.orderNumber} paid with coupon "${order.couponCode}" — this customer has now paid for it ${overage.timesUsed} time(s), over their per-customer limit of ${overage.limit}. Almost certainly two concurrent checkouts racing past the pre-payment check. Each redemption's discount was already honored on its own order total/invoice and is not reversed. Check /studio/coupons and /studio/orders.`,
+              }).catch((err) => {
+                console.error("[razorpay webhook] per-customer overage alert failed:", err);
+              });
+            }
+          } catch (err) {
+            console.error("[razorpay webhook] coupon per-customer overage check failed:", err);
+          }
         }
       }
 

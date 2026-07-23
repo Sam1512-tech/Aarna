@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/actions/auth";
 import { generateHangTagsForProduct } from "@/lib/actions/admin/labels";
+import { ActionError } from "@/lib/action-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,8 +33,17 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "hang tag generation failed";
-    const status = /not found|no variants/i.test(message) ? 404 : 500;
-    return NextResponse.json({ error: message }, { status });
+    console.error(`[admin hang-tags pdf] generation failed for product ${id}:`, err);
+    // Only ActionError messages are safe to show an admin verbatim — route
+    // handlers don't get Next's server-action digest masking, so anything
+    // else (DB hiccup, barcode/PDF-lib exception) must stay generic.
+    if (err instanceof ActionError) {
+      const status = /not found|no variants/i.test(err.message) ? 404 : 500;
+      return NextResponse.json({ error: err.message }, { status });
+    }
+    return NextResponse.json(
+      { error: "Something went wrong — please try again" },
+      { status: 500 },
+    );
   }
 }

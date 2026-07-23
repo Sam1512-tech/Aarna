@@ -6,6 +6,9 @@ import { getCurrentCustomer } from "@/lib/actions/auth";
 import type { AddressInput } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
+import { computeIsDefaultForNewAddress } from "@/lib/address-default";
+import { validateReturnPhotoUrl } from "@/lib/returns/validate-photo-url";
+import { postgresErrorCode } from "@/lib/db/postgres-error";
 
 const {
   orders,
@@ -174,22 +177,6 @@ export async function removeFromWishlist(variantId: string) {
   return { ok: true };
 }
 
-export async function isInWishlist(variantId: string): Promise<boolean> {
-  const customer = await getCurrentCustomer();
-  if (!customer) return false;
-  const row = await db
-    .select({ variantId: wishlists.variantId })
-    .from(wishlists)
-    .where(
-      and(
-        eq(wishlists.customerId, customer.id),
-        eq(wishlists.variantId, variantId),
-      ),
-    )
-    .limit(1);
-  return row.length > 0;
-}
-
 // ── Addresses ────────────────────────────────────────────────────────────────
 
 export async function getMyAddresses() {
@@ -211,7 +198,7 @@ export async function createAddress(input: AddressInput & { isDefault?: boolean 
     .where(eq(addresses.customerId, customer.id))
     .limit(1);
 
-  const isDefault = input.isDefault ?? existing.length === 0;
+  const isDefault = computeIsDefaultForNewAddress(existing.length, input.isDefault);
 
   // If marking default, unset others first
   if (isDefault && existing.length > 0) {
@@ -387,6 +374,8 @@ export async function requestReturn(input: ReturnRequestInput) {
   if (input.photos && input.photos.length > MAX_RETURN_PHOTOS) {
     throw new ActionError(`Up to ${MAX_RETURN_PHOTOS} photos`);
   }
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const photos = input.photos?.map((url) => validateReturnPhotoUrl(url, cloudName));
 
   let desiredVariantId: string | null = null;
   if (type === "exchange" && input.desiredVariantId) {
@@ -409,18 +398,41 @@ export async function requestReturn(input: ReturnRequestInput) {
     desiredVariantId = input.desiredVariantId;
   }
 
-  const [created] = await db
-    .insert(returns)
-    .values({
-      orderItemId: input.orderItemId,
-      reason: input.reason,
-      reasonCategory: input.reasonCategory,
-      refundAmount: row[0].lineTotal,
-      type,
-      desiredVariantId,
-      photos: input.photos ?? [],
-    })
-    .returning();
+  let created;
+  try {
+    [created] = await db
+      .insert(returns)
+      .values({
+        orderItemId: input.orderItemId,
+        reason: input.reason,
+        reasonCategory: input.reasonCategory,
+        refundAmount: row[0].lineTotal,
+        type,
+        desiredVariantId,
+        photos: photos ?? [],
+      })
+      .returning();
+  } catch (err) {
+    // The check-then-insert above (existing[0]) closes the common
+    // sequential case, but returns.order_item_id also carries a real
+    // unique constraint now (return_order_item_idx) — the actual guard
+    // against two near-simultaneous requests for the same item racing
+    // past that plain read before either insert commits. Without this
+    // catch, the loser's raw Postgres unique-violation would surface as
+    // this app's generic masked production error instead of the same
+    // clear message the non-racing duplicate check already gives.
+    //
+    // Drizzle wraps the real driver error in its own DrizzleQueryError —
+    // the actual PostgresError (with the SQLSTATE `code` Postgres sends)
+    // lives at `.cause`, not directly on the caught error. Confirmed by
+    // reading the raw error live against the dev DB: checking `err.code`
+    // directly (what this looked like on first pass) never matches
+    // anything real and would silently never catch the race at all.
+    if (postgresErrorCode(err) === "23505") {
+      throw new ActionError("A return has already been requested for this item");
+    }
+    throw err;
+  }
 
   await notifyWhatsApp({
     orderId: row[0].orderId,
