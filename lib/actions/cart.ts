@@ -17,6 +17,7 @@ const {
   products,
   productImages,
   coupons,
+  orders,
 } = schema;
 
 const GUEST_COOKIE = "aarna_cart";
@@ -301,6 +302,51 @@ export async function applyCoupon(
   if (c.usageLimit !== null && c.usedCount >= c.usageLimit) {
     return { ok: false, message: "Coupon usage limit reached", cart, discount: 0 };
   }
+
+  // Per-customer redemption limit. Only enforceable for signed-in customers
+  // (guest carts have no stable identity to count redemptions against — but
+  // checkout requires sign-in anyway, see requireCheckoutCustomer in
+  // checkout.ts, so this always applies by the time an order is actually
+  // placed). Counts actual PAID redemptions, not abandoned/failed checkouts —
+  // matches how usage is counted at payment-confirmation time in
+  // incrementCouponUsage (lib/db/queries/orders.ts).
+  //
+  // This pre-payment check is a UX nicety, not the real enforcement — it
+  // only sees redemptions that have ALREADY landed as paid, so it closes
+  // the sequential-reuse case (apply, pay, try applying again on a later
+  // order) but is genuinely TOCTOU-racy against two concurrent checkouts
+  // for the same customer+coupon (two tabs, a retried request): both can
+  // see 0 prior paid redemptions here and both go on to pay. The real,
+  // atomic enforcement is checkCouponPerCustomerOverage
+  // (lib/db/queries/orders.ts), called from the payment.captured webhook
+  // once payment is actually confirmed — same "never block a captured
+  // payment, alert an admin instead" tradeoff as incrementCouponUsage's
+  // own handling of the coupon's global usageLimit, just detected here
+  // too so the overwhelmingly common non-racing case gets a real
+  // rejection message instead of only ever finding out after paying.
+  const customerId = await getCurrentCustomerId();
+  if (customerId) {
+    const priorRedemptions = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.customerId, customerId),
+          eq(orders.couponCode, c.code),
+          inArray(orders.paymentStatus, ["paid", "partially_refunded", "refunded"]),
+        ),
+      );
+    const timesUsed = priorRedemptions[0]?.count ?? 0;
+    if (timesUsed >= c.perCustomerLimit) {
+      return {
+        ok: false,
+        message: "You've already used this coupon the maximum number of times",
+        cart,
+        discount: 0,
+      };
+    }
+  }
+
   if (cart.subtotal < c.minOrderAmount) {
     return {
       ok: false,
