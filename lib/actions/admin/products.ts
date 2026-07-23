@@ -41,6 +41,20 @@ async function clearCartsAndGuardOrders(variantIds: string[]): Promise<void> {
   await db.delete(cartItems).where(inArray(cartItems.variantId, variantIds));
 }
 
+// Drizzle wraps the real driver error (which carries `.code`/`.constraint_name`)
+// at `.cause` rather than exposing it at the top level — check both.
+function postgresErrorField(err: unknown, field: "code" | "constraint_name"): string | undefined {
+  if (typeof err !== "object" || err === null) return undefined;
+  const direct = (err as Record<string, unknown>)[field];
+  if (typeof direct === "string") return direct;
+  const cause = (err as { cause?: unknown }).cause;
+  if (typeof cause === "object" && cause !== null) {
+    const causeValue = (cause as Record<string, unknown>)[field];
+    if (typeof causeValue === "string") return causeValue;
+  }
+  return undefined;
+}
+
 type ProductStatus = "draft" | "active" | "archived";
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -460,18 +474,31 @@ export async function createVariant(
     sku = await generateUniqueSku(styleCode, input.color, input.size);
   }
 
-  const [created] = await db
-    .insert(productVariants)
-    .values({
-      productId,
-      size: input.size?.trim() || null,
-      color: input.color?.trim() || null,
-      sku,
-      price,
-      stock: input.stock ?? 0,
-      weightGrams: input.weightGrams ?? null,
-    })
-    .returning();
+  let created: typeof productVariants.$inferSelect;
+  try {
+    [created] = await db
+      .insert(productVariants)
+      .values({
+        productId,
+        size: input.size?.trim() || null,
+        color: input.color?.trim() || null,
+        sku,
+        price,
+        stock: input.stock ?? 0,
+        weightGrams: input.weightGrams ?? null,
+      })
+      .returning();
+  } catch (err) {
+    if (
+      postgresErrorField(err, "code") === "23505" &&
+      postgresErrorField(err, "constraint_name") === "variant_product_size_color_idx"
+    ) {
+      throw new ActionError(
+        "A variant with this size and color already exists for this product.",
+      );
+    }
+    throw err;
+  }
 
   revalidateProductConsumers(product[0].slug);
   await logAdminAction(admin.id, "variant.create", "product_variant", created.id, {
@@ -527,11 +554,24 @@ export async function updateVariant(
   if (input.weightGrams !== undefined) patch.weightGrams = input.weightGrams;
   if (input.isActive !== undefined) patch.isActive = input.isActive;
 
-  const [updated] = await db
-    .update(productVariants)
-    .set(patch)
-    .where(eq(productVariants.id, variantId))
-    .returning();
+  let updated: typeof productVariants.$inferSelect;
+  try {
+    [updated] = await db
+      .update(productVariants)
+      .set(patch)
+      .where(eq(productVariants.id, variantId))
+      .returning();
+  } catch (err) {
+    if (
+      postgresErrorField(err, "code") === "23505" &&
+      postgresErrorField(err, "constraint_name") === "variant_product_size_color_idx"
+    ) {
+      throw new ActionError(
+        "A variant with this size and color already exists for this product.",
+      );
+    }
+    throw err;
+  }
 
   const product = await db
     .select({ slug: products.slug })
