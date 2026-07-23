@@ -548,15 +548,30 @@ export async function regenerateInvoicePdfBatch(orderIds: string[]): Promise<Buf
 
   // Preserve the order the caller (the admin's selection) passed in, and
   // silently drop anything unpaid/missing rather than failing the whole batch.
+  // buildInvoiceData can also throw on a single malformed order (e.g. a
+  // legacy row with an incomplete shipping address, from before initCheckout
+  // validated this server-side) — one bad row must not take down every other
+  // PDF in the admin's selection, so each order gets its own try/catch
+  // instead of one shared .map() that aborts on the first failure.
   const invoiceDataList = orderIds
     .map((id) => orderById.get(id))
     .filter((order) => order && order.invoiceNumber)
-    .map((order) =>
-      buildInvoiceData(
-        { ...order!, orderItems: itemsByOrder.get(order!.id) ?? [] },
-        order!.invoiceNumber!,
-      ),
-    );
+    .flatMap((order) => {
+      try {
+        return [
+          buildInvoiceData(
+            { ...order!, orderItems: itemsByOrder.get(order!.id) ?? [] },
+            order!.invoiceNumber!,
+          ),
+        ];
+      } catch (err) {
+        console.error(
+          `[admin] buildInvoiceData failed for order ${order!.orderNumber} in batch print — skipping:`,
+          err,
+        );
+        return [];
+      }
+    });
 
   if (invoiceDataList.length === 0) {
     throw new ActionError(

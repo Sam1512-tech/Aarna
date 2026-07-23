@@ -10,6 +10,7 @@ import { releaseExpiredCheckoutHolds } from "@/lib/db/queries/orders";
 import type { AddressInput, CheckoutSummary } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { isValidGstin, normalizeGstin } from "@/lib/gst";
+import { shippingAddressSchema } from "@/lib/checkout/address-schema";
 
 const { customers, orders, orderItems, productVariants, inventoryMovements } = schema;
 
@@ -84,6 +85,21 @@ export async function initCheckout(
   // 1. Get and validate cart
   const cart = await getCart();
   if (cart.lines.length === 0) throw new ActionError("Cart is empty");
+
+  // 1b. Shipping address — the storefront form validates this heavily, but
+  // never trust client-side validation alone for something that ends up on
+  // a legal tax document. A missing/malformed `state` in particular used to
+  // reach isInterStateOrder/calculateOrderGst unchecked and crash invoice
+  // generation later (on the payment.captured webhook and on admin
+  // reprint/batch-print) — catching it here means a bad request fails
+  // checkout with a clear message instead of failing invoicing after the
+  // customer has already paid.
+  const addressResult = shippingAddressSchema.safeParse(input.shippingAddress);
+  if (!addressResult.success) {
+    throw new ActionError(
+      addressResult.error.issues[0]?.message ?? "Please check your shipping address",
+    );
+  }
 
   // 2. Apply coupon (re-validate server-side; don't trust client)
   let discount = 0;
