@@ -250,27 +250,6 @@ export async function updateCoupon(id: string, input: UpdateCouponInput) {
   return updated;
 }
 
-export async function toggleCouponActive(id: string) {
-  const admin = await requireAdmin();
-  const existing = await db
-    .select({ isActive: coupons.isActive })
-    .from(coupons)
-    .where(eq(coupons.id, id))
-    .limit(1);
-  if (!existing[0]) throw new ActionError("Coupon not found");
-
-  const [updated] = await db
-    .update(coupons)
-    .set({ isActive: !existing[0].isActive })
-    .where(eq(coupons.id, id))
-    .returning();
-
-  await logAdminAction(admin.id, "coupon.toggle_active", "coupon", id, { isActive: updated.isActive });
-
-  revalidatePath("/studio/coupons");
-  return updated;
-}
-
 export async function deleteCoupon(id: string): Promise<{ ok: true }> {
   const admin = await requireAdmin();
 

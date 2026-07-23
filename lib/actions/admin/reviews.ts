@@ -98,13 +98,14 @@ export async function updateReviewStatus(id: string, status: ReviewStatus) {
 
   // Refresh the moderation queue. Approving/rejecting changes what shows on the
   // storefront product page, so refresh that too (path resolved from the slug).
+  // Route is /product/[slug] — singular — matching app/(storefront)/product/[slug]/.
   revalidatePath("/studio/reviews");
   const slug = await db
     .select({ slug: products.slug })
     .from(products)
     .where(eq(products.id, existing[0].productId))
     .limit(1);
-  if (slug[0]) revalidatePath(`/products/${slug[0].slug}`);
+  if (slug[0]) revalidatePath(`/product/${slug[0].slug}`);
 
   await logAdminAction(admin.id, "review.status_update", "review", id, { status });
 
@@ -115,14 +116,23 @@ export async function deleteReview(id: string): Promise<{ ok: true }> {
   const admin = await requireAdmin();
 
   const existing = await db
-    .select({ id: reviews.id })
+    .select({ id: reviews.id, productId: reviews.productId })
     .from(reviews)
     .where(eq(reviews.id, id))
     .limit(1);
   if (!existing[0]) throw new ActionError("Review not found");
 
   await db.delete(reviews).where(eq(reviews.id, id));
+
+  // Deleting a review changes what shows on the storefront product page too —
+  // route is /product/[slug], singular (see updateReviewStatus above).
   revalidatePath("/studio/reviews");
+  const slug = await db
+    .select({ slug: products.slug })
+    .from(products)
+    .where(eq(products.id, existing[0].productId))
+    .limit(1);
+  if (slug[0]) revalidatePath(`/product/${slug[0].slug}`);
 
   await logAdminAction(admin.id, "review.delete", "review", id);
 

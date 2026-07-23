@@ -165,28 +165,6 @@ export async function updateBanner(
   return updated;
 }
 
-export async function toggleBannerActive(id: string): Promise<Banner> {
-  const admin = await requireAdmin();
-  const existing = await db
-    .select({ isActive: banners.isActive })
-    .from(banners)
-    .where(eq(banners.id, id))
-    .limit(1);
-  if (!existing[0]) throw new ActionError("Banner not found");
-
-  const [updated] = await db
-    .update(banners)
-    .set({ isActive: !existing[0].isActive, updatedAt: new Date() })
-    .where(eq(banners.id, id))
-    .returning();
-
-  revalidateBannerConsumers();
-  await logAdminAction(admin.id, "banner.toggle_active", "banner", id, {
-    isActive: updated.isActive,
-  });
-  return updated;
-}
-
 export async function deleteBanner(id: string): Promise<{ ok: true }> {
   const admin = await requireAdmin();
   const result = await db

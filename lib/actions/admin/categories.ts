@@ -3,6 +3,7 @@
 import { asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
+import { isForeignKeyViolation } from "@/lib/db/errors";
 import { requireAdmin } from "@/lib/actions/auth";
 import type { Category } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
@@ -178,34 +179,60 @@ export async function updateCategory(
 export async function deleteCategory(id: string): Promise<{ ok: true }> {
   const admin = await requireAdmin();
 
-  // Block deletion if any products reference this category — protects against
-  // accidental data orphaning. Admin must reassign products first.
-  const productCount = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(products)
-    .where(eq(products.categoryId, id));
+  // The count-checks and the delete run inside one transaction so they see a
+  // consistent snapshot — otherwise a product or sub-category created against
+  // this id in the gap between the count and the delete (plausible in the
+  // client's own self-manage-everything admin workflow) would slip past the
+  // check and hit the delete as a raw, unmasked foreign-key violation instead
+  // of the friendly message below.
+  try {
+    await db.transaction(async (tx) => {
+      // Block deletion if any products reference this category — protects
+      // against accidental data orphaning. Admin must reassign products first.
+      const productCount = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(products)
+        .where(eq(products.categoryId, id));
 
-  if ((productCount[0]?.count ?? 0) > 0) {
-    throw new ActionError(
-      `Cannot delete: ${productCount[0].count} product(s) still in this category. Reassign them first.`,
-    );
+      if ((productCount[0]?.count ?? 0) > 0) {
+        throw new ActionError(
+          `Cannot delete: ${productCount[0].count} product(s) still in this category. Reassign them first.`,
+        );
+      }
+
+      // Block deletion if any other categories reference this as parent
+      const childCount = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(categories)
+        .where(eq(categories.parentId, id));
+
+      if ((childCount[0]?.count ?? 0) > 0) {
+        throw new ActionError(
+          `Cannot delete: ${childCount[0].count} sub-categor${
+            childCount[0].count === 1 ? "y" : "ies"
+          } still reference this. Reparent or delete them first.`,
+        );
+      }
+
+      await tx.delete(categories).where(eq(categories.id, id));
+    });
+  } catch (err) {
+    if (err instanceof ActionError) throw err;
+    // Defense-in-depth: even inside a transaction, Postgres' own referential-
+    // integrity check on DELETE looks at live/current data, not the
+    // transaction's MVCC snapshot — so a genuinely concurrent insert that
+    // commits between our count query and our delete statement can still
+    // make the delete itself fail with a live foreign-key violation (Postgres
+    // error code 23503). Catch that specific case and rethrow as the same
+    // friendly message the count-checks above already produce, rather than
+    // letting a raw DB error escape and get masked into a generic blob.
+    if (isForeignKeyViolation(err)) {
+      throw new ActionError(
+        "Cannot delete: this category is still referenced by other records. Reassign or remove them first.",
+      );
+    }
+    throw err;
   }
-
-  // Block deletion if any other categories reference this as parent
-  const childCount = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(categories)
-    .where(eq(categories.parentId, id));
-
-  if ((childCount[0]?.count ?? 0) > 0) {
-    throw new ActionError(
-      `Cannot delete: ${childCount[0].count} sub-categor${
-        childCount[0].count === 1 ? "y" : "ies"
-      } still reference this. Reparent or delete them first.`,
-    );
-  }
-
-  await db.delete(categories).where(eq(categories.id, id));
 
   revalidateCategoryConsumers();
   await logAdminAction(admin.id, "category.delete", "category", id);

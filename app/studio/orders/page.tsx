@@ -67,7 +67,7 @@ export default async function AdminOrdersPage({
 
       <AutoSubmitForm className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
         <label>
-          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/72">
             search
           </span>
           <input
@@ -78,7 +78,7 @@ export default async function AdminOrdersPage({
           />
         </label>
         <label>
-          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/72">
             payment
           </span>
           <select
@@ -95,7 +95,7 @@ export default async function AdminOrdersPage({
           </select>
         </label>
         <label>
-          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/72">
             fulfillment
           </span>
           <select
