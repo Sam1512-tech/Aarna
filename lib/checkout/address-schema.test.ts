@@ -17,12 +17,12 @@ describe("shippingAddressSchema", () => {
   });
 
   it("accepts a well-formed address with no line2 (optional)", () => {
-    const { line2, ...rest } = VALID_ADDRESS;
+    const { line2: _line2, ...rest } = VALID_ADDRESS;
     expect(shippingAddressSchema.safeParse(rest).success).toBe(true);
   });
 
   it("rejects a missing state — this is the exact field that crashed invoice generation", () => {
-    const { state, ...rest } = VALID_ADDRESS;
+    const { state: _state, ...rest } = VALID_ADDRESS;
     const result = shippingAddressSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
@@ -43,14 +43,14 @@ describe("shippingAddressSchema", () => {
   });
 
   it("rejects a missing line1", () => {
-    const { line1, ...rest } = VALID_ADDRESS;
+    const { line1: _line1, ...rest } = VALID_ADDRESS;
     expect(shippingAddressSchema.safeParse(rest).success).toBe(false);
   });
 
   it("rejects a missing fullName or city", () => {
-    const { fullName, ...withoutName } = VALID_ADDRESS;
+    const { fullName: _fullName, ...withoutName } = VALID_ADDRESS;
     expect(shippingAddressSchema.safeParse(withoutName).success).toBe(false);
-    const { city, ...withoutCity } = VALID_ADDRESS;
+    const { city: _city, ...withoutCity } = VALID_ADDRESS;
     expect(shippingAddressSchema.safeParse(withoutCity).success).toBe(false);
   });
 
