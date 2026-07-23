@@ -8,6 +8,7 @@ import {
 } from "@/components/admin/admin-primitives";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { Pagination } from "@/components/admin/pagination";
 import { deleteCoupon, getAdminCoupons } from "@/lib/actions/admin/coupons";
 import { formatINR } from "@/lib/utils";
 
@@ -176,11 +177,12 @@ export default async function AdminCouponsPage({
         )}
       </div>
 
-      {totalPages > 1 ? (
-        <p className="mt-6 text-center text-xs text-charcoal/50">
-          page {result.page} of {totalPages} · {result.total} total
-        </p>
-      ) : null}
+      <Pagination
+        page={result.page}
+        totalPages={totalPages}
+        basePath="/studio/coupons"
+        params={{ search, active: onlyActive ? "1" : undefined, expired: onlyExpired ? "1" : undefined }}
+      />
     </div>
   );
 }

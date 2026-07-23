@@ -5,6 +5,7 @@ import {
   AdminPageHeader,
 } from "@/components/admin/admin-primitives";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
+import { Pagination } from "@/components/admin/pagination";
 import { ReturnStatusSelect } from "@/components/admin/return-status-select";
 import { ReturnPhotoGrid } from "@/components/admin/return-photo-grid";
 import { ReturnQcTrigger } from "@/components/admin/return-qc-trigger";
@@ -92,6 +93,11 @@ export default async function AdminReturnsPage({
     page,
     pageSize: 60,
   }).catch(() => ({ items: [], total: 0, page: 1, pageSize: 60 }));
+
+  // Paginated by status only (see the comment above) — a type filter narrows
+  // what's shown per page without changing the page boundaries themselves,
+  // same tradeoff "· {total} total across all types" already documented.
+  const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
 
   const enriched = result.items.map((r) => ({ ...r, reasonClean: r.reason }));
 
@@ -345,11 +351,12 @@ export default async function AdminReturnsPage({
         )}
       </div>
 
-      {result.total > result.pageSize ? (
-        <p className="mt-6 text-center text-xs text-charcoal/50">
-          page {result.page} · {result.total} total across all types
-        </p>
-      ) : null}
+      <Pagination
+        page={result.page}
+        totalPages={totalPages}
+        basePath="/studio/returns"
+        params={{ status, type: typeFilter !== "all" ? typeFilter : undefined }}
+      />
     </div>
   );
 }
