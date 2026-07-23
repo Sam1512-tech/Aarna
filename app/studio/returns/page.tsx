@@ -246,6 +246,33 @@ export default async function AdminReturnsPage({
                           </span>
                         ) : null}
                       </div>
+                      {r.type === "exchange" ? (
+                        <p className="mt-2 text-xs text-charcoal/65">
+                          <span className="text-charcoal/45">wants </span>
+                          {r.desiredProductTitle ? (
+                            <>
+                              {r.desiredProductTitle}
+                              {r.desiredSize || r.desiredColor
+                                ? ` · ${[r.desiredSize, r.desiredColor].filter(Boolean).join(" / ")}`
+                                : ""}
+                              {" — "}
+                              <span
+                                className={
+                                  (r.desiredStock ?? 0) <= 0
+                                    ? "font-medium text-burnt-red"
+                                    : "text-charcoal/65"
+                                }
+                              >
+                                {(r.desiredStock ?? 0) <= 0
+                                  ? "out of stock"
+                                  : `${r.desiredStock} in stock`}
+                              </span>
+                            </>
+                          ) : (
+                            "not picked yet"
+                          )}
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
