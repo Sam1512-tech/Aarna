@@ -27,6 +27,31 @@ export interface ReportDateRange {
   label: string;
 }
 
+/**
+ * Reports exist for GSTR filing, whose actual documented worst case is
+ * pulling the widest possible range — so as real order volume accumulates,
+ * an unbounded query here is a normal, recurring action, not a rare misuse.
+ * The widest UI preset ("this financial year") tops out around 365 days;
+ * capping at double that comfortably covers every preset plus any
+ * reasonable custom pull, while guaranteeing a single report query can never
+ * be asked to scan the store's entire order history in one call.
+ */
+export const MAX_REPORT_RANGE_MS = 2 * 365 * 24 * 60 * 60 * 1000; // ~2 years
+
+/**
+ * Guards the two report query functions (lib/actions/admin/reports.ts)
+ * directly, rather than only validating inside resolveReportDateRange's
+ * "custom" branch — those functions take raw from/to Date bounds and don't
+ * inherently guarantee every caller routed through here first.
+ */
+export function assertReportRangeWithinCap(from: Date, to: Date): void {
+  if (to.getTime() - from.getTime() > MAX_REPORT_RANGE_MS) {
+    throw new ActionError(
+      "That date range is too wide for a report — please narrow it to 2 years or less.",
+    );
+  }
+}
+
 function istDateParts(date: Date): { year: number; month: number; day: number } {
   // en-CA formats as YYYY-MM-DD, convenient to split.
   const formatted = new Intl.DateTimeFormat("en-CA", {

@@ -4,6 +4,7 @@ import { and, asc, gte, inArray, isNotNull, lt } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { calculateOrderGst, isInterStateOrder } from "@/lib/invoice/generate";
+import { assertReportRangeWithinCap } from "@/lib/reports/date-range";
 
 const { orders, orderItems } = schema;
 
@@ -54,6 +55,7 @@ export async function getGeneralSalesReportRows(
   to: Date,
 ): Promise<GeneralSalesRow[]> {
   await requireAdmin();
+  assertReportRangeWithinCap(from, to);
 
   const orderRows = await db
     .select()
@@ -136,6 +138,7 @@ export async function getGstSalesRegisterRows(
   to: Date,
 ): Promise<GstRegisterRow[]> {
   await requireAdmin();
+  assertReportRangeWithinCap(from, to);
 
   const orderRows = await db
     .select()
