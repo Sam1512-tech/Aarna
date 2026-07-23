@@ -10,7 +10,7 @@
  *     <>
  *       <script
  *         type="application/ld+json"
- *         dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
+ *         dangerouslySetInnerHTML={{ __html: safeJsonLd(ld) }}
  *       />
  *       <ProductPage ... />
  *     </>
@@ -18,6 +18,26 @@
  */
 
 import type { ProductWithVariants } from "@/lib/types";
+
+/**
+ * Serializes a JSON-LD object for safe embedding in a <script> tag. Plain
+ * JSON.stringify doesn't escape "<", so admin-entered free text that ends up
+ * in the payload (a product title/description) containing something like
+ * "</script><script>..." would prematurely close the tag and inject real,
+ * executable markup into the page for every visitor. Also escapes ">" and
+ * "&" as defense in depth (matters if this ever lands inside an HTML
+ * comment or is read back by a non-JSON-aware parser) and U+2028/U+2029,
+ * which are valid in a JSON string but illegal in JS source and can break
+ * some non-<script>-tag consumers.
+ */
+export function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://shopaarna.in";
 
