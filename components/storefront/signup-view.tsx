@@ -32,6 +32,7 @@ export function SignupView({ nextPath }: SignupViewProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
 
   const nameIsValid = fullName.trim().length >= 2;
   const emailIsValid = EMAIL_REGEX.test(email);
@@ -51,6 +52,15 @@ export function SignupView({ nextPath }: SignupViewProps) {
         });
         if (!result.ok) {
           setError(result.message ?? "Couldn't create account. Please try again.");
+          return;
+        }
+        if (result.requiresEmailConfirmation) {
+          // No session yet — navigating to nextPath (a protected page) would
+          // just bounce back to /login with no explanation. Show the
+          // "check your inbox" message in place instead.
+          setConfirmationMessage(
+            result.message ?? "Check your inbox — we've sent you a verification email.",
+          );
           return;
         }
         router.push(nextPath);
@@ -82,88 +92,102 @@ export function SignupView({ nextPath }: SignupViewProps) {
         </p>
 
         <div className="mt-10 w-full space-y-6">
-          <GoogleSignInButton
-            nextPath={nextPath}
-            label="Sign up with google"
-            disabled={pending}
-            onError={setError}
-          />
-
-          <Divider label="Or sign up with email" />
-
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <Field
-              label="Full name"
-              Icon={User}
-              inputProps={{
-                type: "text",
-                autoComplete: "name",
-                value: fullName,
-                onChange: (e) => setFullName(e.target.value),
-                placeholder: "How should we address you?",
-                autoFocus: true,
-                "aria-label": "Full name",
-              }}
-            />
-            <Field
-              label="Email address"
-              Icon={Mail}
-              inputProps={{
-                type: "email",
-                inputMode: "email",
-                autoComplete: "email",
-                value: email,
-                onChange: (e) => setEmail(e.target.value),
-                placeholder: "you@example.com",
-                "aria-label": "Email address",
-              }}
-            />
-            <div>
-              <Field
-                label="Password"
-                Icon={Lock}
-                inputProps={{
-                  type: showPassword ? "text" : "password",
-                  autoComplete: "new-password",
-                  value: password,
-                  onChange: (e) => setPassword(e.target.value),
-                  placeholder: "••••••••",
-                  "aria-label": "Password",
-                }}
-                rightSlot={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((s) => !s)}
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
-                    aria-pressed={showPassword}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cocoa/60 transition duration-500 hover:bg-cocoa/10 hover:text-cocoa"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" aria-hidden="true" />
-                    ) : (
-                      <Eye className="h-4 w-4" aria-hidden="true" />
-                    )}
-                  </button>
-                }
-              />
-              <p className="mt-1.5 pl-1 text-xs text-charcoal/50">
-                at least {MIN_PASSWORD} characters
+          {confirmationMessage ? (
+            <div className="rounded-2xl border border-cocoa/20 bg-cocoa/5 px-6 py-8 text-center">
+              <ShieldCheck className="mx-auto h-6 w-6 text-cocoa" aria-hidden="true" />
+              <p className="mt-4 text-sm leading-6 text-charcoal/80">
+                {confirmationMessage}
+              </p>
+              <p className="mt-2 text-xs text-charcoal/50">
+                Once verified, come back and sign in.
               </p>
             </div>
+          ) : (
+            <>
+              <GoogleSignInButton
+                nextPath={nextPath}
+                label="Sign up with google"
+                disabled={pending}
+                onError={setError}
+              />
 
-            <SubmitButton
-              disabled={!canSubmit}
-              label={pending ? "Creating account…" : "Create account"}
-            />
+              <Divider label="Or sign up with email" />
 
-            {error ? (
-              <p className="text-center text-xs text-burnt-red">
-                {error}
-              </p>
-            ) : null}
-          </form>
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                <Field
+                  label="Full name"
+                  Icon={User}
+                  inputProps={{
+                    type: "text",
+                    autoComplete: "name",
+                    value: fullName,
+                    onChange: (e) => setFullName(e.target.value),
+                    placeholder: "How should we address you?",
+                    autoFocus: true,
+                    "aria-label": "Full name",
+                  }}
+                />
+                <Field
+                  label="Email address"
+                  Icon={Mail}
+                  inputProps={{
+                    type: "email",
+                    inputMode: "email",
+                    autoComplete: "email",
+                    value: email,
+                    onChange: (e) => setEmail(e.target.value),
+                    placeholder: "you@example.com",
+                    "aria-label": "Email address",
+                  }}
+                />
+                <div>
+                  <Field
+                    label="Password"
+                    Icon={Lock}
+                    inputProps={{
+                      type: showPassword ? "text" : "password",
+                      autoComplete: "new-password",
+                      value: password,
+                      onChange: (e) => setPassword(e.target.value),
+                      placeholder: "••••••••",
+                      "aria-label": "Password",
+                    }}
+                    rightSlot={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((s) => !s)}
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                        aria-pressed={showPassword}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cocoa/60 transition duration-500 hover:bg-cocoa/10 hover:text-cocoa"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                        )}
+                      </button>
+                    }
+                  />
+                  <p className="mt-1.5 pl-1 text-xs text-charcoal/50">
+                    at least {MIN_PASSWORD} characters
+                  </p>
+                </div>
+
+                <SubmitButton
+                  disabled={!canSubmit}
+                  label={pending ? "Creating account…" : "Create account"}
+                />
+
+                {error ? (
+                  <p className="text-center text-xs text-burnt-red">
+                    {error}
+                  </p>
+                ) : null}
+              </form>
+            </>
+          )}
         </div>
 
         <div className="mt-10 flex items-center gap-2 text-xs text-charcoal/45">
