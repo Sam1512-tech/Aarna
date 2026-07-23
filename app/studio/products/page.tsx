@@ -8,6 +8,7 @@ import {
 } from "@/components/admin/admin-primitives";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { Pagination } from "@/components/admin/pagination";
 import { deleteProduct, getAdminProducts } from "@/lib/actions/admin/products";
 import { formatINR } from "@/lib/utils";
 
@@ -152,54 +153,15 @@ export default async function AdminProductsPage({
                 </tbody>
               </table>
             </div>
-            {totalPages > 1 ? (
-              <Pagination page={result.page} totalPages={totalPages} status={status} search={search} />
-            ) : null}
+            <Pagination
+              page={result.page}
+              totalPages={totalPages}
+              basePath="/studio/products"
+              params={{ status, search }}
+            />
           </>
         )}
       </div>
     </div>
-  );
-}
-
-function Pagination({
-  page,
-  totalPages,
-  status,
-  search,
-}: {
-  page: number;
-  totalPages: number;
-  status?: string;
-  search?: string;
-}) {
-  const build = (p: number) => {
-    const qs = new URLSearchParams();
-    if (status) qs.set("status", status);
-    if (search) qs.set("search", search);
-    if (p > 1) qs.set("page", String(p));
-    const s = qs.toString();
-    return s ? `/studio/products?${s}` : "/studio/products";
-  };
-  return (
-    <nav className="mt-6 flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/60">
-      {page > 1 ? (
-        <Link href={build(page - 1)} className="soft-link text-cocoa">
-          ← previous
-        </Link>
-      ) : (
-        <span className="opacity-40">← previous</span>
-      )}
-      <span>
-        page {page} of {totalPages}
-      </span>
-      {page < totalPages ? (
-        <Link href={build(page + 1)} className="soft-link text-cocoa">
-          next →
-        </Link>
-      ) : (
-        <span className="opacity-40">next →</span>
-      )}
-    </nav>
   );
 }

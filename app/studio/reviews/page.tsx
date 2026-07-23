@@ -7,6 +7,7 @@ import {
 } from "@/components/admin/admin-primitives";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { Pagination } from "@/components/admin/pagination";
 import { ReviewStatusSelect } from "@/components/admin/review-status-select";
 import { deleteReview, getAdminReviews } from "@/lib/actions/admin/reviews";
 
@@ -142,11 +143,12 @@ export default async function AdminReviewsPage({
         )}
       </div>
 
-      {totalPages > 1 ? (
-        <p className="mt-6 text-center text-xs text-charcoal/50">
-          page {result.page} of {totalPages} · {result.total} total
-        </p>
-      ) : null}
+      <Pagination
+        page={result.page}
+        totalPages={totalPages}
+        basePath="/studio/reviews"
+        params={{ status }}
+      />
     </div>
   );
 }

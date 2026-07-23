@@ -4,6 +4,7 @@ import {
   AdminPageHeader,
 } from "@/components/admin/admin-primitives";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
+import { Pagination } from "@/components/admin/pagination";
 import { getInventory } from "@/lib/actions/admin/inventory";
 import { InventoryTable } from "./inventory-table";
 import { ReprintScanPanel } from "./reprint-scan-panel";
@@ -114,11 +115,12 @@ export default async function AdminInventoryPage({
         )}
       </div>
 
-      {totalPages > 1 ? (
-        <p className="mt-6 text-center text-xs text-charcoal/50">
-          page {result.page} of {totalPages} · {result.total} total
-        </p>
-      ) : null}
+      <Pagination
+        page={result.page}
+        totalPages={totalPages}
+        basePath="/studio/inventory"
+        params={{ search, low: onlyLowStock ? "1" : undefined, out: onlyOutOfStock ? "1" : undefined }}
+      />
     </div>
   );
 }

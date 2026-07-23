@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AdminEmpty, AdminPageHeader } from "@/components/admin/admin-primitives";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
+import { Pagination } from "@/components/admin/pagination";
 import { getAdminOrders } from "@/lib/actions/admin/orders";
 import { OrdersTable } from "./orders-table";
 
@@ -129,11 +130,12 @@ export default async function AdminOrdersPage({
         )}
       </div>
 
-      {totalPages > 1 ? (
-        <p className="mt-6 text-center text-xs text-charcoal/50">
-          page {result.page} of {totalPages} · {result.total} total
-        </p>
-      ) : null}
+      <Pagination
+        page={result.page}
+        totalPages={totalPages}
+        basePath="/studio/orders"
+        params={{ payment: paymentStatus, fulfillment: fulfillmentStatus, search }}
+      />
     </div>
   );
 }
