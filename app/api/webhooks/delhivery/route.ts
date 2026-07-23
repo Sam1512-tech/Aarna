@@ -4,9 +4,9 @@ import { db, schema } from "@/lib/db";
 import { mapDelhiveryStatus } from "@/lib/delhivery";
 import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
 import { canTransitionFulfillment } from "@/lib/orders/fulfillment-transitions";
-import { applyStockMovement } from "@/lib/db/queries/inventory";
+import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 
-const { orders, orderItems } = schema;
+const { orders } = schema;
 
 // Days the customer has to request a return after delivery (shown in the
 // delivered WhatsApp). Keep in sync with the returns policy.
@@ -99,25 +99,25 @@ export async function POST(req: Request) {
       }
 
       // RTO (courier couldn't deliver, shipment came back) — the garment is
-      // physically back in the warehouse, so restock it. Guarded on
+      // physically back in the warehouse, but deliberately NOT auto-restocked:
+      // unlike an admin manually cancelling an order (which never left the
+      // warehouse), an RTO parcel has been through transit and a failed
+      // delivery attempt, so it needs a human eyes-on check for transit
+      // damage, tampering, or a courier-side item swap before it's fit to
+      // sell again. Auto-restocking here would risk shipping a damaged item
+      // to the next customer with nobody having looked at it. Instead, alert
+      // an admin so it gets inspected and, if it checks out, restocked by
+      // hand via the existing /studio/inventory adjust-stock tool — same
+      // "flag for a human, don't guess" principle deleteStaleUnpaidOrders
+      // uses for its own irreversible-adjacent decision. Guarded on
       // order.fulfillmentStatus !== "returned" (the pre-update snapshot) so
-      // a repeated RTO webhook push for the same order — Delhivery retries,
-      // same as every other courier push here — can never double-restock;
-      // canTransitionFulfillment treats from===to as a no-op "transition"
-      // specifically so repeats reach this code path, not get filtered out
-      // upstream. Mirrors the only other restock path in the codebase (an
-      // admin manually cancelling a paid order, lib/actions/admin/orders.ts)
-      // — paymentStatus === "paid" is a reliable proxy for "stock was
-      // decremented for this order" regardless of whether that decrement
-      // happened at checkout-time reservation or the payment webhook's
-      // late-capture fallback.
-      if (next === "returned" && order.fulfillmentStatus !== "returned" && order.paymentStatus === "paid") {
-        const items = await db
-          .select({ variantId: orderItems.variantId, quantity: orderItems.quantity })
-          .from(orderItems)
-          .where(eq(orderItems.orderId, order.id));
-        await applyStockMovement(items, 1, "return", order.orderNumber).catch((err) => {
-          console.error("[delhivery webhook] RTO restock failed:", awb, err);
+      // a repeated RTO webhook push for the same order doesn't re-alert.
+      if (next === "returned" && order.fulfillmentStatus !== "returned") {
+        await alertAdminSuspiciousActivity({
+          event: "Shipment returned to origin — needs inspection before restocking",
+          detail: `Order ${order.orderNumber} (AWB ${awb}) was returned to origin by Delhivery. Stock was NOT automatically restocked — inspect the parcel for transit damage or tampering first, then add it back via /studio/inventory if it's sellable.`,
+        }).catch((err) => {
+          console.error("[delhivery webhook] RTO alert failed:", awb, err);
         });
       }
     } else if (order) {
