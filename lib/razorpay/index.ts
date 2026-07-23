@@ -74,3 +74,18 @@ export async function createRefund(
     notes,
   });
 }
+
+/**
+ * Real order status straight from Razorpay — used by the stale-order cleanup
+ * cron to double-check a "pending"/"failed" order in our own DB wasn't
+ * actually paid before permanently deleting it (e.g. a payment.captured
+ * webhook that never landed). "paid" means Razorpay genuinely captured
+ * money against this order, regardless of what our own paymentStatus says.
+ */
+export async function fetchRazorpayOrderStatus(
+  razorpayOrderId: string,
+): Promise<{ status: "created" | "attempted" | "paid"; amountPaid: number }> {
+  const rp = getRazorpayClient();
+  const order = await rp.orders.fetch(razorpayOrderId);
+  return { status: order.status, amountPaid: Number(order.amount_paid ?? 0) };
+}
