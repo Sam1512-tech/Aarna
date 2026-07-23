@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 /**
  * Supabase email-confirmation and OAuth callbacks land here with a ?code=...
@@ -16,8 +17,7 @@ export async function GET(request: NextRequest) {
   const next = url.searchParams.get("next");
 
   // Only allow same-origin relative redirects, defaulting to /account.
-  const safeNext =
-    next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+  const safeNext = safeRedirectPath(next, "/account");
   const fallback = type === "recovery" ? "/reset-password" : safeNext;
 
   if (!code) {
