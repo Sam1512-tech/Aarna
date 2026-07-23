@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/razorpay";
-import { nextInvoiceNumber } from "@/lib/invoice/counter";
 import { generateInvoicePdf } from "@/lib/invoice/generate";
 import {
   buildInvoiceData,
   clearPurchasedCartItems,
   getOrderByRazorpayId,
+  incrementCouponUsage,
   markOrderPaid,
   markOrderPaymentFailed,
   recordRefund,
@@ -13,6 +13,7 @@ import {
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { sendEmail } from "@/lib/resend";
 import { notifyWhatsApp, firstNameFromAddress, rupees } from "@/lib/whatsapp/notify";
+import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +39,11 @@ export async function POST(req: Request) {
         break;
       }
 
-      // Idempotency — skip if already processed
+      // Cheap pre-check to skip the invoice-number sequence for the common
+      // case, but NOT the real idempotency guard — Razorpay documents
+      // at-least-once delivery, so two deliveries can both reach this line
+      // reading "pending". The real guard is markOrderPaid's own conditional
+      // UPDATE below; only its winner runs the paid-order side effects.
       if (order.paymentStatus === "paid") break;
 
       // Stock for this order was already reserved atomically at checkout
@@ -60,8 +65,39 @@ export async function POST(req: Request) {
       const needsStockDecrementNow =
         !order.stockReserved || order.paymentStatus === "failed";
 
-      const invoiceNumber = await nextInvoiceNumber();
-      await markOrderPaid(order.id, invoiceNumber, payment.id);
+      const paidResult = await markOrderPaid(order.id, payment.id);
+      if (!paidResult.won) break;
+      const { invoiceNumber } = paidResult;
+
+      // Coupon usage is spent here — at confirmed payment, not order
+      // creation — and atomically bounded by its own usage limit. Never
+      // let this block or crash the rest of the handler (same fail-open
+      // rule as every other side effect below): the payment is already
+      // captured and paymentStatus is already "paid" at this point, so an
+      // unhandled throw here would return a non-2xx response, Razorpay
+      // would retry, and the retry's own idempotency pre-check above would
+      // then skip the ENTIRE handler — permanently stranding this order
+      // with no invoice, no stock decrement, no confirmation email.
+      if (order.couponCode) {
+        try {
+          const counted = await incrementCouponUsage(order.couponCode);
+          if (!counted) {
+            console.warn(
+              "[razorpay webhook] coupon usage limit already reached, not counted:",
+              order.couponCode,
+              order.orderNumber,
+            );
+            await alertAdminSuspiciousActivity({
+              event: "Coupon redeemed past its usage limit",
+              detail: `Order ${order.orderNumber} paid with coupon "${order.couponCode}", but the coupon's usage limit was already reached by other concurrent paid orders — this redemption's discount was still honored (payment already captured), just not counted toward the limit. Check /studio/coupons.`,
+            }).catch((err) => {
+              console.error("[razorpay webhook] over-redemption alert failed:", err);
+            });
+          }
+        } catch (err) {
+          console.error("[razorpay webhook] coupon usage increment failed:", err);
+        }
+      }
 
       if (needsStockDecrementNow) {
         await applyStockMovement(

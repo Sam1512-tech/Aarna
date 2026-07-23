@@ -11,7 +11,7 @@ import type { AddressInput, CheckoutSummary } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { isValidGstin, normalizeGstin } from "@/lib/gst";
 
-const { customers, orders, orderItems, productVariants, inventoryMovements, coupons } = schema;
+const { customers, orders, orderItems, productVariants, inventoryMovements } = schema;
 
 const FREE_SHIPPING_THRESHOLD = 299900; // ₹2999 in paise
 const FLAT_SHIPPING_FEE = 9900; // ₹99 in paise
@@ -223,13 +223,11 @@ export async function initCheckout(
     .set({ razorpayOrderId: rpOrder.id })
     .where(eq(orders.id, orderId));
 
-  // 9. Bump coupon usage count if applied
-  if (couponCode) {
-    await db
-      .update(coupons)
-      .set({ usedCount: sql`${coupons.usedCount} + 1` })
-      .where(eq(coupons.code, couponCode));
-  }
+  // Coupon usedCount is intentionally NOT bumped here. It's incremented
+  // atomically in the payment.captured webhook once payment actually lands
+  // (lib/db/queries/orders.ts, incrementCouponUsage) — bumping it at
+  // order-creation time let an abandoned or repeatedly-retried checkout
+  // exhaust a coupon's budget without a single real redemption ever paying.
 
   const summary: CheckoutSummary = {
     subtotal,
