@@ -59,6 +59,12 @@ export interface HangTagPrintItem {
 
 const MAX_COPIES_PER_TAG = 100;
 
+// Mirrors MAX_BATCH_INVOICES (lib/actions/admin/orders.ts) — the scan-to-reprint
+// queue on /admin/inventory isn't scoped to one product, so an admin can keep
+// scanning across the whole catalog before printing. Without a ceiling here,
+// that queue plus the per-tag copy count could drive an unbounded PDF render.
+const MAX_BATCH_HANG_TAGS = 200;
+
 /**
  * Generates a PDF buffer with a caller-chosen number of copies per variant.
  * Use when the admin selects specific variants and quantities — either from
@@ -70,6 +76,9 @@ export async function generateHangTagsForVariants(
 ): Promise<Buffer> {
   await requireAdmin();
   if (items.length === 0) throw new ActionError("Pick at least one variant");
+  if (items.length > MAX_BATCH_HANG_TAGS) {
+    throw new ActionError(`Pick ${MAX_BATCH_HANG_TAGS} tags or fewer at a time`);
+  }
 
   const variantIds = items.map((i) => i.variantId);
 

@@ -13,6 +13,7 @@ import {
   TextInput,
   slugify,
 } from "@/components/admin/admin-form";
+import { CloudinaryImagePicker } from "@/components/admin/cloudinary-image-picker";
 import {
   addProductImage,
   createVariant,
@@ -22,6 +23,7 @@ import {
   updateVariant,
 } from "@/lib/actions/admin/products";
 import { actionErrorMessage } from "@/lib/action-error";
+import { uploadAdminImage } from "@/lib/cloudinary/upload-client";
 
 type ProductStatus = "draft" | "active" | "archived";
 
@@ -765,21 +767,21 @@ function ImagesSection({
   images: Img[];
   onChange: (imgs: Img[]) => void;
 }) {
-  const [url, setUrl] = useState("");
   const [alt, setAlt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const urlValid = /^https?:\/\//.test(url);
-
-  function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (!urlValid || pending) return;
+  // The picker is always shown empty (`value={null}`) — this is an
+  // "add another" flow, not an edit-one-slot flow, so it never reflects an
+  // already-saved image back into itself. Each successful pick persists
+  // immediately via addProductImage and the picker resets for the next one.
+  function handlePicked(url: string | null) {
+    if (!url || pending) return;
     setError(null);
     startTransition(async () => {
       try {
         const created = await addProductImage(productId, {
-          url: url.trim(),
+          url,
           altText: alt.trim() || undefined,
           sortOrder: images.length,
         });
@@ -792,7 +794,6 @@ function ImagesSection({
             sortOrder: created.sortOrder,
           },
         ]);
-        setUrl("");
         setAlt("");
       } catch (err) {
         setError(actionErrorMessage(err, "couldn't add image"));
@@ -818,20 +819,32 @@ function ImagesSection({
         images
       </h2>
 
-      <form onSubmit={handleAdd} className="mt-4 grid gap-3 sm:grid-cols-[2fr_1.2fr_auto]" noValidate>
-        <input value={url} onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://res.cloudinary.com/…" className={variantInputClass} />
-        <input value={alt} onChange={(e) => setAlt(e.target.value)}
-          placeholder="alt text (optional)" className={variantInputClass} />
-        <button type="submit" disabled={!urlValid || pending}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90 disabled:opacity-50">
-          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-          add
-        </button>
-      </form>
-      <p className="mt-2 text-xs text-charcoal/55">
-        Paste a Cloudinary URL for now. Direct upload UI is a follow-up.
-      </p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
+        <CloudinaryImagePicker
+          value={null}
+          onChange={handlePicked}
+          uploadImage={(file) => uploadAdminImage(file, "aarna/products")}
+          folder="aarna/products"
+          aspect="4/5"
+          label="Add an image"
+          hint="Upload a photo — add as many as you need, one at a time."
+        />
+        <label className="block">
+          <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
+            alt text
+          </span>
+          <input
+            value={alt}
+            onChange={(e) => setAlt(e.target.value)}
+            placeholder="optional — describes the image for accessibility/SEO"
+            className={`mt-3 ${variantInputClass}`}
+          />
+          <p className="mt-2 text-xs text-charcoal/55">
+            Applies to the next image you add.
+          </p>
+        </label>
+      </div>
+      {pending ? <p className="mt-2 text-xs text-charcoal/55">saving…</p> : null}
       {error ? <p className="mt-1 text-xs text-burnt-red">{error}</p> : null}
 
       {images.length === 0 ? (

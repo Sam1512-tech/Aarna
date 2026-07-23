@@ -6,7 +6,8 @@ import { db, schema } from "@/lib/db";
 import { getCurrentCustomer } from "@/lib/actions/auth";
 import { ActionError } from "@/lib/action-error";
 
-const { orders, orderItems, productVariants, reviews, customers } = schema;
+const { orders, orderItems, productVariants, products, reviews, customers } =
+  schema;
 
 async function requireCustomer() {
   const customer = await getCurrentCustomer();
@@ -103,10 +104,12 @@ export async function submitReview(
       customerId: orders.customerId,
       fulfillmentStatus: orders.fulfillmentStatus,
       productId: productVariants.productId,
+      productSlug: products.slug,
     })
     .from(orderItems)
     .innerJoin(orders, eq(orders.id, orderItems.orderId))
     .innerJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+    .innerJoin(products, eq(products.id, productVariants.productId))
     .where(eq(orderItems.id, input.orderItemId))
     .limit(1);
 
@@ -120,34 +123,32 @@ export async function submitReview(
   const productId = row[0].productId;
   const body = input.body?.trim() || null;
 
-  const existing = await db
-    .select({ id: reviews.id })
-    .from(reviews)
-    .where(
-      and(
-        eq(reviews.productId, productId),
-        eq(reviews.customerId, customer.id),
-      ),
-    )
-    .limit(1);
-
-  if (existing[0]) {
-    await db
-      .update(reviews)
-      .set({ rating, body, status: "pending" })
-      .where(eq(reviews.id, existing[0].id));
-  } else {
-    await db.insert(reviews).values({
+  // Upsert on (product_id, customer_id) — see the unique index in
+  // lib/db/schema.ts. A single ON CONFLICT statement instead of a
+  // check-then-insert/update means a double-click or flaky-network retry
+  // can't create two rows for one customer on one product (which would have
+  // double-counted in the average rating); it's also inherently race-free,
+  // unlike the two-step read-then-write it replaces.
+  await db
+    .insert(reviews)
+    .values({
       productId,
       customerId: customer.id,
       rating,
       body,
       status: "pending",
+    })
+    .onConflictDoUpdate({
+      target: [reviews.productId, reviews.customerId],
+      set: { rating, body, status: "pending" },
     });
-  }
 
   revalidatePath("/account/orders");
   revalidatePath("/studio/reviews");
+  // Resubmitting resets status to "pending", which can change what's shown on
+  // the PDP (e.g. an approved review's rating/body changing while awaiting
+  // re-moderation) — refresh it too. Route is /product/[slug], singular.
+  revalidatePath(`/product/${row[0].productSlug}`);
   return { ok: true };
 }
 

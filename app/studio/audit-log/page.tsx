@@ -70,7 +70,7 @@ export default async function AdminAuditLogPage({
 
       <AutoSubmitForm className="mt-6">
         <label className="block max-w-xs">
-          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/72">
             entity type
           </span>
           <select

@@ -8,6 +8,7 @@ import { resolveReportDateRange, type ReportPreset } from "@/lib/reports/date-ra
 import { buildCsv, CSV_BOM } from "@/lib/reports/csv";
 import { buildReportXlsx } from "@/lib/reports/xlsx";
 import { generateReportPdf } from "@/lib/reports/report-pdf";
+import { ActionError } from "@/lib/action-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -96,8 +97,16 @@ export async function GET(req: Request) {
   try {
     range = resolveReportDateRange(preset, from, to);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "invalid date range";
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error("[admin reports export] date range resolution failed:", err);
+    // Only ActionError messages are safe to show an admin verbatim — route
+    // handlers don't get Next's server-action digest masking.
+    if (err instanceof ActionError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: "Something went wrong — please try again" },
+      { status: 500 },
+    );
   }
 
   const title = type === "gst" ? "GST Sales Register" : "Sales Report";
@@ -106,72 +115,86 @@ export async function GET(req: Request) {
   let rows: (string | number)[][];
   let totalsRow: (string | number)[] | undefined;
 
-  if (type === "gst") {
-    const data = await getGstSalesRegisterRows(range.from, range.to);
-    headers = GST_HEADERS;
-    rows = data.map((r) => [
-      r.invoiceNumber,
-      r.invoiceDate,
-      r.orderNumber,
-      r.customerName,
-      r.customerGstin,
-      r.placeOfSupply,
-      r.supplyType,
-      r.hsnCode,
-      r.gstRatePercent,
-      money(r.taxableValue),
-      money(r.cgst),
-      money(r.sgst),
-      money(r.igst),
-      money(r.total),
-      r.paymentStatus,
-    ]);
-    if (data.length > 0) {
-      const sum = (f: (r: (typeof data)[number]) => number) =>
-        data.reduce((s, r) => s + f(r), 0);
-      totalsRow = [
-        "", "", "", "", "", "", "", "", "TOTAL",
-        money(sum((r) => r.taxableValue)),
-        money(sum((r) => r.cgst)),
-        money(sum((r) => r.sgst)),
-        money(sum((r) => r.igst)),
-        money(sum((r) => r.total)),
-        "",
-      ];
+  try {
+    if (type === "gst") {
+      const data = await getGstSalesRegisterRows(range.from, range.to);
+      headers = GST_HEADERS;
+      rows = data.map((r) => [
+        r.invoiceNumber,
+        r.invoiceDate,
+        r.orderNumber,
+        r.customerName,
+        r.customerGstin,
+        r.placeOfSupply,
+        r.supplyType,
+        r.hsnCode,
+        r.gstRatePercent,
+        money(r.taxableValue),
+        money(r.cgst),
+        money(r.sgst),
+        money(r.igst),
+        money(r.total),
+        r.paymentStatus,
+      ]);
+      if (data.length > 0) {
+        const sum = (f: (r: (typeof data)[number]) => number) =>
+          data.reduce((s, r) => s + f(r), 0);
+        totalsRow = [
+          "", "", "", "", "", "", "", "", "TOTAL",
+          money(sum((r) => r.taxableValue)),
+          money(sum((r) => r.cgst)),
+          money(sum((r) => r.sgst)),
+          money(sum((r) => r.igst)),
+          money(sum((r) => r.total)),
+          "",
+        ];
+      }
+    } else {
+      const data = await getGeneralSalesReportRows(range.from, range.to);
+      headers = GENERAL_HEADERS;
+      rows = data.map((r) => [
+        r.orderNumber,
+        r.orderDate,
+        r.customerName,
+        r.email,
+        r.phone,
+        r.itemCount,
+        money(r.subtotal),
+        money(r.discount),
+        money(r.shippingFee),
+        money(r.total),
+        r.couponCode,
+        r.paymentStatus,
+        r.fulfillmentStatus,
+        r.invoiceNumber,
+        r.awbNumber,
+      ]);
+      if (data.length > 0) {
+        const sum = (f: (r: (typeof data)[number]) => number) =>
+          data.reduce((s, r) => s + f(r), 0);
+        totalsRow = [
+          "", "", "", "", "TOTAL",
+          sum((r) => r.itemCount),
+          money(sum((r) => r.subtotal)),
+          money(sum((r) => r.discount)),
+          money(sum((r) => r.shippingFee)),
+          money(sum((r) => r.total)),
+          "", "", "", "", "",
+        ];
+      }
     }
-  } else {
-    const data = await getGeneralSalesReportRows(range.from, range.to);
-    headers = GENERAL_HEADERS;
-    rows = data.map((r) => [
-      r.orderNumber,
-      r.orderDate,
-      r.customerName,
-      r.email,
-      r.phone,
-      r.itemCount,
-      money(r.subtotal),
-      money(r.discount),
-      money(r.shippingFee),
-      money(r.total),
-      r.couponCode,
-      r.paymentStatus,
-      r.fulfillmentStatus,
-      r.invoiceNumber,
-      r.awbNumber,
-    ]);
-    if (data.length > 0) {
-      const sum = (f: (r: (typeof data)[number]) => number) =>
-        data.reduce((s, r) => s + f(r), 0);
-      totalsRow = [
-        "", "", "", "", "TOTAL",
-        sum((r) => r.itemCount),
-        money(sum((r) => r.subtotal)),
-        money(sum((r) => r.discount)),
-        money(sum((r) => r.shippingFee)),
-        money(sum((r) => r.total)),
-        "", "", "", "", "",
-      ];
+  } catch (err) {
+    console.error(`[admin reports export] ${type} report query failed:`, err);
+    // Route handlers don't get Next's server-action digest masking, so only
+    // an explicit ActionError (e.g. the date-range-too-wide guard) is safe
+    // to forward to the client verbatim — anything else stays generic.
+    if (err instanceof ActionError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
+    return NextResponse.json(
+      { error: "Something went wrong — please try again" },
+      { status: 500 },
+    );
   }
 
   const filenameBase = `aarna-${type}-report-${range.from.toISOString().slice(0, 10)}-to-${new Date(range.to.getTime() - 1).toISOString().slice(0, 10)}`;
@@ -223,7 +246,12 @@ export async function GET(req: Request) {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "report generation failed";
+    console.error(`[admin reports export] ${type} ${format} export failed:`, err);
+    // Only ActionError messages are safe to show an admin verbatim — route
+    // handlers don't get Next's server-action digest masking, so anything
+    // else (DB hiccup, xlsx/PDF-lib exception) must stay generic.
+    const message =
+      err instanceof ActionError ? err.message : "Something went wrong — please try again";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

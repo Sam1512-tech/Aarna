@@ -22,11 +22,19 @@ export function formatINR(paise: number): string {
   }).format(rupees);
 }
 
-export function slugify(input: string): string {
-  return input
+/**
+ * Convert a title into a URL-safe slug. The single canonical implementation —
+ * used across every admin create/edit form (products, categories,
+ * collections). Re-exported from components/admin/admin-form.tsx for
+ * backwards-compatible imports; don't reintroduce a second implementation.
+ *   slugify("Boho_Dress") → "boho-dress"
+ */
+export function slugify(title: string): string {
+  return title
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
 }

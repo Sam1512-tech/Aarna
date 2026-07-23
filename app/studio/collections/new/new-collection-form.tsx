@@ -12,8 +12,10 @@ import {
   TextInput,
   slugify,
 } from "@/components/admin/admin-form";
+import { CloudinaryImagePicker } from "@/components/admin/cloudinary-image-picker";
 import { createCollection } from "@/lib/actions/admin/collections";
 import { actionErrorMessage } from "@/lib/action-error";
+import { uploadAdminImage } from "@/lib/cloudinary/upload-client";
 
 export function NewCollectionForm() {
   const router = useRouter();
@@ -100,13 +102,14 @@ export function NewCollectionForm() {
         title="Hero image"
         description="Shown at the top of the collection page. Optional."
       >
-        <Field label="Hero image url" wide>
-          <TextInput
-            value={heroImageUrl}
-            onChange={(e) => setHeroImageUrl(e.target.value)}
-            placeholder="https://res.cloudinary.com/…"
-          />
-        </Field>
+        <CloudinaryImagePicker
+          value={heroImageUrl || null}
+          onChange={(url) => setHeroImageUrl(url ?? "")}
+          uploadImage={(file) => uploadAdminImage(file, "aarna/collections")}
+          folder="aarna/collections"
+          aspect="16/9"
+          label="Hero image"
+        />
       </FormSection>
 
       <FormSection title="Visibility">

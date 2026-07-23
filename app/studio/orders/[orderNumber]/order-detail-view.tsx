@@ -106,7 +106,9 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
           order.fulfillmentStatus !== "pending"
         ? `order is ${order.fulfillmentStatus.replace(/_/g, " ")}`
         : null
-    : `already has AWB ${order.awbNumber}`;
+    : order.awbNumber === "PENDING"
+      ? "shipment creation is already in progress for this order"
+      : `already has AWB ${order.awbNumber}`;
 
   function announce(msg: string, isError = false) {
     if (isError) {
