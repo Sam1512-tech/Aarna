@@ -1,12 +1,16 @@
-import { and, eq, inArray, lt, ne } from "drizzle-orm";
+import { and, eq, inArray, lt, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { InvoiceData } from "@/lib/invoice/generate";
-import { calculateOrderGst, isInterStateOrder } from "@/lib/invoice/generate";
+import {
+  calculateOrderGst,
+  currentFinancialYear,
+  isInterStateOrder,
+} from "@/lib/invoice/generate";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { fetchRazorpayOrderStatus } from "@/lib/razorpay";
 import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 
-const { orders, orderItems, returns, carts, cartItems, messageLog } = schema;
+const { orders, orderItems, returns, carts, cartItems, messageLog, coupons } = schema;
 
 /** How long a checkout attempt holds its reserved stock before it's treated
  * as abandoned and released back — see releaseExpiredCheckoutHolds. */
@@ -36,22 +40,100 @@ export async function getOrderByRazorpayId(
   return { ...order, orderItems: items };
 }
 
+export type MarkOrderPaidResult =
+  | { won: true; invoiceNumber: string }
+  | { won: false; invoiceNumber: null };
+
+/**
+ * Marks an order paid. Guarded to only fire from `pending` or `failed` — NOT
+ * a blanket `paymentStatus <> 'paid'` — so that two concurrent
+ * `payment.captured` deliveries for the same order (Razorpay documents
+ * at-least-once webhook delivery) can't both win: only the first write
+ * lands, the second updates zero rows. `failed` is deliberately included
+ * (not just `pending`): a capture can legitimately arrive after
+ * `releaseExpiredCheckoutHolds` or an earlier `payment.failed` already
+ * flipped the order to `failed`. `refunded`/`partially_refunded` are
+ * deliberately EXCLUDED — those only exist after a real prior payment (see
+ * `recordRefund`), so a replayed/redelivered `payment.captured` for one of
+ * them must never resurrect it back to `paid`, overwrite its invoice number,
+ * or reset `placedAt` (which the GST sales register keys off of).
+ *
+ * The invoice number is generated INSIDE this same guarded UPDATE (Postgres
+ * only evaluates a `SET` expression for rows the `WHERE` clause actually
+ * matches) rather than pulled beforehand — pulling it first would still let
+ * a losing delivery burn a real, permanent value off the shared sequence
+ * for a write that never lands, leaving an unexplained gap in the
+ * financial-year invoice sequence.
+ *
+ * Returns whether this call was the one that actually transitioned the
+ * order — the caller uses that to decide whether to run the paid-order side
+ * effects (invoice, stock, coupon count, notifications) at all.
+ */
 export async function markOrderPaid(
   orderId: string,
-  invoiceNumber: string,
   razorpayPaymentId: string,
-) {
-  await db
+): Promise<MarkOrderPaidResult> {
+  await db.execute(sql`CREATE SEQUENCE IF NOT EXISTS invoice_seq START 1`);
+  const invoicePrefix = `AL/${currentFinancialYear()}/`;
+
+  const updated = await db
     .update(orders)
     .set({
-      invoiceNumber,
+      invoiceNumber: sql`${invoicePrefix} || lpad(nextval('invoice_seq')::text, 5, '0')`,
       razorpayPaymentId,
       paymentStatus: "paid",
       fulfillmentStatus: "processing",
       placedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(eq(orders.id, orderId));
+    .where(and(eq(orders.id, orderId), inArray(orders.paymentStatus, ["pending", "failed"])))
+    .returning({ id: orders.id, invoiceNumber: orders.invoiceNumber });
+
+  if (updated.length === 0 || !updated[0].invoiceNumber) {
+    return { won: false, invoiceNumber: null };
+  }
+  return { won: true, invoiceNumber: updated[0].invoiceNumber };
+}
+
+/**
+ * Atomically bumps a coupon's redemption counter, refusing to cross its own
+ * usage limit — `WHERE usedCount < usageLimit` makes the check-and-increment
+ * a single statement, closing the race where two simultaneous checkouts both
+ * read a stale `usedCount` and both redeem a one-time coupon. Called from the
+ * `payment.captured` webhook (once payment is actually confirmed, guarded by
+ * the same `markOrderPaid` idempotency check) rather than at order-creation
+ * time, so a coupon's budget is only spent by checkouts that actually paid —
+ * an abandoned or repeatedly-retried checkout no longer exhausts it.
+ *
+ * Returns false if the limit was already reached by other concurrent paid
+ * orders. That race is real and not narrow: because the counter is no
+ * longer touched at order-creation time, `applyCoupon`'s own limit check
+ * (lib/actions/cart.ts) stays "not yet reached" for every order created
+ * before ANY of them finishes paying — a window that spans the whole
+ * checkout-to-payment-capture latency, up to CHECKOUT_HOLD_MINUTES for an
+ * order that sits pending the whole time. For a heavily-publicized
+ * usageLimit=1 coupon, more than two customers could plausibly all pass
+ * validation and all pay before the first one's webhook lands. This is a
+ * deliberate tradeoff, not an oversight: by design this function never
+ * blocks or reverses an already-captured payment, it only stops the counter
+ * itself from over-counting — the discount was already honored on each such
+ * order's own total and invoice at checkout time. A hard pre-payment
+ * reservation (mirroring the stock row-lock in initCheckout) would close
+ * this properly if a coupon's exact redemption count ever needs to be a
+ * hard cap rather than a best-effort one.
+ */
+export async function incrementCouponUsage(couponCode: string): Promise<boolean> {
+  const updated = await db
+    .update(coupons)
+    .set({ usedCount: sql`${coupons.usedCount} + 1` })
+    .where(
+      and(
+        eq(coupons.code, couponCode),
+        sql`(${coupons.usageLimit} IS NULL OR ${coupons.usedCount} < ${coupons.usageLimit})`,
+      ),
+    )
+    .returning({ id: coupons.id });
+  return updated.length > 0;
 }
 
 /**
@@ -404,7 +486,13 @@ export function buildInvoiceData(
 
   return {
     invoiceNumber,
-    invoiceDate: fmt(new Date()),
+    // order.placedAt is set once, at the same moment invoiceNumber is
+    // assigned (see markOrderPaid) — using "now" here instead was fine for
+    // the original webhook-triggered PDF (runs moments after placedAt) but
+    // wrong for reprints/batch-print, which call this same function for
+    // orders paid long ago. Falls back to "now" only in the type-level case
+    // of an order this function should never see un-paid.
+    invoiceDate: fmt(order.placedAt ?? new Date()),
     orderNumber: order.orderNumber,
     orderDate: fmt(order.createdAt),
     customer: {

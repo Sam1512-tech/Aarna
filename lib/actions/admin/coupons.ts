@@ -7,7 +7,7 @@ import { requireAdmin } from "@/lib/actions/auth";
 import { ActionError } from "@/lib/action-error";
 import { logAdminAction } from "@/lib/audit/log-admin-action";
 
-const { coupons } = schema;
+const { coupons, orders } = schema;
 
 export type Coupon = typeof coupons.$inferSelect;
 
@@ -286,6 +286,25 @@ export async function deleteCoupon(id: string): Promise<{ ok: true }> {
   if (existing[0].usedCount > 0) {
     throw new ActionError(
       `Cannot delete "${existing[0].code}" — already used ${existing[0].usedCount} time(s). Deactivate it instead.`,
+    );
+  }
+
+  // usedCount alone isn't enough anymore: it's only incremented once payment
+  // is actually confirmed (see incrementCouponUsage in lib/db/queries/orders.ts),
+  // so an order can be sitting mid-checkout with this code snapshotted onto
+  // orders.couponCode while usedCount is still 0. Deleting the coupon out from
+  // under it wouldn't break that order (couponCode is a plain snapshot, not a
+  // foreign key) but would orphan the reference — nothing could look the code
+  // back up. Check for any referencing order directly instead of trusting
+  // usedCount to have caught it.
+  const [referencingOrder] = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(eq(orders.couponCode, existing[0].code))
+    .limit(1);
+  if (referencingOrder) {
+    throw new ActionError(
+      `Cannot delete "${existing[0].code}" — an order already references it. Deactivate it instead.`,
     );
   }
 
