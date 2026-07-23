@@ -227,6 +227,13 @@ async function insertVariantRetryingSku(
         .returning();
       return created;
     } catch (err) {
+      // Size/color clash isn't a SKU race — a fresh SKU wouldn't fix it, so
+      // fail immediately instead of burning retry attempts.
+      if (isUniqueViolation(err, "variant_product_size_color_idx")) {
+        throw new ActionError(
+          "A variant with this size and color already exists for this product.",
+        );
+      }
       if (!isUniqueViolation(err, "product_variants_sku_unique")) throw err;
       if (isGenerated && attempt < maxAttempts) {
         sku = await generateUniqueSku(styleCode, input.color, input.size);
@@ -596,11 +603,21 @@ export async function updateVariant(
   if (input.weightGrams !== undefined) patch.weightGrams = input.weightGrams;
   if (input.isActive !== undefined) patch.isActive = input.isActive;
 
-  const [updated] = await db
-    .update(productVariants)
-    .set(patch)
-    .where(eq(productVariants.id, variantId))
-    .returning();
+  let updated: typeof productVariants.$inferSelect;
+  try {
+    [updated] = await db
+      .update(productVariants)
+      .set(patch)
+      .where(eq(productVariants.id, variantId))
+      .returning();
+  } catch (err) {
+    if (isUniqueViolation(err, "variant_product_size_color_idx")) {
+      throw new ActionError(
+        "A variant with this size and color already exists for this product.",
+      );
+    }
+    throw err;
+  }
 
   const product = await db
     .select({ slug: products.slug })

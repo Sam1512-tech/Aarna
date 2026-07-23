@@ -11,6 +11,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
   varchar,
@@ -216,11 +217,12 @@ export const productVariants = pgTable(
       .notNull(),
   },
   (t) => ({
-    productSizeColor: uniqueIndex("variant_product_size_color_idx").on(
-      t.productId,
-      t.size,
-      t.color,
-    ),
+    // NULLS NOT DISTINCT — a plain unique index treats every NULL color as
+    // distinct, so two variants of the same size with no color set would
+    // otherwise silently coexist, splitting one size's stock across two SKUs.
+    productSizeColor: unique("variant_product_size_color_idx")
+      .on(t.productId, t.size, t.color)
+      .nullsNotDistinct(),
   }),
 );
 
