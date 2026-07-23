@@ -4,6 +4,13 @@ import { regenerateInvoicePdfBatch } from "@/lib/actions/admin/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Up to 200 orders, each a full A4 page with a line-item table + GST
+// breakdown — heavier per-document than the hang-tag PDFs sharing this same
+// otherwise-unbounded-duration pattern. Combined with the documented
+// Supabase pooler slowness, this can plausibly run long with no partial
+// output if left on an implicit default. 60s gives it real headroom without
+// asking for more than this project's Vercel plan is expected to allow.
+export const maxDuration = 60;
 
 // POST /api/admin/orders/invoices/print
 //
