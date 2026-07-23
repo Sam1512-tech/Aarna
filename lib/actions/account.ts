@@ -174,22 +174,6 @@ export async function removeFromWishlist(variantId: string) {
   return { ok: true };
 }
 
-export async function isInWishlist(variantId: string): Promise<boolean> {
-  const customer = await getCurrentCustomer();
-  if (!customer) return false;
-  const row = await db
-    .select({ variantId: wishlists.variantId })
-    .from(wishlists)
-    .where(
-      and(
-        eq(wishlists.customerId, customer.id),
-        eq(wishlists.variantId, variantId),
-      ),
-    )
-    .limit(1);
-  return row.length > 0;
-}
-
 // ── Addresses ────────────────────────────────────────────────────────────────
 
 export async function getMyAddresses() {

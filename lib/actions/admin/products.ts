@@ -376,13 +376,6 @@ export async function updateProduct(
   return updated;
 }
 
-export async function updateProductStatus(
-  id: string,
-  status: ProductStatus,
-): Promise<Product> {
-  return updateProduct(id, { status });
-}
-
 export async function deleteProduct(id: string): Promise<{ ok: true }> {
   const admin = await requireAdmin();
 
@@ -640,27 +633,5 @@ export async function removeProductImage(imageId: string): Promise<{ ok: true }>
     .limit(1);
   revalidateProductConsumers(product[0]?.slug);
   await logAdminAction(admin.id, "product_image.delete", "product_image", imageId);
-  return { ok: true };
-}
-
-export async function reorderProductImages(
-  items: { id: string; sortOrder: number }[],
-): Promise<{ ok: true }> {
-  const admin = await requireAdmin();
-  if (items.length === 0) return { ok: true };
-
-  await db.transaction(async (tx) => {
-    for (const item of items) {
-      await tx
-        .update(productImages)
-        .set({ sortOrder: item.sortOrder })
-        .where(eq(productImages.id, item.id));
-    }
-  });
-
-  revalidatePath("/studio/products");
-  await logAdminAction(admin.id, "product_image.reorder", "product_image", null, {
-    items,
-  });
   return { ok: true };
 }

@@ -1,6 +1,5 @@
 "use server";
 
-import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
@@ -81,15 +80,4 @@ export async function upsertHomepageVideoSlot(
 
   revalidateHomepageVideoConsumers();
   return row;
-}
-
-export async function clearHomepageVideoSlot(
-  position: HomepageVideoPosition,
-): Promise<{ ok: true }> {
-  await requireAdmin();
-  await db
-    .delete(homepageVideoSlots)
-    .where(eq(homepageVideoSlots.position, position));
-  revalidateHomepageVideoConsumers();
-  return { ok: true };
 }
