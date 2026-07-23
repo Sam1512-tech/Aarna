@@ -10,6 +10,7 @@ import {
   Textarea,
   TextInput,
 } from "@/components/admin/admin-form";
+import { CloudinaryVideoPicker } from "@/components/admin/cloudinary-video-picker";
 import {
   upsertHomepageVideoSlot,
   type HomepageVideoPosition,
@@ -80,15 +81,14 @@ function VideoSlotForm({
     <FormShell onSubmit={handleSubmit}>
       <FormSection
         title={label}
-        description="Paste a Cloudinary video URL. Leave blank to show the placeholder instead."
+        description="Leave blank to show the placeholder instead."
       >
-        <Field label="Video url" wide hint="https://res.cloudinary.com/…/video/upload/…">
-          <TextInput
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
-            placeholder="https://res.cloudinary.com/…"
-          />
-        </Field>
+        <CloudinaryVideoPicker
+          value={videoUrl || null}
+          onChange={(url) => setVideoUrl(url ?? "")}
+          folder="aarna/homepage-videos"
+          label="Video"
+        />
         <Field label="Title" hint="Small eyebrow label overlaid on the video">
           <TextInput value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
