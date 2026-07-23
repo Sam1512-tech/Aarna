@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/actions/auth";
 import { regenerateInvoicePdfBatch } from "@/lib/actions/admin/orders";
+import { ActionError } from "@/lib/action-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,10 +43,22 @@ export async function POST(req: Request) {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "invoice generation failed";
-    const status = /not found|no orders|pick at least|pick \d+ orders|none of the selected/i.test(message)
-      ? 400
-      : 500;
-    return NextResponse.json({ error: message }, { status });
+    console.error("[admin invoices print] batch invoice generation failed:", err);
+    // Only ActionError messages are ever safe to show an admin verbatim —
+    // anything else (Supabase pooler hiccup, PDF-lib exception, etc.) is
+    // internal detail that must not reach the client. Route handlers don't
+    // get Next's server-action digest masking, so we do it ourselves here.
+    if (err instanceof ActionError) {
+      const status = /not found|no orders|pick at least|pick \d+ orders|none of the selected/i.test(
+        err.message,
+      )
+        ? 400
+        : 500;
+      return NextResponse.json({ error: err.message }, { status });
+    }
+    return NextResponse.json(
+      { error: "Something went wrong — please try again" },
+      { status: 500 },
+    );
   }
 }

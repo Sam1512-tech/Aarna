@@ -4,6 +4,7 @@ import {
   generateHangTagsForVariants,
   type HangTagPrintItem,
 } from "@/lib/actions/admin/labels";
+import { ActionError } from "@/lib/action-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,10 +46,19 @@ export async function POST(req: Request) {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "hang tag generation failed";
-    const status = /not found|no matching|no items|pick at least/i.test(message)
-      ? 400
-      : 500;
-    return NextResponse.json({ error: message }, { status });
+    console.error("[admin hang-tags print] batch generation failed:", err);
+    // Only ActionError messages are safe to show an admin verbatim — route
+    // handlers don't get Next's server-action digest masking, so anything
+    // else (DB hiccup, barcode/PDF-lib exception) must stay generic.
+    if (err instanceof ActionError) {
+      const status = /not found|no matching|no items|pick at least/i.test(err.message)
+        ? 400
+        : 500;
+      return NextResponse.json({ error: err.message }, { status });
+    }
+    return NextResponse.json(
+      { error: "Something went wrong — please try again" },
+      { status: 500 },
+    );
   }
 }
