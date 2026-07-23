@@ -8,6 +8,7 @@ import { sortBySize } from "@/lib/sizes";
 import type { Product, ProductWithVariants } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { logAdminAction } from "@/lib/audit/log-admin-action";
+import { isUniqueViolation } from "@/lib/db/pg-error";
 
 const {
   products,
@@ -131,6 +132,110 @@ async function generateUniqueSku(
     if (!clash[0]) return candidate;
   }
   throw new ActionError("couldn't generate a unique SKU — enter one manually");
+}
+
+// nextStyleCode()/generateUniqueSku() above compute their candidate by
+// scanning existing rows with no locking, so two concurrent creates can
+// compute the *same* "next" value and race for the same insert. The unique
+// constraint correctly stops the losing row from being written, but a raw,
+// uncaught PostgresError from that insert would otherwise surface to the
+// admin as Next.js's generic masked production error (see the "Prod error
+// masking fixed Jul 11" note in CLAUDE.md) instead of something actionable.
+// The helpers below catch that specific race and either retry with a fresh
+// candidate (style code, and auto-generated SKUs) or rethrow a friendly
+// ActionError (manually-entered SKUs, which we must not silently change).
+const MAX_UNIQUE_RETRY_ATTEMPTS = 5;
+
+async function insertProductRetryingStyleCode(
+  categoryName: string | null,
+  buildValues: (styleCode: string) => typeof products.$inferInsert,
+): Promise<Product> {
+  for (let attempt = 1; attempt <= MAX_UNIQUE_RETRY_ATTEMPTS; attempt++) {
+    const styleCode = await nextStyleCode(categoryName);
+    try {
+      const [created] = await db.insert(products).values(buildValues(styleCode)).returning();
+      return created;
+    } catch (err) {
+      if (!isUniqueViolation(err, "products_style_code_unique")) throw err;
+      if (attempt === MAX_UNIQUE_RETRY_ATTEMPTS) {
+        throw new ActionError("Couldn't generate a unique style code — please try again.");
+      }
+      // Another concurrent create just took this style code — loop, which
+      // recomputes nextStyleCode() against the now-updated row set.
+    }
+  }
+  throw new ActionError("Couldn't generate a unique style code — please try again.");
+}
+
+/** Legacy products created before style codes existed — backfill lazily, same race as above. */
+async function backfillStyleCode(
+  productId: string,
+  categoryName: string | null,
+): Promise<string> {
+  for (let attempt = 1; attempt <= MAX_UNIQUE_RETRY_ATTEMPTS; attempt++) {
+    const styleCode = await nextStyleCode(categoryName);
+    try {
+      await db.update(products).set({ styleCode }).where(eq(products.id, productId));
+      return styleCode;
+    } catch (err) {
+      if (!isUniqueViolation(err, "products_style_code_unique")) throw err;
+      if (attempt === MAX_UNIQUE_RETRY_ATTEMPTS) {
+        throw new ActionError("Couldn't generate a unique style code — please try again.");
+      }
+    }
+  }
+  throw new ActionError("Couldn't generate a unique style code — please try again.");
+}
+
+async function insertVariantRetryingSku(
+  productId: string,
+  styleCode: string,
+  input: CreateVariantInput,
+  price: number,
+): Promise<typeof productVariants.$inferSelect> {
+  let sku = input.sku?.trim();
+  const isGenerated = !sku;
+
+  if (sku) {
+    // Manually entered — enforce the existing exact-match uniqueness UX.
+    // We must not silently substitute a different SKU than what the admin
+    // typed, so a genuine race here rethrows rather than retrying.
+    const skuClash = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .where(eq(productVariants.sku, sku))
+      .limit(1);
+    if (skuClash[0]) throw new ActionError(`SKU "${sku}" is already taken`);
+  } else {
+    sku = await generateUniqueSku(styleCode, input.color, input.size);
+  }
+
+  const maxAttempts = isGenerated ? MAX_UNIQUE_RETRY_ATTEMPTS : 1;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const [created] = await db
+        .insert(productVariants)
+        .values({
+          productId,
+          size: input.size?.trim() || null,
+          color: input.color?.trim() || null,
+          sku,
+          price,
+          stock: input.stock ?? 0,
+          weightGrams: input.weightGrams ?? null,
+        })
+        .returning();
+      return created;
+    } catch (err) {
+      if (!isUniqueViolation(err, "product_variants_sku_unique")) throw err;
+      if (isGenerated && attempt < maxAttempts) {
+        sku = await generateUniqueSku(styleCode, input.color, input.size);
+        continue;
+      }
+      throw new ActionError(`SKU "${sku}" is already taken — please try again`);
+    }
+  }
+  throw new ActionError("Couldn't generate a unique SKU — please try again");
 }
 
 // ── Product CRUD ─────────────────────────────────────────────────────────────
@@ -270,23 +375,19 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
       .limit(1);
     categoryName = cat[0]?.name ?? null;
   }
-  const styleCode = await nextStyleCode(categoryName);
 
-  const [created] = await db
-    .insert(products)
-    .values({
-      title,
-      slug,
-      styleCode,
-      description: input.description?.trim() || null,
-      fabric: input.fabric?.trim() || null,
-      washCare: input.washCare?.trim() || null,
-      basePrice,
-      mrp,
-      categoryId: input.categoryId ?? null,
-      status: input.status ?? "draft",
-    })
-    .returning();
+  const created = await insertProductRetryingStyleCode(categoryName, (styleCode) => ({
+    title,
+    slug,
+    styleCode,
+    description: input.description?.trim() || null,
+    fabric: input.fabric?.trim() || null,
+    washCare: input.washCare?.trim() || null,
+    basePrice,
+    mrp,
+    categoryId: input.categoryId ?? null,
+    status: input.status ?? "draft",
+  }));
 
   revalidateProductConsumers(slug);
   await logAdminAction(admin.id, "product.create", "product", created.id, {
@@ -376,13 +477,6 @@ export async function updateProduct(
   return updated;
 }
 
-export async function updateProductStatus(
-  id: string,
-  status: ProductStatus,
-): Promise<Product> {
-  return updateProduct(id, { status });
-}
-
 export async function deleteProduct(id: string): Promise<{ ok: true }> {
   const admin = await requireAdmin();
 
@@ -443,35 +537,10 @@ export async function createVariant(
   // Legacy products created before style codes existed — backfill lazily.
   let styleCode = product[0].styleCode;
   if (!styleCode) {
-    styleCode = await nextStyleCode(product[0].categoryName);
-    await db.update(products).set({ styleCode }).where(eq(products.id, productId));
+    styleCode = await backfillStyleCode(productId, product[0].categoryName);
   }
 
-  let sku = input.sku?.trim();
-  if (sku) {
-    // Manually entered — enforce the existing exact-match uniqueness UX.
-    const skuClash = await db
-      .select({ id: productVariants.id })
-      .from(productVariants)
-      .where(eq(productVariants.sku, sku))
-      .limit(1);
-    if (skuClash[0]) throw new ActionError(`SKU "${sku}" is already taken`);
-  } else {
-    sku = await generateUniqueSku(styleCode, input.color, input.size);
-  }
-
-  const [created] = await db
-    .insert(productVariants)
-    .values({
-      productId,
-      size: input.size?.trim() || null,
-      color: input.color?.trim() || null,
-      sku,
-      price,
-      stock: input.stock ?? 0,
-      weightGrams: input.weightGrams ?? null,
-    })
-    .returning();
+  const created = await insertVariantRetryingSku(productId, styleCode, input, price);
 
   revalidateProductConsumers(product[0].slug);
   await logAdminAction(admin.id, "variant.create", "product_variant", created.id, {
@@ -640,27 +709,5 @@ export async function removeProductImage(imageId: string): Promise<{ ok: true }>
     .limit(1);
   revalidateProductConsumers(product[0]?.slug);
   await logAdminAction(admin.id, "product_image.delete", "product_image", imageId);
-  return { ok: true };
-}
-
-export async function reorderProductImages(
-  items: { id: string; sortOrder: number }[],
-): Promise<{ ok: true }> {
-  const admin = await requireAdmin();
-  if (items.length === 0) return { ok: true };
-
-  await db.transaction(async (tx) => {
-    for (const item of items) {
-      await tx
-        .update(productImages)
-        .set({ sortOrder: item.sortOrder })
-        .where(eq(productImages.id, item.id));
-    }
-  });
-
-  revalidatePath("/studio/products");
-  await logAdminAction(admin.id, "product_image.reorder", "product_image", null, {
-    items,
-  });
   return { ok: true };
 }

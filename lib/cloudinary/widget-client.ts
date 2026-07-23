@@ -65,6 +65,17 @@ export interface WidgetOpenOptions {
   cropAspectRatio?: string;
   /** Include the library browser tab so admins can pick an existing upload. */
   showBrowse?: boolean;
+  /**
+   * "image" (default) or "video". Video uploads (homepage video slots) skip
+   * cropping and use a much larger size cap — this still goes straight from
+   * the browser to Cloudinary, never through our own Vercel functions, which
+   * matters because video files routinely exceed what a serverless function
+   * request body can carry. There's deliberately no native-file-input
+   * fallback for video (unlike image) — if the widget isn't configured,
+   * callers should keep a manual URL field instead of pointing at a
+   * server-side upload route that doesn't exist for this resource type.
+   */
+  resourceType?: "image" | "video";
 }
 
 export interface WidgetResult {
@@ -92,6 +103,7 @@ export async function openCloudinaryWidget(
   }
 
   const cloudinary = await loadScript();
+  const isVideo = opts.resourceType === "video";
 
   return new Promise((resolve, reject) => {
     let resolved = false;
@@ -102,13 +114,16 @@ export async function openCloudinaryWidget(
         folder: opts.folder,
         multiple: false,
         maxFiles: 1,
-        clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "avif"],
-        maxFileSize: 8 * 1024 * 1024,
+        resourceType: opts.resourceType ?? "image",
+        clientAllowedFormats: isVideo
+          ? ["mp4", "mov", "webm", "m4v"]
+          : ["jpg", "jpeg", "png", "webp", "avif"],
+        maxFileSize: isVideo ? 100 * 1024 * 1024 : 8 * 1024 * 1024,
         sources: opts.showBrowse
           ? ["local", "url", "camera", "google_drive"]
           : ["local", "url", "camera"],
-        cropping: !!opts.cropAspectRatio,
-        croppingAspectRatio: opts.cropAspectRatio
+        cropping: !isVideo && !!opts.cropAspectRatio,
+        croppingAspectRatio: !isVideo && opts.cropAspectRatio
           ? parseAspect(opts.cropAspectRatio)
           : undefined,
         showAdvancedOptions: false,

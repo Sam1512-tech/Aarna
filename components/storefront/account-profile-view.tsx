@@ -108,7 +108,15 @@ export function AccountProfileView({
           </span>
         </label>
 
-        {error ? <p className="text-xs text-burnt-red">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="text-xs text-burnt-red">
+            {error}
+          </p>
+        ) : null}
+
+        <p aria-live="polite" className="sr-only">
+          {saved ? "Profile saved" : ""}
+        </p>
 
         <button
           type="submit"

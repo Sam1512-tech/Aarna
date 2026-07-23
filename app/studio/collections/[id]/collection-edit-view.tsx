@@ -13,6 +13,7 @@ import {
   slugify,
 } from "@/components/admin/admin-form";
 import { tableClasses } from "@/components/admin/admin-primitives";
+import { CloudinaryImagePicker } from "@/components/admin/cloudinary-image-picker";
 import { ReorderButtons } from "@/components/admin/reorder-buttons";
 import {
   addProductsToCollection,
@@ -21,6 +22,7 @@ import {
   updateCollection,
 } from "@/lib/actions/admin/collections";
 import { actionErrorMessage } from "@/lib/action-error";
+import { uploadAdminImage } from "@/lib/cloudinary/upload-client";
 import { formatINR } from "@/lib/utils";
 
 interface CollectionDraft {
@@ -124,13 +126,14 @@ export function CollectionEditView({
         title="Hero image"
         description="Shown at the top of the collection page. Optional."
       >
-        <Field label="Hero image url" wide>
-          <TextInput
-            value={heroImageUrl}
-            onChange={(e) => setHeroImageUrl(e.target.value)}
-            placeholder="https://res.cloudinary.com/…"
-          />
-        </Field>
+        <CloudinaryImagePicker
+          value={heroImageUrl || null}
+          onChange={(url) => setHeroImageUrl(url ?? "")}
+          uploadImage={(file) => uploadAdminImage(file, "aarna/collections")}
+          folder="aarna/collections"
+          aspect="16/9"
+          label="Hero image"
+        />
       </FormSection>
 
       <FormSection title="Visibility">

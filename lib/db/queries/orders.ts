@@ -205,6 +205,68 @@ export async function incrementCouponUsage(couponCode: string): Promise<boolean>
 }
 
 /**
+ * Detects (after the fact — never blocks) whether a customer's paid orders
+ * against one coupon now exceed its perCustomerLimit. applyCoupon's own
+ * pre-payment check (lib/actions/cart.ts) only sees redemptions that have
+ * ALREADY landed as paid, so it closes the sequential-reuse case (apply,
+ * pay, try again later) but is genuinely TOCTOU-racy against two
+ * concurrent checkouts for the same customer+coupon: both can see 0 prior
+ * paid redemptions and both go on to pay, exactly mirroring the same class
+ * of race incrementCouponUsage (above) closes for the coupon's GLOBAL
+ * usageLimit — same fix shape applied to a per-customer count instead of a
+ * simple counter column.
+ *
+ * A Postgres advisory lock keyed on (customerId, couponCode) serializes
+ * concurrent calls for the same customer+coupon pair so the count below
+ * can't itself race: the first payment.captured to reach this function for
+ * a given customer+coupon sees count=1 (itself) and passes; if a second,
+ * concurrently-paid order for the same customer+coupon reaches this
+ * function next, the lock makes it wait for the first to finish, then it
+ * counts BOTH now-paid orders and correctly detects the overage.
+ *
+ * Deliberately never blocks or reverses an already-captured payment — by
+ * the time this runs the customer has already paid and the discount was
+ * already honored on that order's own total/invoice at checkout time.
+ * Returns whether the customer is now over their per-order limit, so the
+ * caller can alert an admin the same way incrementCouponUsage's caller
+ * does for the global limit.
+ */
+export async function checkCouponPerCustomerOverage(
+  customerId: string,
+  couponCode: string,
+): Promise<{ overLimit: boolean; timesUsed: number; limit: number } | null> {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${customerId + ":" + couponCode}))`,
+    );
+
+    const [coupon] = await tx
+      .select({ perCustomerLimit: coupons.perCustomerLimit })
+      .from(coupons)
+      .where(eq(coupons.code, couponCode))
+      .limit(1);
+    if (!coupon) return null;
+
+    const [{ count }] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.customerId, customerId),
+          eq(orders.couponCode, couponCode),
+          inArray(orders.paymentStatus, ["paid", "partially_refunded", "refunded"]),
+        ),
+      );
+
+    return {
+      overLimit: count > coupon.perCustomerLimit,
+      timesUsed: count,
+      limit: coupon.perCustomerLimit,
+    };
+  });
+}
+
+/**
  * Remove the purchased variants from the customer's cart. Checkout snapshots
  * the cart into order_items but never empties it, so without this the bag
  * (and the header count badge) keeps showing the items after a successful

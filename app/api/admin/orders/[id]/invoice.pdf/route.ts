@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/actions/auth";
 import { regenerateInvoicePdf } from "@/lib/actions/admin/orders";
+import { ActionError } from "@/lib/action-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,9 +33,18 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "invoice generation failed";
-    // "not found" / "no invoice number" style errors → 404, anything else → 500
-    const status = /not found|no invoice/i.test(message) ? 404 : 500;
-    return NextResponse.json({ error: message }, { status });
+    console.error(`[admin invoice pdf] regeneration failed for order ${id}:`, err);
+    // Only ActionError messages are safe to show an admin verbatim — route
+    // handlers don't get Next's server-action digest masking, so anything
+    // else (DB hiccup, PDF-lib exception) must stay generic.
+    if (err instanceof ActionError) {
+      // "not found" / "no invoice number" style errors → 404, anything else → 500
+      const status = /not found|no invoice/i.test(err.message) ? 404 : 500;
+      return NextResponse.json({ error: err.message }, { status });
+    }
+    return NextResponse.json(
+      { error: "Something went wrong — please try again" },
+      { status: 500 },
+    );
   }
 }

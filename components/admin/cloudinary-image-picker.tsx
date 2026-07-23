@@ -7,76 +7,74 @@ import {
   openCloudinaryWidget,
 } from "@/lib/cloudinary/widget-client";
 
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB per image (category tiles are shown large; give room for detail)
+const MAX_BYTES = 8 * 1024 * 1024; // 8 MB per image — matches /api/admin/uploads/image's own cap
 const ACCEPT = "image/jpeg,image/png,image/webp,image/avif";
 
 /**
- * Upload contract. Sam wires this to a signed Cloudinary upload endpoint
- * (either a new `/api/uploads/category-image` or the existing banner uploader
- * — banner and category tiles share the same "large hero image" shape).
- * The endpoint must return `{ url: string }` where `url` is the final
- * Cloudinary URL to store on `categories.imageUrl`.
+ * Upload contract every admin image-picker instance takes. Points at a
+ * signed Cloudinary upload endpoint (`uploadAdminImage` in
+ * `lib/cloudinary/upload-client.ts`, backed by `/api/admin/uploads/image`)
+ * and must return `{ url: string }` — the final Cloudinary URL to store on
+ * whatever column the caller owns (`categories.imageUrl`, `banners.imageUrl`,
+ * `collections.heroImageUrl`, `product_images.url`, …).
  */
 export type UploadImageFn = (file: File) => Promise<{ url: string }>;
 
-export interface CategoryImagePickerProps {
-  /** Currently-saved URL. `null` while the category has no image yet. */
+export interface CloudinaryImagePickerProps {
+  /** Currently-saved URL. `null` when there's no image yet. */
   value: string | null;
   onChange: (url: string | null) => void;
   uploadImage: UploadImageFn;
   /**
-   * Aspect ratio to preview at. Category tiles on the homepage's
-   * "wardrobe paths" grid are 4:5 portrait; that's the default here.
+   * Aspect ratio to preview/crop at, as `"width/height"` (e.g. `"4/5"`,
+   * `"12/5"`, `"1/1"`). Applied as a real CSS `aspect-ratio` (not a Tailwind
+   * class) so callers aren't limited to a hardcoded set of ratios — every
+   * resource that uses this picker has a different natural shape (category
+   * tiles are 4:5 portrait, banners are ~12:5 wide, product photos are 4:5).
+   * Also passed to the Cloudinary widget as the crop guide.
    */
-  aspect?: "4/5" | "3/4" | "1/1" | "16/9";
+  aspect?: string;
   label?: string;
   hint?: string;
-  /**
-   * Cloudinary folder for widget uploads. Ignored when the widget isn't
-   * configured (the native-picker fallback carries its own folder in the
-   * `uploadImage` prop already).
-   */
+  /** Cloudinary folder for widget + server uploads, e.g. "aarna/banners". */
   folder?: string;
 }
 
 /**
- * Single-image picker for the admin category edit / new form. Handles upload,
- * preview, replace, and remove. Pure presentation — every side-effect goes
- * through the props so Sam can plug in the real upload/save actions in his PR.
+ * Single-image picker shared by every admin form that stores a Cloudinary
+ * image URL: category tiles, banner desktop/mobile images, collection hero
+ * images, and (in "always empty" add-mode — pass `value={null}` and handle
+ * persistence in `onChange`) each image in a product's gallery. Handles
+ * upload, preview, replace, and remove. Pure presentation — every
+ * side-effect goes through props.
  *
- * Suggested wiring in `/studio/categories/[id]/page.tsx` and
- * `/studio/categories/new/page.tsx`:
+ * Typical wiring:
  *
- *   <CategoryImagePicker
- *     value={category.imageUrl ?? null}
- *     onChange={(url) => setField("imageUrl", url)}
- *     uploadImage={uploadCategoryImage}   // client-side wrapper around the
- *                                          // signed-upload route
+ *   <CloudinaryImagePicker
+ *     value={banner.imageUrl}
+ *     onChange={(url) => setImageUrl(url ?? "")}
+ *     uploadImage={(file) => uploadAdminImage(file, "aarna/banners")}
+ *     aspect="12/5"
  *   />
- *
- * Then include `imageUrl` in the `updateCategory` / `createCategory` payload.
  */
-export function CategoryImagePicker({
+export function CloudinaryImagePicker({
   value,
   onChange,
   uploadImage,
   aspect = "4/5",
-  label = "Category image",
+  label = "Image",
   hint,
-  folder = "aarna/categories",
-}: CategoryImagePickerProps) {
+  folder = "aarna/admin",
+}: CloudinaryImagePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const aspectClass =
-    aspect === "3/4"
-      ? "aspect-[3/4]"
-      : aspect === "1/1"
-        ? "aspect-square"
-        : aspect === "16/9"
-          ? "aspect-video"
-          : "aspect-[4/5]";
+  const [aw, ah] = aspect.split("/").map(Number);
+  const aspectStyle =
+    Number.isFinite(aw) && Number.isFinite(ah) && aw > 0 && ah > 0
+      ? { aspectRatio: `${aw} / ${ah}` }
+      : undefined;
 
   /**
    * Try the Cloudinary Upload Widget first (branded UI, drag-drop, URL
@@ -104,7 +102,7 @@ export function CategoryImagePicker({
         onChange(result.url);
       }
     } catch (err) {
-      console.warn("[category-image-picker] widget failed, falling back", err);
+      console.warn("[cloudinary-image-picker] widget failed, falling back", err);
       inputRef.current?.click();
     }
   }
@@ -173,7 +171,8 @@ export function CategoryImagePicker({
       ) : null}
 
       <div
-        className={`relative mt-3 ${aspectClass} w-full max-w-xs overflow-hidden rounded-2xl border border-cocoa/16 bg-cocoa/4`}
+        style={aspectStyle}
+        className="relative mt-3 w-full max-w-xs overflow-hidden rounded-2xl border border-cocoa/16 bg-cocoa/4"
       >
         {value ? (
           <>

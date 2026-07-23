@@ -10,7 +10,7 @@ import {
   TextInput,
   slugify,
 } from "@/components/admin/admin-form";
-import { CategoryImagePicker } from "@/components/admin/category-image-picker";
+import { CloudinaryImagePicker } from "@/components/admin/cloudinary-image-picker";
 import { createCategory } from "@/lib/actions/admin/categories";
 import { actionErrorMessage } from "@/lib/action-error";
 import { uploadAdminImage } from "@/lib/cloudinary/upload-client";
@@ -95,10 +95,13 @@ export function NewCategoryForm() {
         title="Homepage tile"
         description="Shown on the homepage's wardrobe-paths grid. Portrait works best."
       >
-        <CategoryImagePicker
+        <CloudinaryImagePicker
           value={imageUrl}
           onChange={setImageUrl}
           uploadImage={(file) => uploadAdminImage(file, "aarna/categories")}
+          folder="aarna/categories"
+          aspect="4/5"
+          label="Category image"
         />
       </FormSection>
 
