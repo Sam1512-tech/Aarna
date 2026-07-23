@@ -4,8 +4,9 @@ import { db, schema } from "@/lib/db";
 import { mapDelhiveryStatus } from "@/lib/delhivery";
 import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
 import { canTransitionFulfillment } from "@/lib/orders/fulfillment-transitions";
+import { applyStockMovement } from "@/lib/db/queries/inventory";
 
-const { orders } = schema;
+const { orders, orderItems } = schema;
 
 // Days the customer has to request a return after delivery (shown in the
 // delivered WhatsApp). Keep in sync with the returns policy.
@@ -94,6 +95,29 @@ export async function POST(req: Request) {
             order.orderNumber,
             String(RETURN_WINDOW_DAYS),
           ],
+        });
+      }
+
+      // RTO (courier couldn't deliver, shipment came back) — the garment is
+      // physically back in the warehouse, so restock it. Guarded on
+      // order.fulfillmentStatus !== "returned" (the pre-update snapshot) so
+      // a repeated RTO webhook push for the same order — Delhivery retries,
+      // same as every other courier push here — can never double-restock;
+      // canTransitionFulfillment treats from===to as a no-op "transition"
+      // specifically so repeats reach this code path, not get filtered out
+      // upstream. Mirrors the only other restock path in the codebase (an
+      // admin manually cancelling a paid order, lib/actions/admin/orders.ts)
+      // — paymentStatus === "paid" is a reliable proxy for "stock was
+      // decremented for this order" regardless of whether that decrement
+      // happened at checkout-time reservation or the payment webhook's
+      // late-capture fallback.
+      if (next === "returned" && order.fulfillmentStatus !== "returned" && order.paymentStatus === "paid") {
+        const items = await db
+          .select({ variantId: orderItems.variantId, quantity: orderItems.quantity })
+          .from(orderItems)
+          .where(eq(orderItems.orderId, order.id));
+        await applyStockMovement(items, 1, "return", order.orderNumber).catch((err) => {
+          console.error("[delhivery webhook] RTO restock failed:", awb, err);
         });
       }
     } else if (order) {
