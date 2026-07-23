@@ -11,8 +11,10 @@ import {
   Textarea,
   TextInput,
 } from "@/components/admin/admin-form";
+import { CloudinaryImagePicker } from "@/components/admin/cloudinary-image-picker";
 import { createBanner } from "@/lib/actions/admin/banners";
 import { actionErrorMessage } from "@/lib/action-error";
+import { uploadAdminImage } from "@/lib/cloudinary/upload-client";
 
 function toDateOrNull(v: string): Date | null {
   if (!v) return null;
@@ -90,22 +92,26 @@ export function NewBannerForm() {
 
       <FormSection
         title="Images"
-        description="Paste Cloudinary URLs. Mobile image is optional — desktop image is used when blank."
+        description="Mobile image is optional — desktop image is used when blank."
       >
-        <Field label="Desktop image url" required wide>
-          <TextInput
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://res.cloudinary.com/…"
-          />
-        </Field>
-        <Field label="Mobile image url" wide>
-          <TextInput
-            value={mobileImageUrl}
-            onChange={(e) => setMobileImageUrl(e.target.value)}
-            placeholder="https://res.cloudinary.com/…"
-          />
-        </Field>
+        <CloudinaryImagePicker
+          value={imageUrl || null}
+          onChange={(url) => setImageUrl(url ?? "")}
+          uploadImage={(file) => uploadAdminImage(file, "aarna/banners")}
+          folder="aarna/banners"
+          aspect="12/5"
+          label="Desktop image"
+          hint="Shown as the full-width homepage hero. Wide/landscape works best."
+        />
+        <CloudinaryImagePicker
+          value={mobileImageUrl || null}
+          onChange={(url) => setMobileImageUrl(url ?? "")}
+          uploadImage={(file) => uploadAdminImage(file, "aarna/banners")}
+          folder="aarna/banners"
+          aspect="4/5"
+          label="Mobile image"
+          hint="Optional — desktop image is used when blank."
+        />
       </FormSection>
 
       <FormSection
