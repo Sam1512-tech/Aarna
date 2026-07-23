@@ -46,7 +46,9 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "hang tag generation failed";
-    const status = /not found|no matching|no items|pick at least/i.test(message)
+    const status = /not found|no matching|no items|pick at least|pick \d+ tags/i.test(
+      message,
+    )
       ? 400
       : 500;
     return NextResponse.json({ error: message }, { status });
