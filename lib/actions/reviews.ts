@@ -6,7 +6,8 @@ import { db, schema } from "@/lib/db";
 import { getCurrentCustomer } from "@/lib/actions/auth";
 import { ActionError } from "@/lib/action-error";
 
-const { orders, orderItems, productVariants, reviews, customers } = schema;
+const { orders, orderItems, productVariants, products, reviews, customers } =
+  schema;
 
 async function requireCustomer() {
   const customer = await getCurrentCustomer();
@@ -103,10 +104,12 @@ export async function submitReview(
       customerId: orders.customerId,
       fulfillmentStatus: orders.fulfillmentStatus,
       productId: productVariants.productId,
+      productSlug: products.slug,
     })
     .from(orderItems)
     .innerJoin(orders, eq(orders.id, orderItems.orderId))
     .innerJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+    .innerJoin(products, eq(products.id, productVariants.productId))
     .where(eq(orderItems.id, input.orderItemId))
     .limit(1);
 
@@ -148,6 +151,10 @@ export async function submitReview(
 
   revalidatePath("/account/orders");
   revalidatePath("/studio/reviews");
+  // Resubmitting resets status to "pending", which can change what's shown on
+  // the PDP (e.g. an approved review's rating/body changing while awaiting
+  // re-moderation) — refresh it too. Route is /product/[slug], singular.
+  revalidatePath(`/product/${row[0].productSlug}`);
   return { ok: true };
 }
 
