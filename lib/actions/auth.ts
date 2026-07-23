@@ -298,6 +298,15 @@ export async function verifyEmailOtp(input: VerifyEmailOtpInput): Promise<AuthRe
     return { ok: false, message: "Enter the 6-digit code" };
   }
 
+  const ip = await getClientIp();
+  const [byEmail, byIp] = await Promise.all([
+    checkRateLimit(`otp-verify:email:${email}`, RATE_LIMITS.otpVerifyByEmail),
+    checkRateLimit(`otp-verify:ip:${ip}`, RATE_LIMITS.otpVerifyByIp),
+  ]);
+  if (!byEmail.allowed || !byIp.allowed) {
+    return { ok: false, message: TOO_MANY_ATTEMPTS };
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.verifyOtp({
     email,
