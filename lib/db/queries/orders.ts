@@ -234,17 +234,6 @@ export async function clearPurchasedCartItems(order: OrderWithItems) {
     );
 }
 
-export async function getOrderByRazorpayPaymentId(
-  razorpayPaymentId: string,
-): Promise<OrderRow | null> {
-  return db
-    .select()
-    .from(orders)
-    .where(eq(orders.razorpayPaymentId, razorpayPaymentId))
-    .limit(1)
-    .then((rows) => rows[0] ?? null);
-}
-
 /**
  * Marks a still-pending order as failed and releases the stock initCheckout
  * reserved for it. No-op if the order was already paid (a late
@@ -399,16 +388,62 @@ export async function releaseExpiredCheckoutHolds(
  *     event recorded for the order so far (including the one just
  *     inserted), not this single event's amount.
  */
+/**
+ * Creates order_refund_events the first time it's actually needed, if it
+ * doesn't already exist. Mirrors ensureInvoiceSequence's lazy-creation
+ * pattern in this same file (cheap existence check, no-op once it exists,
+ * advisory-locked create on the rare miss) — this table is declared in
+ * lib/db/schema.ts like any other, so the normal path is a one-off script
+ * run once against the target DB before this ships, but a live
+ * refund.processed webhook must never hard-fail with "relation does not
+ * exist" just because that step was missed on whatever DB production
+ * actually points at. Column/index shape must stay in sync with the
+ * orderRefundEvents definition in schema.ts by hand, since this is a
+ * fallback path, not the source of truth for the shape.
+ */
+async function ensureOrderRefundEventsTable(): Promise<void> {
+  const [{ existed }] = (await db.execute(
+    sql`SELECT to_regclass('order_refund_events') IS NOT NULL AS existed`,
+  )) as unknown as { existed: boolean }[];
+  if (existed) return;
+
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('order_refund_events_create'))`);
+
+    const [{ existed: existedAfterLock }] = (await tx.execute(
+      sql`SELECT to_regclass('order_refund_events') IS NOT NULL AS existed`,
+    )) as unknown as { existed: boolean }[];
+    if (existedAfterLock) return;
+
+    await tx.execute(sql`
+      CREATE TABLE IF NOT EXISTS order_refund_events (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        razorpay_refund_id varchar(60) NOT NULL UNIQUE,
+        amount_paise integer NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await tx.execute(sql`
+      CREATE INDEX IF NOT EXISTS order_refund_events_order_idx
+        ON order_refund_events (order_id)
+    `);
+  });
+}
+
 export async function recordRefund(params: {
   razorpayPaymentId: string;
   razorpayRefundId: string;
   amountRefundedPaise: number;
 }): Promise<{ order: OrderRow; isDuplicate: boolean } | null> {
+  await ensureOrderRefundEventsTable();
+
   return db.transaction(async (tx) => {
     const [order] = await tx
       .select()
       .from(orders)
       .where(eq(orders.razorpayPaymentId, params.razorpayPaymentId))
+      .limit(1)
       .for("update");
     if (!order) return null;
 
@@ -436,8 +471,32 @@ export async function recordRefund(params: {
       .from(orderRefundEvents)
       .where(eq(orderRefundEvents.orderId, order.id));
 
+    // The comparison basis is deliberately the sum of order_items.lineTotal
+    // (the raw, undiscounted unitPrice * quantity snapshotted at checkout),
+    // NOT order.total. order.total = subtotal - discount + shippingFee, but
+    // markReturnQc — the only real producer of a refund event in this
+    // codebase — always computes each refund from the returned item's own
+    // lineTotal alone: shipping is never refunded by anything, and the
+    // coupon discount is never subtracted from any individual item's
+    // refund. Comparing against order.total therefore gets both directions
+    // wrong: an order under the free-shipping threshold can never reach
+    // order.total via item refunds alone (permanently stuck at
+    // "partially_refunded" even once every item is refunded — the exact bug
+    // this function exists to fix), and a discounted order can cross
+    // order.total before every item is actually refunded (a premature
+    // "refunded" flip while a real item was never returned). Summing the
+    // items' own lineTotal is the true ceiling every real refund event is
+    // drawn from, so it's the only basis that can't be wrong in either
+    // direction regardless of shipping or discount.
+    const [{ total: refundableTotal }] = await tx
+      .select({
+        total: sql<number>`coalesce(sum(${orderItems.lineTotal}), 0)::int`,
+      })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, order.id));
+
     const nextStatus: "refunded" | "partially_refunded" =
-      cumulativeRefunded >= order.total ? "refunded" : "partially_refunded";
+      cumulativeRefunded >= refundableTotal ? "refunded" : "partially_refunded";
 
     const [updatedOrder] = await tx
       .update(orders)
