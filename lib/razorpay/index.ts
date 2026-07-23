@@ -40,10 +40,20 @@ export function verifyWebhookSignature(
     .createHmac("sha256", secret)
     .update(rawBody)
     .digest("hex");
-  return crypto.timingSafeEqual(
-    Buffer.from(expected),
-    Buffer.from(signature),
-  );
+  // timingSafeEqual throws (RangeError) when the two buffers differ in
+  // length instead of returning false — an attacker sending a
+  // wrong-length signature (truncated header, probe, scanner) must get
+  // the same clean "invalid" result as a wrong-value one, not an
+  // unhandled exception. See lib/whatsapp/index.ts's
+  // verifyDeliveryWebhook for the identical pattern.
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(expected),
+      Buffer.from(signature),
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function verifyPaymentSignature(params: {
