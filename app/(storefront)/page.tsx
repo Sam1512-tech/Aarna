@@ -14,9 +14,18 @@ import { isVideoUrl, videoPosterUrl } from "@/lib/media";
 import type { Product } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
-// Fisher-Yates shuffle → take `count`. Runs in the server component on every
-// request, so the featured pick changes for every visitor without any client
-// hydration cost.
+// The homepage is static (admin edits already call revalidatePath("/", "layout")
+// to refresh it on demand), but a banner's startsAt/endsAt boundary is a pure
+// clock event with no associated admin action at the moment it fires — without
+// this, a scheduled banner could sit in its stale pre-window or post-window
+// state indefinitely, until some unrelated admin edit happened to also
+// revalidate "/". Revalidating on a short timer closes that gap.
+export const revalidate = 60;
+
+// Fisher-Yates shuffle → take `count`. Runs in the server component at most
+// once per `revalidate` window (not literally every request, now that the
+// page is time-revalidated rather than forced fully dynamic), so the
+// featured pick rotates periodically without any client hydration cost.
 function pickRandom<T>(pool: T[], count: number): T[] {
   if (pool.length <= count) return pool;
   const copy = [...pool];
