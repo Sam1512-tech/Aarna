@@ -28,6 +28,14 @@ export const RATE_LIMITS = {
   loginByIp: { maxAttempts: 20, windowSeconds: 15 * 60, alertLabel: "Repeated login attempts from one connection" },
   otpByEmail: { maxAttempts: 5, windowSeconds: 15 * 60, alertLabel: "Repeated OTP requests for one email" },
   otpByIp: { maxAttempts: 10, windowSeconds: 15 * 60, alertLabel: "Repeated OTP requests from one connection" },
+  // Separate from otpByEmail/otpByIp above: those throttle *requesting* a
+  // new code, this throttles *guessing* the code once one's outstanding —
+  // without this, an attacker who knows a target's email could brute-force
+  // the 6-digit space against a single still-valid code with no limit at
+  // all, since sendEmailOtp's own limit only bounds how often a fresh code
+  // can be requested.
+  otpVerifyByEmail: { maxAttempts: 10, windowSeconds: 15 * 60, alertLabel: "Repeated OTP verification failures for one account" },
+  otpVerifyByIp: { maxAttempts: 20, windowSeconds: 15 * 60, alertLabel: "Repeated OTP verification attempts from one connection" },
   signupByIp: { maxAttempts: 5, windowSeconds: 60 * 60 },
   couponApplyByIp: { maxAttempts: 20, windowSeconds: 10 * 60 },
 } as const satisfies Record<string, RateLimitOptions>;
