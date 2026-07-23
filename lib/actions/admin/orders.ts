@@ -10,6 +10,7 @@ import { sendEmail } from "@/lib/resend";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { ActionError } from "@/lib/action-error";
 import { logAdminAction } from "@/lib/audit/log-admin-action";
+import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 import {
   canTransitionFulfillment,
   type FulfillmentStatus,
@@ -461,6 +462,18 @@ export async function createDelhiveryShipment(orderId: string) {
       weightGrams: Math.max(weightGrams, 100),
     });
 
+    // Conditional on both the "PENDING" claim AND the fulfillment_status
+    // still being what it was when we claimed the order — the claim above
+    // only stops a second createDelhiveryShipment call from racing this
+    // one; it does nothing to stop an entirely different admin action
+    // (cancelling this same order) from landing while the slow Delhivery
+    // API call above was in flight. Cancel doesn't touch awb_number at all
+    // (see updateOrderFulfillmentStatus), so checking awb_number alone
+    // here would NOT catch that — a concurrently-cancelled order would
+    // still match "PENDING" and this write would silently flip
+    // fulfillment_status from "cancelled" back to "shipped", resurrecting
+    // an order everyone was just told was cancelled (and which already had
+    // its stock restored by that same cancel).
     const [updated] = await db
       .update(orders)
       .set({
@@ -468,8 +481,36 @@ export async function createDelhiveryShipment(orderId: string) {
         fulfillmentStatus: "shipped",
         updatedAt: new Date(),
       })
-      .where(eq(orders.id, orderId))
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.awbNumber, "PENDING"),
+          inArray(orders.fulfillmentStatus, ["processing", "pending"]),
+        ),
+      )
       .returning();
+
+    if (!updated) {
+      // The Delhivery shipment is real and already booked — waybill is a
+      // genuine external side effect that already happened — but the order
+      // changed state (almost certainly cancelled) while that API call was
+      // in flight, so it was deliberately NOT recorded on the order rather
+      // than silently overwriting whatever its real current state is. This
+      // needs a human, not a guess: same "flag for a human, don't guess"
+      // principle as deleteStaleUnpaidOrders and the Delhivery RTO handler.
+      console.error(
+        `[admin] createDelhiveryShipment: order ${orderId} changed state before the final write — a real Delhivery shipment (AWB ${waybill}) was booked but NOT recorded on the order.`,
+      );
+      await alertAdminSuspiciousActivity({
+        event: "Delhivery shipment booked for an order that changed state mid-request",
+        detail: `Order ${order.orderNumber}: a real Delhivery pickup (AWB ${waybill}) was just booked, but the order's status changed — most likely it was cancelled — while that API call was in progress, so the AWB was deliberately NOT saved on the order. The shipment is real and needs manual reconciliation: check Delhivery's panel and /studio/orders/${order.orderNumber}.`,
+      }).catch((alertErr) => {
+        console.error("[admin] createDelhiveryShipment reconciliation alert failed:", alertErr);
+      });
+      throw new ActionError(
+        `A Delhivery shipment (AWB ${waybill}) was created, but this order's status changed while that was in progress (it may have just been cancelled) — the shipment was not recorded and needs manual reconciliation. Check Delhivery's panel.`,
+      );
+    }
 
     revalidatePath("/studio/orders");
     revalidatePath(`/studio/orders/${order.orderNumber}`);
@@ -492,10 +533,25 @@ export async function createDelhiveryShipment(orderId: string) {
       .set({ awbNumber: null, updatedAt: new Date() })
       .where(and(eq(orders.id, orderId), eq(orders.awbNumber, "PENDING")))
       .catch((rollbackErr) => {
+        // If this rollback itself fails (plausible given this project's
+        // documented recurring pooler flakiness), the order is stuck at
+        // awb_number='PENDING' indefinitely — "PENDING" is truthy, so the
+        // admin UI's own !order.awbNumber check permanently hides "Create
+        // shipment" for this order with no automatic retry. There IS a
+        // manual escape hatch (the always-visible "Attach AWB" field,
+        // unconditional, not blocked by the sentinel), but nothing
+        // previously told the admin they now need it — a silent
+        // console.error is not a signal anyone will see in time.
         console.error(
           `[admin] failed to roll back PENDING awb claim for order ${orderId} after shipment creation failure:`,
           rollbackErr,
         );
+        alertAdminSuspiciousActivity({
+          event: "Order stuck with a PENDING shipment claim after a failed rollback",
+          detail: `Order ${order.orderNumber}: shipment creation failed and the follow-up cleanup (clearing the temporary "PENDING" AWB claim) also failed, so the order is now stuck showing a shipment claim it doesn't really have — "Create shipment" won't reappear for it. Use the "Attach AWB" field on /studio/orders/${order.orderNumber} to recover (or retry after the underlying issue clears).`,
+        }).catch((alertErr) => {
+          console.error("[admin] rollback-failure alert itself failed:", alertErr);
+        });
       });
     throw err;
   }
