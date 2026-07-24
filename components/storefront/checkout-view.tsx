@@ -79,14 +79,21 @@ const shippingSchema = z.object({
 });
 
 // ── India Post postal DB lookup ───────────────────────────────────────────────
-// Free, public, no auth. If the pincode isn't in this DB it isn't a real
-// pincode — hard-block. If it is, the record's district/state auto-fills the
-// form so users can't type gibberish for those either.
+// Free, public, no auth — and known to be flaky (timeouts/5xx/429, or blocked
+// by an ad-blocker/network filter on the customer's side). We only hard-block
+// when the API actually confirms the pincode doesn't exist ("not_found"); any
+// lookup failure ("unknown" — timeout, non-2xx, bad JSON, network error) falls
+// through optimistically instead of rejecting a possibly-valid pincode, same
+// as checkPincodeServiceability already does for its own failures.
 interface PostalRecord {
   district: string;
   state: string;
 }
-async function fetchIndiaPostal(pincode: string): Promise<PostalRecord | null> {
+type PostalLookup =
+  | { status: "found"; record: PostalRecord }
+  | { status: "not_found" }
+  | { status: "unknown" };
+async function fetchIndiaPostal(pincode: string): Promise<PostalLookup> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -95,15 +102,19 @@ async function fetchIndiaPostal(pincode: string): Promise<PostalRecord | null> {
       { signal: controller.signal },
     );
     clearTimeout(timeoutId);
-    if (!res.ok) return null;
+    if (!res.ok) return { status: "unknown" };
     const data = await res.json();
     const record = Array.isArray(data) ? data[0] : null;
-    if (!record || record.Status !== "Success") return null;
+    if (!record) return { status: "unknown" };
+    if (record.Status !== "Success") return { status: "not_found" };
     const po = record.PostOffice?.[0];
-    if (!po?.District || !po?.State) return null;
-    return { district: String(po.District), state: String(po.State) };
+    if (!po?.District || !po?.State) return { status: "not_found" };
+    return {
+      status: "found",
+      record: { district: String(po.District), state: String(po.State) },
+    };
   } catch {
-    return null;
+    return { status: "unknown" };
   }
 }
 
@@ -268,8 +279,8 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
       ]);
       if (cancelled) return;
 
-      // Not in the postal DB → not a real pincode. Hard block.
-      if (!postal) {
+      // Postal API confirmed this pincode doesn't exist — hard block.
+      if (postal.status === "not_found") {
         setPincodeStatus({
           serviceable: false,
           checking: false,
@@ -280,19 +291,38 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
         return;
       }
 
+      // Postal lookup failed (timeout/5xx/blocked) — don't penalize the
+      // customer for a third-party API hiccup. Skip auto-fill and fall back
+      // to whatever Delhivery's own serviceability check says.
+      if (postal.status === "unknown") {
+        setPincodeStatus({
+          serviceable: delhivery.serviceable,
+          checking: false,
+          verified: false,
+          postalHint: null,
+          etaDays: delhivery.serviceable
+            ? (delhivery as { etaDays?: number }).etaDays
+            : undefined,
+          reason: delhivery.serviceable
+            ? undefined
+            : "We don't deliver to this pincode yet",
+        });
+        return;
+      }
+
       // Auto-fill from the postal record: state is 1:1 with pincode so we
       // always overwrite; city we only fill if empty (users often use a
       // locality name that differs from the postal district).
-      setValue("state", postal.state, { shouldValidate: true });
+      setValue("state", postal.record.state, { shouldValidate: true });
       if (!watch("city")?.trim()) {
-        setValue("city", postal.district, { shouldValidate: true });
+        setValue("city", postal.record.district, { shouldValidate: true });
       }
 
       setPincodeStatus({
         serviceable: delhivery.serviceable,
         checking: false,
         verified: true,
-        postalHint: `${postal.district}, ${postal.state}`,
+        postalHint: `${postal.record.district}, ${postal.record.state}`,
         etaDays: delhivery.serviceable
           ? (delhivery as { etaDays?: number }).etaDays
           : undefined,
@@ -390,7 +420,7 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
         fetchIndiaPostal(data.pincode),
         checkPincodeServiceability(data.pincode),
       ]);
-      if (!postal) {
+      if (postal.status === "not_found") {
         setPincodeStatus({
           serviceable: false,
           checking: false,
@@ -400,12 +430,17 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
         });
         throw new Error("Please enter a valid Indian pincode.");
       }
+      // postal.status === "unknown" (lookup failed) falls through and defers
+      // to Delhivery's own serviceability check, same as the debounced check.
       if (!gate.serviceable) {
         setPincodeStatus({
           serviceable: false,
           checking: false,
-          verified: true,
-          postalHint: `${postal.district}, ${postal.state}`,
+          verified: postal.status === "found",
+          postalHint:
+            postal.status === "found"
+              ? `${postal.record.district}, ${postal.record.state}`
+              : null,
           reason: "We don't deliver to this pincode yet",
         });
         throw new Error(
