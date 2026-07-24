@@ -15,6 +15,13 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   timeZone: "Asia/Kolkata",
 };
 
+const TIME_FORMAT: Intl.DateTimeFormatOptions = {
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+  timeZone: "Asia/Kolkata",
+};
+
 export default function ComingSoonPage() {
   const opensAt = ordersOpenAt();
 
@@ -39,7 +46,7 @@ export default function ComingSoonPage() {
 
       <p className="mt-5 max-w-md text-sm leading-6 text-charcoal/70 sm:text-base">
         {opensAt
-          ? `Ordering opens ${opensAt.toLocaleDateString("en-IN", DATE_FORMAT)}. Come back then — or check back here.`
+          ? `Ordering opens ${opensAt.toLocaleDateString("en-IN", DATE_FORMAT)} at ${opensAt.toLocaleTimeString("en-IN", TIME_FORMAT)}. Come back then — or check back here.`
           : "Ordering opens shortly. Come back soon."}
       </p>
 
