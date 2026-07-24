@@ -31,6 +31,10 @@ export interface AuthResult {
    *  required) — the caller should show `message` in place rather than
    *  navigating to a protected page, which would just bounce back to /login. */
   requiresEmailConfirmation?: boolean;
+  /** Machine-readable failure reason for the cases where the UI offers a
+   *  recovery action (e.g. "email_not_confirmed" → show a resend button).
+   *  Matching on `message` text would break the moment copy changes. */
+  code?: "email_not_confirmed";
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -120,6 +124,7 @@ export async function login(input: LoginInput): Promise<AuthResult> {
     if (error.code === "email_not_confirmed") {
       return {
         ok: false,
+        code: "email_not_confirmed",
         message: "Please confirm your email first — check your inbox for the verification link.",
       };
     }
@@ -148,12 +153,32 @@ export async function login(input: LoginInput): Promise<AuthResult> {
 
 export async function logout(): Promise<void> {
   const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
+  // scope: "local" signs out only this device/browser. Supabase's default is
+  // "global", which revokes every session the user has — signing out on a
+  // phone would silently log them out on their laptop too, which no
+  // mainstream store does. A future "sign out everywhere" control is the
+  // right home for global scope.
+  await supabase.auth.signOut({ scope: "local" });
 }
 
 export async function requestPasswordReset(email: string): Promise<AuthResult> {
   const normalized = normalizeEmail(email);
   if (!normalized) return { ok: false, message: "Email is required" };
+
+  // Every other email-triggering action (login, OTP send, signup) is
+  // rate-limited — this one previously wasn't, leaving reset-email spam as
+  // the one unthrottled way to bombard an address. Returning the explicit
+  // "too many" message (rather than pretending a send happened) leaks
+  // nothing about whether the email is registered — the limit trips purely
+  // on request volume.
+  const ip = await getClientIp();
+  const [byEmail, byIp] = await Promise.all([
+    checkRateLimit(`reset:email:${normalized}`, RATE_LIMITS.resetRequestByEmail),
+    checkRateLimit(`reset:ip:${ip}`, RATE_LIMITS.resetRequestByIp),
+  ]);
+  if (!byEmail.allowed || !byIp.allowed) {
+    return { ok: false, message: TOO_MANY_ATTEMPTS };
+  }
 
   // Route through /auth/callback (not directly to /reset-password) — Supabase's
   // recovery link carries a PKCE ?code=... that must be exchanged for a session
@@ -173,6 +198,52 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
     ok: true,
     message:
       "If that email is registered, we've sent a reset link. Please check your inbox.",
+  };
+}
+
+/**
+ * Re-sends the signup confirmation email for an account that exists but was
+ * never verified. Called from the login form (when Supabase rejects with
+ * email_not_confirmed) and from the post-signup "check your inbox" panel —
+ * previously both were dead ends if the first email was lost to spam or
+ * expired.
+ *
+ * Always returns a generic ok — Supabase errors here ("already confirmed",
+ * unknown email) are exactly the ones that would leak whether an email is
+ * registered, so they're logged server-side and never surfaced.
+ */
+export async function resendSignupConfirmation(email: string): Promise<AuthResult> {
+  const normalized = normalizeEmail(email);
+  if (!normalized || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    return { ok: false, message: "Please enter a valid email" };
+  }
+
+  const ip = await getClientIp();
+  const [byEmail, byIp] = await Promise.all([
+    checkRateLimit(`confirm-resend:email:${normalized}`, RATE_LIMITS.confirmResendByEmail),
+    checkRateLimit(`confirm-resend:ip:${ip}`, RATE_LIMITS.confirmResendByIp),
+  ]);
+  if (!byEmail.allowed || !byIp.allowed) {
+    return { ok: false, message: TOO_MANY_ATTEMPTS };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: normalized,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    console.error("[auth] resendSignupConfirmation error:", error.message);
+  }
+
+  return {
+    ok: true,
+    message:
+      "If this email has an unverified account, we've sent a fresh verification link.",
   };
 }
 
@@ -209,7 +280,39 @@ export async function getCurrentCustomer() {
     .where(eq(customers.id, data.user.id))
     .limit(1);
 
-  return customer[0] ?? null;
+  if (customer[0]) return customer[0];
+
+  // Self-heal: a valid Supabase session with no customers row means some
+  // sign-in path failed to mirror the auth user (the exact bug that silently
+  // broke every first-time Google sign-in until Jul 24 — each entry path had
+  // to remember to create the row, and one didn't). Creating it lazily here
+  // makes the whole class impossible: any future auth path that forgets the
+  // mirror gets repaired on the very next page load instead of rendering the
+  // user as signed out. onConflictDoNothing keeps a concurrent create (or an
+  // email collision from a divergent legacy row) a no-op — in that case the
+  // re-select below simply returns whatever exists, same as before.
+  try {
+    await db
+      .insert(customers)
+      .values({
+        id: data.user.id,
+        email: data.user.email ?? "",
+        fullName: (data.user.user_metadata?.full_name as string) ?? "",
+        whatsappOptIn: false,
+      })
+      .onConflictDoNothing();
+  } catch (err) {
+    console.error("[auth] getCurrentCustomer self-heal insert failed:", err);
+    return null;
+  }
+
+  const healed = await db
+    .select()
+    .from(customers)
+    .where(eq(customers.id, data.user.id))
+    .limit(1);
+
+  return healed[0] ?? null;
 }
 
 /**

@@ -12,7 +12,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useState, useTransition } from "react";
-import { login, sendEmailOtp } from "@/lib/actions/auth";
+import {
+  login,
+  resendSignupConfirmation,
+  sendEmailOtp,
+} from "@/lib/actions/auth";
 import { GoogleSignInButton } from "@/components/storefront/google-signin-button";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,6 +47,11 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
   const [error, setError] = useState<string | null>(
     initialError ? (AUTH_CALLBACK_ERRORS[initialError] ?? null) : null,
   );
+  // Set when login fails specifically because the email was never confirmed —
+  // unlocks the "resend verification email" action so the user isn't stuck
+  // hunting for a lost/expired first email.
+  const [showResend, setShowResend] = useState(false);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const emailIsValid = EMAIL_REGEX.test(email);
@@ -53,6 +62,8 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setShowResend(false);
+    setResendNotice(null);
 
     if (mode === "password") {
       if (!canSubmitPassword) return;
@@ -61,6 +72,7 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
           const result = await login({ email, password });
           if (!result.ok) {
             setError(result.message ?? "Couldn't sign in. Please try again.");
+            if (result.code === "email_not_confirmed") setShowResend(true);
             return;
           }
           router.push(nextPath);
@@ -212,6 +224,43 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
               <p className="text-center text-xs text-burnt-red">
                 {error}
               </p>
+            ) : null}
+
+            {resendNotice ? (
+              <p className="text-center text-xs text-cocoa">{resendNotice}</p>
+            ) : null}
+
+            {showResend && !resendNotice ? (
+              <div className="text-center">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    startTransition(async () => {
+                      try {
+                        const res = await resendSignupConfirmation(email);
+                        if (res.ok) {
+                          setShowResend(false);
+                          setError(null);
+                          setResendNotice(
+                            res.message ??
+                              "We've sent a fresh verification link.",
+                          );
+                        } else {
+                          setError(
+                            res.message ?? "Couldn't resend. Please try again.",
+                          );
+                        }
+                      } catch {
+                        setError("Couldn't resend. Please try again.");
+                      }
+                    });
+                  }}
+                  className="soft-link text-xs text-cocoa disabled:opacity-50"
+                >
+                  Resend verification email
+                </button>
+              </div>
             ) : null}
           </form>
 

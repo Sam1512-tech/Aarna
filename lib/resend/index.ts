@@ -224,7 +224,7 @@ function verifyEmailHtml(data: Record<string, unknown>): string {
       </p>
     `
     : `
-      ${lead("Confirm your email to finish setting up your account. This link is valid for the next 24 hours.")}
+      ${lead("Confirm your email to finish setting up your account. This link expires in 60 minutes.")}
       ${primaryButton("Confirm Email", verifyUrl)}
       <p style="margin:24px 0 0;font-size:12px;color:${MUTE};line-height:1.6;">
         If the button doesn't work, copy and paste this link into your browser:<br/>

@@ -30,18 +30,24 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+  // Keep the query string so post-login lands on the exact page — pathname
+  // alone would drop e.g. /account/orders?page=2 back to page 1. The value
+  // is re-validated by safeRedirectPath when /login consumes it.
+  const redirectTarget = path + request.nextUrl.search;
 
   if (path.startsWith("/studio") && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("redirect", path);
+    url.search = "";
+    url.searchParams.set("redirect", redirectTarget);
     return NextResponse.redirect(url);
   }
 
   if (path.startsWith("/account") && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("redirect", path);
+    url.search = "";
+    url.searchParams.set("redirect", redirectTarget);
     return NextResponse.redirect(url);
   }
 
@@ -51,7 +57,8 @@ export async function updateSession(request: NextRequest) {
   if (path.startsWith("/checkout") && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("redirect", path);
+    url.search = "";
+    url.searchParams.set("redirect", redirectTarget);
     return NextResponse.redirect(url);
   }
 
