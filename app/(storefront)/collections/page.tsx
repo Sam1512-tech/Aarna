@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { getCollections } from "@/lib/actions/products";
+import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
 
 export const metadata: Metadata = {
   title: "Collections",
@@ -9,7 +10,14 @@ export const metadata: Metadata = {
 };
 
 export default async function CollectionsPage() {
-  const collections = await getCollections();
+  // Timeout-guarded so a pooler hang can't stall this static page's build
+  // render and fail the deploy (see lib/db/safe-query.ts). Empty state below
+  // already covers a no-collections result, which is also the launch default.
+  const collections = await safeDbRead(getCollections(), {
+    timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+    fallback: [],
+    label: "collections list",
+  });
 
   return (
     <section className="bg-cream px-6 pb-16 pt-[128px] md:pb-24 md:pt-36">

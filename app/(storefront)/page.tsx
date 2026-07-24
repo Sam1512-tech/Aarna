@@ -10,6 +10,7 @@ import {
   getHomepageFeaturedCollection,
   getNewArrivals,
 } from "@/lib/actions/products";
+import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
 import { isVideoUrl, videoPosterUrl } from "@/lib/media";
 import type { Product } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -65,12 +66,37 @@ export default async function HomePage() {
   // (isHomepageFeature), show its real products under its own name. Otherwise
   // fall back to shuffling 4 in-stock items out of the last 20 arrivals so
   // the section never sits static without any admin work.
+  // Each read is timeout-guarded so a hung Supabase pooler connection can't
+  // stall this page's static-generation/ISR render past the timeout and fail
+  // the build (see lib/db/safe-query.ts). Every section already renders a
+  // graceful empty state, so a degraded homepage that self-heals on the next
+  // revalidate is an acceptable floor; a failed deploy is not.
   const [categories, featured, arrivalPool, banners, videoSlots] = await Promise.all([
-    getCategories(),
-    getHomepageFeaturedCollection(4),
-    getNewArrivals({ limit: 20, inStockOnly: true }),
-    getActiveBanners(),
-    getActiveHomepageVideoSlots(),
+    safeDbRead(getCategories(), {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: [],
+      label: "homepage categories",
+    }),
+    safeDbRead(getHomepageFeaturedCollection(4), {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: null,
+      label: "homepage featured collection",
+    }),
+    safeDbRead(getNewArrivals({ limit: 20, inStockOnly: true }), {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: [],
+      label: "homepage new arrivals",
+    }),
+    safeDbRead(getActiveBanners(), {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: [],
+      label: "homepage banners",
+    }),
+    safeDbRead(getActiveHomepageVideoSlots(), {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: { left: null, right: null },
+      label: "homepage video slots",
+    }),
   ]);
   const products = featured?.products.length
     ? featured.products
