@@ -418,7 +418,49 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 
 ---
 
+## Fix Protocol — Do Not Skip
+
+This project has already been burned by fixes that solved the reported symptom
+while breaking or missing something adjacent (the #224 refund idempotency
+regression, the #216 race-safety miss in a sibling branch, #220's unconditional
+success-write, the launch-gate lockout in #237/#238). The following is mandatory
+for any bug fix, not just a suggestion:
+
+**1. Root cause, not nearest symptom.** Trace backward from where it fails to
+where it actually originates. Don't patch the surface.
+
+**2. Map blast radius before editing.** Before writing the fix:
+   - Find every other caller of the function/component being changed.
+   - Check for sibling code with the same pattern — if one instance had this
+     bug, assume others might (see `#216`: the fix for one cart-creation branch
+     didn't originally match the race-safety pattern already used in its siblings).
+   - Confirm nothing depends on the current (buggy) behavior intentionally.
+
+**3. State the fix plan before writing code.** One paragraph: what's changing,
+why it's the minimal correct fix, what else was checked and confirmed unaffected.
+
+**4. Verify against a real running instance, not just tsc/lint/build.** A clean
+build is not proof — see `#248` (compiled fine, hung the actual Vercel build)
+and `#245` (HTTP 200 masked a real shipment rejection). Test the exact broken
+scenario end-to-end, plus one adjacent scenario on the same code path.
+
+**5. For anything touching money, auth, or concurrency: adversarial
+self-review before merge.** Re-read the diff assuming it has a bug. Check the
+concurrent/replay/duplicate-call case explicitly, not just the happy path. This
+is what caught 4 real would-have-shipped bugs in the round-3 batch (`#216`,
+`#218`, `#220`, `#224`) — self-reported "verified" is not sufficient here.
+
+**6. Fix only what was asked.** If unrelated issues turn up while in the code,
+list them separately — don't bundle unrelated changes into one PR.
+
+Skipping straight to a one-line patch is the failure mode this protocol exists
+to prevent.
+
+---
+
 ## Git Workflow
+
+> See **Fix Protocol** above before merging any bug fix — especially anything touching money, auth, or concurrency.
 
 - `main` is protected — PRs only, 1 approval required, no force push
 - **In practice, a plain `gh pr merge` gets blocked by that requirement even for the sole maintainer** — `enforce_admins: false` only unlocks the `--admin` override flag, it doesn't silently bypass the review count on a normal merge. **Standard merge command going forward: `gh pr merge <N> --admin --squash`.** Confirmed as Sam's standing preference, not a one-off — don't ask before using it on a routine solo merge.
