@@ -108,9 +108,18 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
           // Header stays fully visible at all times — the scroll-driven
           // fade-out has been removed. Solid semi-opaque cream fill, no
           // backdrop-filter, no state, no scroll listener.
+          //
+          // The 1fr/1fr outer columns are equal width, so the centered column
+          // (nav on desktop, logo on mobile) sits at their exact mathematical
+          // midpoint — but the flanking groups aren't equal-sized (a single
+          // 40px logo/menu button vs. the 3-icon 128px cluster), so a
+          // mathematically-centered middle still reads as visually lopsided
+          // toward the icons. The ml-5 below (on the light single-element
+          // side — shifting the centered content itself was tried and looked
+          // worse) is a live-tested, eyeballed compensation, not a formula.
           className="mx-auto grid h-[76px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-full border border-maroon/8 bg-cream/88 px-3 shadow-[0_18px_70px_rgba(43,38,35,0.06)] md:h-16 md:px-5"
         >
-          <div className="flex items-center justify-start md:hidden">
+          <div className="ml-5 flex items-center justify-start md:hidden">
             <button
               ref={menuTriggerRef}
               type="button"
@@ -127,7 +136,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
           <Link
             href="/"
             aria-label="Aarna home"
-            className="col-start-2 flex h-12 w-12 items-center justify-center justify-self-center md:col-start-1 md:h-10 md:w-10 md:justify-self-start"
+            className="col-start-2 flex h-12 w-12 items-center justify-center justify-self-center md:col-start-1 md:ml-5 md:h-10 md:w-10 md:justify-self-start"
           >
             <Image
               src="/brand/aarna-header-logo-transparent.png"
