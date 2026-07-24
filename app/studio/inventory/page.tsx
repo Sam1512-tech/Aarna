@@ -6,6 +6,7 @@ import {
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { Pagination } from "@/components/admin/pagination";
 import { getInventory } from "@/lib/actions/admin/inventory";
+import { releaseExpiredCheckoutHolds } from "@/lib/db/queries/orders";
 import { InventoryTable } from "./inventory-table";
 import { ReprintScanPanel } from "./reprint-scan-panel";
 
@@ -28,6 +29,21 @@ export default async function AdminInventoryPage({
   const search = params.search?.trim() || undefined;
   const onlyLowStock = params.low === "1";
   const onlyOutOfStock = params.out === "1";
+
+  // Interim stopgap (added Jul 24) until Vercel Pro is active and the daily
+  // cleanup cron (vercel.json) can run frequently instead of once a day —
+  // Hobby plan caps cron at once/day, but abandoned-checkout stock holds
+  // expire after 20 minutes (CHECKOUT_HOLD_MINUTES). Without a frequent
+  // release trigger, a hold from a quiet period can sit reserved for hours
+  // with nothing to release it (the other release path is inline, on the
+  // next *new* checkout — fine under real traffic, useless when nobody's
+  // checking out). Releasing here means the admin never sees stale-reserved
+  // stock on the one page built specifically to show them the real count.
+  // Same function the checkout flow and the daily cron already call —
+  // proven safe to call repeatedly. Never blocks the page on failure.
+  await releaseExpiredCheckoutHolds().catch((err) => {
+    console.error("[studio/inventory] releaseExpiredCheckoutHolds failed:", err);
+  });
 
   const result = await getInventory({
     search,
