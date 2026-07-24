@@ -50,15 +50,23 @@ export async function GET(request: NextRequest) {
   // with a customers row from unrelated prior testing; every other Google
   // account hit exactly this gap.
   if (data.user) {
-    await db
-      .insert(customers)
-      .values({
-        id: data.user.id,
-        email: data.user.email ?? "",
-        fullName: (data.user.user_metadata?.full_name as string) ?? "",
-        whatsappOptIn: false,
-      })
-      .onConflictDoNothing();
+    // Never let a DB hiccup 500 this route — the session cookie is already
+    // set by the exchange above, so redirecting is always the right move.
+    // A missed insert here is repaired by getCurrentCustomer()'s self-heal
+    // on the very next page load (lib/actions/auth.ts).
+    try {
+      await db
+        .insert(customers)
+        .values({
+          id: data.user.id,
+          email: data.user.email ?? "",
+          fullName: (data.user.user_metadata?.full_name as string) ?? "",
+          whatsappOptIn: false,
+        })
+        .onConflictDoNothing();
+    } catch (err) {
+      console.error("[auth/callback] customers mirror failed:", err);
+    }
 
     await mergeGuestCartOnLogin().catch(() => {
       // Cart merge failure shouldn't block sign-in

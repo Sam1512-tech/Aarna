@@ -38,6 +38,14 @@ export const RATE_LIMITS = {
   otpVerifyByEmail: { maxAttempts: 10, windowSeconds: 15 * 60, alertLabel: "Repeated OTP verification failures for one account" },
   otpVerifyByIp: { maxAttempts: 20, windowSeconds: 15 * 60, alertLabel: "Repeated OTP verification attempts from one connection" },
   signupByIp: { maxAttempts: 5, windowSeconds: 60 * 60 },
+  // Password-reset requests and confirmation-email resends both trigger a
+  // real outbound email, so they get the same numbers as otpByEmail/otpByIp
+  // (the other "make the server send an email" actions). No alertLabel —
+  // same lower-stakes reasoning as signupByIp: annoying, not account-takeover.
+  resetRequestByEmail: { maxAttempts: 5, windowSeconds: 15 * 60 },
+  resetRequestByIp: { maxAttempts: 10, windowSeconds: 15 * 60 },
+  confirmResendByEmail: { maxAttempts: 5, windowSeconds: 15 * 60 },
+  confirmResendByIp: { maxAttempts: 10, windowSeconds: 15 * 60 },
   couponApplyByIp: { maxAttempts: 20, windowSeconds: 10 * 60 },
 } as const satisfies Record<string, RateLimitOptions>;
 

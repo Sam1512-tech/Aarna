@@ -90,6 +90,16 @@ export async function POST(req: Request): Promise<Response> {
       data = { resetUrl: actionUrl };
       break;
     case "signup":
+      // Signup confirmation is a *click the link* action, not a sign-in code —
+      // omitting `code` here renders the template's confirm-email branch
+      // (button + link) instead of the big OTP block, and the subject says
+      // what the email actually is. Previously this fell through to the OTP
+      // branch and new customers got "Your Aarna login code: 123456" when
+      // they expected "confirm your email".
+      templateKey = "verify_email";
+      subject = "Confirm your email — Aarna";
+      data = { name, verifyUrl: actionUrl };
+      break;
     case "email":
     case "magiclink":
     default:

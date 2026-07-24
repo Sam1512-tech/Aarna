@@ -12,8 +12,8 @@ import {
   ShieldCheck,
   User,
 } from "lucide-react";
-import { useState, useTransition } from "react";
-import { signup } from "@/lib/actions/auth";
+import { useEffect, useState, useTransition } from "react";
+import { resendSignupConfirmation, signup } from "@/lib/actions/auth";
 import { GoogleSignInButton } from "@/components/storefront/google-signin-button";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -33,6 +33,18 @@ export function SignupView({ nextPath }: SignupViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
+  // Post-signup resend affordance — the first email can land in spam or
+  // expire, and without this the "check your inbox" panel was a dead end.
+  // The countdown is a client courtesy; the server action has the real
+  // rate limit.
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return;
+    const t = window.setTimeout(() => setResendCountdown((c) => c - 1), 1000);
+    return () => window.clearTimeout(t);
+  }, [resendCountdown]);
 
   const nameIsValid = fullName.trim().length >= 2;
   const emailIsValid = EMAIL_REGEX.test(email);
@@ -61,6 +73,7 @@ export function SignupView({ nextPath }: SignupViewProps) {
           setConfirmationMessage(
             result.message ?? "Check your inbox — we've sent you a verification email.",
           );
+          setResendCountdown(30);
           return;
         }
         router.push(nextPath);
@@ -99,8 +112,59 @@ export function SignupView({ nextPath }: SignupViewProps) {
                 {confirmationMessage}
               </p>
               <p className="mt-2 text-xs text-charcoal/50">
-                Once verified, come back and sign in.
+                The link signs you in automatically — no need to come back here.
               </p>
+
+              {resendNotice && resendCountdown > 0 ? (
+                <p className="mt-5 text-xs text-cocoa">{resendNotice}</p>
+              ) : (
+                <p className="mt-5 text-xs text-charcoal/50">
+                  Didn&apos;t get it? Check spam, or{" "}
+                  <button
+                    type="button"
+                    disabled={resendCountdown > 0 || pending}
+                    onClick={() => {
+                      startTransition(async () => {
+                        try {
+                          const res = await resendSignupConfirmation(email);
+                          if (res.ok) {
+                            setError(null);
+                            setResendNotice(
+                              res.message ?? "We've sent a fresh link.",
+                            );
+                            setResendCountdown(30);
+                          } else {
+                            setError(res.message ?? "Couldn't resend.");
+                          }
+                        } catch {
+                          setError("Couldn't resend. Please try again.");
+                        }
+                      });
+                    }}
+                    className="soft-link text-cocoa disabled:opacity-50"
+                  >
+                    {resendCountdown > 0
+                      ? `resend in ${resendCountdown}s`
+                      : "resend the email"}
+                  </button>
+                </p>
+              )}
+
+              <p className="mt-4 text-xs text-charcoal/50">
+                Already had an account with this email?{" "}
+                <Link href="/login" className="soft-link text-cocoa">
+                  Sign in
+                </Link>{" "}
+                or{" "}
+                <Link href="/forgot-password" className="soft-link text-cocoa">
+                  reset your password
+                </Link>
+                .
+              </p>
+
+              {error ? (
+                <p className="mt-4 text-xs text-burnt-red">{error}</p>
+              ) : null}
             </div>
           ) : (
             <>
