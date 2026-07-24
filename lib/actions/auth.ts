@@ -27,6 +27,10 @@ export interface LoginInput {
 export interface AuthResult {
   ok: boolean;
   message?: string;
+  /** True when signup succeeded but no session was issued (email confirmation
+   *  required) — the caller should show `message` in place rather than
+   *  navigating to a protected page, which would just bounce back to /login. */
+  requiresEmailConfirmation?: boolean;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -87,6 +91,7 @@ export async function signup(input: SignupInput): Promise<AuthResult> {
   return {
     ok: true,
     message: "Check your inbox — we've sent you a verification email.",
+    requiresEmailConfirmation: !data.session,
   };
 }
 
@@ -109,7 +114,15 @@ export async function login(input: LoginInput): Promise<AuthResult> {
   });
 
   if (error) {
-    // Don't leak whether the email exists
+    // Surface the specific unconfirmed-email case (doesn't leak anything
+    // beyond what submitting this exact email+password already implies);
+    // otherwise stay generic so we don't leak whether the email exists.
+    if (error.code === "email_not_confirmed") {
+      return {
+        ok: false,
+        message: "Please confirm your email first — check your inbox for the verification link.",
+      };
+    }
     return { ok: false, message: "Invalid email or password" };
   }
   if (!data.user) return { ok: false, message: "Login failed" };

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
@@ -10,6 +10,7 @@ import { sendEmail } from "@/lib/resend";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { ActionError } from "@/lib/action-error";
 import { logAdminAction } from "@/lib/audit/log-admin-action";
+import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 import {
   canTransitionFulfillment,
   type FulfillmentStatus,
@@ -242,8 +243,19 @@ export async function updateOrderFulfillmentStatus(
 
   if (!existing[0]) throw new ActionError("Order not found");
 
-  assertValidTransition(existing[0].fulfillmentStatus, newStatus);
+  const fromStatus = existing[0].fulfillmentStatus;
+  assertValidTransition(fromStatus, newStatus);
 
+  // Conditional on the exact fulfillment_status we just validated the
+  // transition from — this is what actually closes the race, not the
+  // validation above. Two concurrent requests (double-click, two admin
+  // tabs) can both read the same starting status and both pass
+  // assertValidTransition before either write lands; only the request whose
+  // WHERE clause still matches when it reaches Postgres actually flips the
+  // row. The loser gets zero rows back from .returning() and must bail out
+  // before running the restock branch below — same "only proceed if this
+  // specific update actually changed a row" pattern as
+  // markOrderPaid/incrementCouponUsage in lib/db/queries/orders.ts.
   const [updated] = await db
     .update(orders)
     .set({
@@ -255,14 +267,39 @@ export async function updateOrderFulfillmentStatus(
         ? { deliveredAt: sql`coalesce(${orders.deliveredAt}, now())` }
         : {}),
     })
-    .where(eq(orders.id, orderId))
+    .where(and(eq(orders.id, orderId), eq(orders.fulfillmentStatus, fromStatus)))
     .returning();
+
+  if (!updated) {
+    throw new ActionError(
+      "Order status changed since this page loaded — refresh and try again",
+    );
+  }
 
   // Cancelling a paid order restores the stock the Razorpay webhook removed
   // on capture — the goods never left the warehouse. An order cancelled
   // before payment completed never had stock decremented, so there's
   // nothing to give back.
-  if (newStatus === "cancelled" && existing[0].paymentStatus === "paid") {
+  //
+  // Also gated on `fromStatus !== newStatus` — canTransitionFulfillment
+  // treats a same-status call as a valid no-op transition (by design, for
+  // idempotent webhook resends), so a *fully sequential* second "Cancel"
+  // click — the first request already completed and committed before the
+  // second one is even sent, not a byte-exact overlap — would read
+  // fromStatus "cancelled" fresh, and the WHERE clause above would then
+  // genuinely match "cancelled" again (it's not a stale read, that really
+  // is the row's current value), returning a row from `updated` a second
+  // time. Without this extra check the WHERE-clause guard above only
+  // closes the perfectly-overlapping-request race, not the equally-likely
+  // "click, then click again a moment later" case the finding is actually
+  // named after — confirmed live: a strictly sequential second call still
+  // matched the WHERE clause and re-ran this branch before this guard was
+  // added. Requiring a genuine state change closes both.
+  if (
+    fromStatus !== newStatus &&
+    newStatus === "cancelled" &&
+    existing[0].paymentStatus === "paid"
+  ) {
     const items = await db
       .select({ variantId: orderItems.variantId, quantity: orderItems.quantity })
       .from(orderItems)
@@ -361,6 +398,27 @@ export async function createDelhiveryShipment(orderId: string) {
     );
   }
 
+  // Atomically claim the order BEFORE calling Delhivery's real
+  // waybill+manifest API. The order.awbNumber check above is just a
+  // fast-path/friendly-error check — on its own it doesn't stop two
+  // near-simultaneous clicks (double-click, two admin tabs) from both
+  // passing it and both calling Delhivery, booking two physical pickups for
+  // one order. This conditional UPDATE is the actual lock: only the request
+  // whose WHERE clause still matches (awb_number still NULL) claims the
+  // order with a "PENDING" sentinel; the loser gets zero rows back and
+  // aborts before ever touching Delhivery.
+  const claimed = await db
+    .update(orders)
+    .set({ awbNumber: "PENDING", updatedAt: new Date() })
+    .where(and(eq(orders.id, orderId), isNull(orders.awbNumber)))
+    .returning({ id: orders.id });
+
+  if (claimed.length === 0) {
+    throw new ActionError(
+      "Shipment creation is already in progress for this order — refresh and try again",
+    );
+  }
+
   const shipping = order.shippingAddress as {
     fullName: string;
     phone: string;
@@ -371,57 +429,132 @@ export async function createDelhiveryShipment(orderId: string) {
     pincode: string;
   };
 
-  // Total parcel weight = sum of variant weights × quantities (fallback per item)
-  const items = await db
-    .select({
-      quantity: orderItems.quantity,
-      weightGrams: productVariants.weightGrams,
-    })
-    .from(orderItems)
-    .leftJoin(productVariants, eq(productVariants.id, orderItems.variantId))
-    .where(eq(orderItems.orderId, order.id));
+  try {
+    // Total parcel weight = sum of variant weights × quantities (fallback per item)
+    const items = await db
+      .select({
+        quantity: orderItems.quantity,
+        weightGrams: productVariants.weightGrams,
+      })
+      .from(orderItems)
+      .leftJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+      .where(eq(orderItems.orderId, order.id));
 
-  const weightGrams = items.reduce(
-    (sum, i) => sum + (i.weightGrams ?? FALLBACK_ITEM_WEIGHT_GRAMS) * i.quantity,
-    0,
-  );
+    const weightGrams = items.reduce(
+      (sum, i) => sum + (i.weightGrams ?? FALLBACK_ITEM_WEIGHT_GRAMS) * i.quantity,
+      0,
+    );
 
-  const { fetchWaybill, createShipment } = await import("@/lib/delhivery");
+    const { fetchWaybill, createShipment } = await import("@/lib/delhivery");
 
-  const waybill = await fetchWaybill();
+    const waybill = await fetchWaybill();
 
-  await createShipment({
-    orderNumber: order.orderNumber,
-    waybill,
-    name: shipping.fullName,
-    address: [shipping.line1, shipping.line2].filter(Boolean).join(", "),
-    pincode: shipping.pincode,
-    city: shipping.city,
-    state: shipping.state,
-    phone: shipping.phone,
-    totalAmount: Math.round(order.total / 100), // Delhivery expects rupees
-    weightGrams: Math.max(weightGrams, 100),
-  });
+    await createShipment({
+      orderNumber: order.orderNumber,
+      waybill,
+      name: shipping.fullName,
+      address: [shipping.line1, shipping.line2].filter(Boolean).join(", "),
+      pincode: shipping.pincode,
+      city: shipping.city,
+      state: shipping.state,
+      phone: shipping.phone,
+      totalAmount: Math.round(order.total / 100), // Delhivery expects rupees
+      weightGrams: Math.max(weightGrams, 100),
+    });
 
-  const [updated] = await db
-    .update(orders)
-    .set({
-      awbNumber: waybill,
-      fulfillmentStatus: "shipped",
-      updatedAt: new Date(),
-    })
-    .where(eq(orders.id, orderId))
-    .returning();
+    // Conditional on both the "PENDING" claim AND the fulfillment_status
+    // still being what it was when we claimed the order — the claim above
+    // only stops a second createDelhiveryShipment call from racing this
+    // one; it does nothing to stop an entirely different admin action
+    // (cancelling this same order) from landing while the slow Delhivery
+    // API call above was in flight. Cancel doesn't touch awb_number at all
+    // (see updateOrderFulfillmentStatus), so checking awb_number alone
+    // here would NOT catch that — a concurrently-cancelled order would
+    // still match "PENDING" and this write would silently flip
+    // fulfillment_status from "cancelled" back to "shipped", resurrecting
+    // an order everyone was just told was cancelled (and which already had
+    // its stock restored by that same cancel).
+    const [updated] = await db
+      .update(orders)
+      .set({
+        awbNumber: waybill,
+        fulfillmentStatus: "shipped",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.awbNumber, "PENDING"),
+          inArray(orders.fulfillmentStatus, ["processing", "pending"]),
+        ),
+      )
+      .returning();
 
-  revalidatePath("/studio/orders");
-  revalidatePath(`/studio/orders/${order.orderNumber}`);
-  revalidatePath("/account/orders");
+    if (!updated) {
+      // The Delhivery shipment is real and already booked — waybill is a
+      // genuine external side effect that already happened — but the order
+      // changed state (almost certainly cancelled) while that API call was
+      // in flight, so it was deliberately NOT recorded on the order rather
+      // than silently overwriting whatever its real current state is. This
+      // needs a human, not a guess: same "flag for a human, don't guess"
+      // principle as deleteStaleUnpaidOrders and the Delhivery RTO handler.
+      console.error(
+        `[admin] createDelhiveryShipment: order ${orderId} changed state before the final write — a real Delhivery shipment (AWB ${waybill}) was booked but NOT recorded on the order.`,
+      );
+      await alertAdminSuspiciousActivity({
+        event: "Delhivery shipment booked for an order that changed state mid-request",
+        detail: `Order ${order.orderNumber}: a real Delhivery pickup (AWB ${waybill}) was just booked, but the order's status changed — most likely it was cancelled — while that API call was in progress, so the AWB was deliberately NOT saved on the order. The shipment is real and needs manual reconciliation: check Delhivery's panel and /studio/orders/${order.orderNumber}.`,
+      }).catch((alertErr) => {
+        console.error("[admin] createDelhiveryShipment reconciliation alert failed:", alertErr);
+      });
+      throw new ActionError(
+        `A Delhivery shipment (AWB ${waybill}) was created, but this order's status changed while that was in progress (it may have just been cancelled) — the shipment was not recorded and needs manual reconciliation. Check Delhivery's panel.`,
+      );
+    }
 
-  await logAdminAction(admin.id, "order.create_shipment", "order", orderId, {
-    awbNumber: updated.awbNumber,
-  });
+    revalidatePath("/studio/orders");
+    revalidatePath(`/studio/orders/${order.orderNumber}`);
+    revalidatePath("/account/orders");
 
-  return updated;
+    await logAdminAction(admin.id, "order.create_shipment", "order", orderId, {
+      awbNumber: updated.awbNumber,
+    });
+
+    return updated;
+  } catch (err) {
+    // The Delhivery call (or something after it) failed — clear the
+    // "PENDING" claim back to NULL so the order doesn't sit permanently
+    // looking like it has a shipment when it doesn't, and so a retry can
+    // actually claim it again. Only clears it if it's still our sentinel
+    // (defensive — nothing else should be writing awb_number in this
+    // window, but never clobber a real AWB that landed some other way).
+    await db
+      .update(orders)
+      .set({ awbNumber: null, updatedAt: new Date() })
+      .where(and(eq(orders.id, orderId), eq(orders.awbNumber, "PENDING")))
+      .catch((rollbackErr) => {
+        // If this rollback itself fails (plausible given this project's
+        // documented recurring pooler flakiness), the order is stuck at
+        // awb_number='PENDING' indefinitely — "PENDING" is truthy, so the
+        // admin UI's own !order.awbNumber check permanently hides "Create
+        // shipment" for this order with no automatic retry. There IS a
+        // manual escape hatch (the always-visible "Attach AWB" field,
+        // unconditional, not blocked by the sentinel), but nothing
+        // previously told the admin they now need it — a silent
+        // console.error is not a signal anyone will see in time.
+        console.error(
+          `[admin] failed to roll back PENDING awb claim for order ${orderId} after shipment creation failure:`,
+          rollbackErr,
+        );
+        alertAdminSuspiciousActivity({
+          event: "Order stuck with a PENDING shipment claim after a failed rollback",
+          detail: `Order ${order.orderNumber}: shipment creation failed and the follow-up cleanup (clearing the temporary "PENDING" AWB claim) also failed, so the order is now stuck showing a shipment claim it doesn't really have — "Create shipment" won't reappear for it. Use the "Attach AWB" field on /studio/orders/${order.orderNumber} to recover (or retry after the underlying issue clears).`,
+        }).catch((alertErr) => {
+          console.error("[admin] rollback-failure alert itself failed:", alertErr);
+        });
+      });
+    throw err;
+  }
 }
 
 // ── Invoice ──────────────────────────────────────────────────────────────────
@@ -526,7 +659,7 @@ const MAX_BATCH_INVOICES = 200;
  * as a single missing variant is skipped in generateHangTagsForVariants.
  */
 export async function regenerateInvoicePdfBatch(orderIds: string[]): Promise<Buffer> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   if (orderIds.length === 0) throw new ActionError("Pick at least one order");
   if (orderIds.length > MAX_BATCH_INVOICES) {
@@ -579,7 +712,20 @@ export async function regenerateInvoicePdfBatch(orderIds: string[]): Promise<Buf
     );
   }
 
-  return generateInvoicePdfBatch(invoiceDataList);
+  const pdf = await generateInvoicePdfBatch(invoiceDataList);
+
+  // This reads full names, addresses, phone numbers, emails, and GSTINs for
+  // up to MAX_BATCH_INVOICES orders and hands them back as a download —
+  // every other mutating action in this file logs to the admin audit trail,
+  // and a bulk PII export is exactly the kind of action that trail exists
+  // for. No single entityId (this spans many orders), same "reorder"-style
+  // batch shape as banner.reorder/category.reorder elsewhere in this repo.
+  await logAdminAction(admin.id, "order.invoices_batch_print", "order", null, {
+    orderIds,
+    count: invoiceDataList.length,
+  });
+
+  return pdf;
 }
 
 // ── Stats (for admin dashboard) ──────────────────────────────────────────────

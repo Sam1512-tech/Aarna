@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { calculateOrderGst, isInterStateOrder, type GstLineInput } from "./generate";
+import {
+  calculateOrderGst,
+  invoiceSequenceName,
+  isInterStateOrder,
+  type GstLineInput,
+} from "./generate";
+
+describe("invoiceSequenceName", () => {
+  it("derives a per-financial-year sequence name", () => {
+    expect(invoiceSequenceName("26-27")).toBe("invoice_seq_26_27");
+  });
+
+  it("varies by financial year — the real bug this exists to fix", () => {
+    // A single global sequence never resets at the April FY boundary; a
+    // per-FY sequence name is what makes it actually start over at 00001.
+    expect(invoiceSequenceName("26-27")).not.toBe(invoiceSequenceName("27-28"));
+    expect(invoiceSequenceName("27-28")).toBe("invoice_seq_27_28");
+  });
+
+  it("rejects an unexpected financial-year shape rather than passing it into raw SQL unescaped", () => {
+    expect(() => invoiceSequenceName("2026-2027")).toThrow();
+    expect(() => invoiceSequenceName("26-27; DROP TABLE orders;--")).toThrow();
+    expect(() => invoiceSequenceName("")).toThrow();
+  });
+});
 
 describe("isInterStateOrder", () => {
   it("treats Karnataka as intra-state", () => {

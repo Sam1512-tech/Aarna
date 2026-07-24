@@ -51,7 +51,9 @@ export async function POST(req: Request) {
     // handlers don't get Next's server-action digest masking, so anything
     // else (DB hiccup, barcode/PDF-lib exception) must stay generic.
     if (err instanceof ActionError) {
-      const status = /not found|no matching|no items|pick at least/i.test(err.message)
+      const status = /not found|no matching|no items|pick at least|pick \d+ tags/i.test(
+        err.message,
+      )
         ? 400
         : 500;
       return NextResponse.json({ error: err.message }, { status });

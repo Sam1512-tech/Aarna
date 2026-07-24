@@ -15,12 +15,36 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is not set. Add it to .env.local.");
 }
 
+// Server-side ceiling on how long any single query is allowed to run, sent
+// as a Postgres startup parameter (postgres.js spreads `connection` into
+// every new connection's startup message) — this is the textbook way to set
+// statement_timeout with this library, and it IS honored end-to-end when
+// connecting directly to Postgres (verified against DIRECT_URL: 5432).
+//
+// IMPORTANT — it is a no-op against the connection this app actually uses.
+// DATABASE_URL points at Supabase's Supavisor pooler in *transaction* mode
+// (port 6543), which multiplexes many logical client sessions over a shared
+// set of backend connections and does not forward arbitrary per-client
+// startup parameters to the backend — verified live: with this option set,
+// `SHOW statement_timeout` over DATABASE_URL still reports the pooler's own
+// fixed 2min default, completely ignoring the 20s requested here, while the
+// identical option over DIRECT_URL correctly reports 20s. Left in place as a
+// harmless safety net for any future direct/session-mode connection, but do
+// not rely on it for the deployed configuration — see the real fix in
+// getCategoriesSafe() (app/(storefront)/layout.tsx), which uses this same
+// `client`'s per-query `.cancel()` (a real Postgres CancelRequest, verified
+// to work through this pooler) instead of a session-level GUC.
+const STATEMENT_TIMEOUT_MS = 20_000;
+
 function createClient() {
   return postgres(connectionString!, {
     prepare: false,
     max: process.env.NODE_ENV === "production" ? 10 : 5,
     idle_timeout: 20,
     connect_timeout: 10,
+    connection: {
+      statement_timeout: STATEMENT_TIMEOUT_MS,
+    },
   });
 }
 
@@ -41,3 +65,13 @@ const client =
 export const db = drizzle(client, { schema });
 export type Db = typeof db;
 export { schema };
+
+// The raw postgres.js client, exported only so call sites that need a real
+// cancellable query handle (postgres.js's `.cancel()` — see
+// getCategoriesSafe() in app/(storefront)/layout.tsx) can bypass Drizzle's
+// QueryPromise, which awaits internally and never exposes one. Everything
+// else should keep using `db` — this is the exact same connection pool
+// Drizzle itself queries through under the hood (see
+// drizzle-orm/postgres-js's session.js: `client.unsafe(query, params)`), not
+// a second pool or a way around RLS/auth.
+export { client as pgClient };

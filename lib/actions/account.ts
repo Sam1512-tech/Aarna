@@ -6,6 +6,8 @@ import { getCurrentCustomer } from "@/lib/actions/auth";
 import type { AddressInput } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
+import { computeIsDefaultForNewAddress } from "@/lib/address-default";
+import { validateReturnPhotoUrl } from "@/lib/returns/validate-photo-url";
 import { postgresErrorCode } from "@/lib/db/postgres-error";
 
 const {
@@ -175,22 +177,6 @@ export async function removeFromWishlist(variantId: string) {
   return { ok: true };
 }
 
-export async function isInWishlist(variantId: string): Promise<boolean> {
-  const customer = await getCurrentCustomer();
-  if (!customer) return false;
-  const row = await db
-    .select({ variantId: wishlists.variantId })
-    .from(wishlists)
-    .where(
-      and(
-        eq(wishlists.customerId, customer.id),
-        eq(wishlists.variantId, variantId),
-      ),
-    )
-    .limit(1);
-  return row.length > 0;
-}
-
 // ── Addresses ────────────────────────────────────────────────────────────────
 
 export async function getMyAddresses() {
@@ -212,7 +198,7 @@ export async function createAddress(input: AddressInput & { isDefault?: boolean 
     .where(eq(addresses.customerId, customer.id))
     .limit(1);
 
-  const isDefault = input.isDefault ?? existing.length === 0;
+  const isDefault = computeIsDefaultForNewAddress(existing.length, input.isDefault);
 
   // If marking default, unset others first
   if (isDefault && existing.length > 0) {
@@ -388,6 +374,8 @@ export async function requestReturn(input: ReturnRequestInput) {
   if (input.photos && input.photos.length > MAX_RETURN_PHOTOS) {
     throw new ActionError(`Up to ${MAX_RETURN_PHOTOS} photos`);
   }
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const photos = input.photos?.map((url) => validateReturnPhotoUrl(url, cloudName));
 
   let desiredVariantId: string | null = null;
   if (type === "exchange" && input.desiredVariantId) {
@@ -421,7 +409,7 @@ export async function requestReturn(input: ReturnRequestInput) {
         refundAmount: row[0].lineTotal,
         type,
         desiredVariantId,
-        photos: input.photos ?? [],
+        photos: photos ?? [],
       })
       .returning();
   } catch (err) {

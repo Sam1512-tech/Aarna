@@ -254,60 +254,6 @@ export async function adjustStock(input: AdjustStockInput) {
   return result;
 }
 
-/**
- * Apply many stock adjustments atomically (e.g., from a bulk restock CSV).
- * Either all rows succeed or none — protects against partial uploads.
- */
-export async function bulkAdjustStock(
-  items: AdjustStockInput[],
-): Promise<{ adjusted: number }> {
-  const admin = await requireAdmin();
-  if (items.length === 0) return { adjusted: 0 };
-
-  await db.transaction(async (tx) => {
-    for (const item of items) {
-      if (!Number.isInteger(item.delta) || item.delta === 0) {
-        throw new ActionError(`Invalid delta for variant ${item.variantId}`);
-      }
-
-      const variant = await tx
-        .select({ stock: productVariants.stock })
-        .from(productVariants)
-        .where(eq(productVariants.id, item.variantId))
-        .limit(1)
-        .for("update");
-      if (!variant[0]) throw new ActionError(`Variant ${item.variantId} not found`);
-
-      const newStock = variant[0].stock + item.delta;
-      if (newStock < 0) {
-        throw new ActionError(
-          `Cannot reduce stock below 0 for variant ${item.variantId}`,
-        );
-      }
-
-      await tx
-        .update(productVariants)
-        .set({ stock: newStock })
-        .where(eq(productVariants.id, item.variantId));
-
-      await tx.insert(inventoryMovements).values({
-        variantId: item.variantId,
-        delta: item.delta,
-        reason: item.reason,
-        referenceId: item.referenceId ?? null,
-        note: item.note ?? null,
-      });
-    }
-  });
-
-  revalidatePath("/studio/inventory");
-  revalidatePath("/studio/products");
-
-  await logAdminAction(admin.id, "inventory.bulk_adjust", "product_variant", null, { items });
-
-  return { adjusted: items.length };
-}
-
 // ── Audit log ────────────────────────────────────────────────────────────────
 
 export interface MovementsFilters {

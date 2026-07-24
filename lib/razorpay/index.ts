@@ -67,10 +67,19 @@ export function verifyPaymentSignature(params: {
     .createHmac("sha256", secret)
     .update(`${params.razorpayOrderId}|${params.razorpayPaymentId}`)
     .digest("hex");
-  return crypto.timingSafeEqual(
-    Buffer.from(expected),
-    Buffer.from(params.razorpaySignature),
-  );
+  try {
+    // timingSafeEqual throws RangeError on a length mismatch rather than
+    // returning false — a malformed/truncated razorpay_signature on the
+    // payment-success callback must fail closed cleanly, not crash. Mirrors
+    // the identical guard already used by the WhatsApp webhook's signature
+    // check (lib/whatsapp/index.ts).
+    return crypto.timingSafeEqual(
+      Buffer.from(expected),
+      Buffer.from(params.razorpaySignature),
+    );
+  } catch {
+    return false;
+  }
 }
 
 export async function createRefund(
