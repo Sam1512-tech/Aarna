@@ -10,10 +10,10 @@ Do not delete it.
 Aarna by Arpitha Abhishek — a women's indo-western fashion e-commerce platform.
 Built by Solaris Studios. India-only, English, INR, online payments only (no COD).
 Fixed price: ₹1,30,000 (+₹18,000 hang-tag change request → ₹1,53,000 revised).
-**HARD DEADLINE: launch by July 20, 2026 — no slippage allowed (client mandate, ~Jul 4).**
+**Original hard deadline was July 20, 2026; that slipped. Current plan (confirmed Jul 24): site goes public Monday July 27, ordering opens Wednesday July 29 at 11:00 AM IST exactly — see CURRENT STATUS below.**
 
 **Launch scope (confirmed by client):**
-- 16 products at launch
+- **11 products at launch** — revised down from the originally-planned 16 (client decision, Jul 24). All 11 verified complete: 5 variants, images, fabric, wash care, MRP each.
 - 2 categories at launch: **Dresses** and **Tops**
 - Long-term vision: client self-manages everything via admin (categories, products, collections, banners, coupons) — zero developer involvement needed after handover
 
@@ -23,9 +23,39 @@ Fixed price: ₹1,30,000 (+₹18,000 hang-tag change request → ₹1,53,000 rev
 
 ---
 
-## 🚨 CURRENT STATUS — July 23, 2026 (launch sprint to July 20 — deadline passed, hardening continues)
+## 🚨 CURRENT STATUS — July 24, 2026 (two-phase launch: public Mon Jul 27, ordering opens Wed Jul 29 11:00 AM IST)
 
-**THE APP IS DEPLOYED: https://aarna-gamma.vercel.app** (Vercel, Sam's account `sam1512-tech`, project `aarna`, Hobby plan). Auto-deploys on every merge to `main`. **Full-scope audit completed Jul 4** (27 checks); **admin CRUD + reviews closed out Jul 7**; **coupon bug, Razorpay key rotation, tag printing shipped Jul 8**; **deployed + 12-PR Vismaya batch merged + all 4 WhatsApp templates approved Jul 8–10**; **second full code audit Jul 11** (see below); **Vismaya's 5-branch polish batch + cart-badge follow-ups merged Jul 15**; **cart bug-fix batch + PDP fixes Jul 16**; **round-2 full audit (77 findings) + all 3 critical + all 17 high-severity fixes merged Jul 22–23** (see below). State of the world:
+**THE APP IS DEPLOYED: https://aarna-gamma.vercel.app** (Vercel, Sam's account `sam1512-tech`, project `aarna`, Hobby plan). Auto-deploys on every merge to `main`. **Full-scope audit completed Jul 4** (27 checks); **admin CRUD + reviews closed out Jul 7**; **coupon bug, Razorpay key rotation, tag printing shipped Jul 8**; **deployed + 12-PR Vismaya batch merged + all 4 WhatsApp templates approved Jul 8–10**; **second full code audit Jul 11** (see below); **Vismaya's 5-branch polish batch + cart-badge follow-ups merged Jul 15**; **cart bug-fix batch + PDP fixes Jul 16**; **round-2 full audit (77 findings) + all 3 critical + all 17 high-severity fixes merged Jul 22–23**; **round-3 batch — 22 PRs covering the medium-severity backlog, the pre-launch coming-soon gate, and a critical Google OAuth bug — merged Jul 23–24** (see below). State of the world:
+
+### Two-phase launch plan (decided Jul 24) — public site vs. ordering are now separate milestones
+Client mandate: the site needs to be **publicly live Monday July 27**, but **ordering shouldn't actually open until Wednesday July 29 at 11:00 AM IST**. There was no existing mechanism to have the site up without checkout working, so one was built — see "Pre-launch coming-soon gate" below. This is now the primary framing for everything remaining: anything gating Monday is a code/content problem (Sam's or Claude's to fix); anything gating Wednesday is almost entirely external-dashboard work only Sam can do (live Razorpay keys + webhook, DNS cutover to shopaarna.in, prod Supabase decision).
+
+### Round-3 batch — 22 PRs, parallel dispatch + adversarial review (Jul 23–24, PRs #214–#241)
+Continuation of the round-2 audit's 36 medium-severity findings. Per Sam's explicit instruction to stop fixing one-by-one, ~20 findings were dispatched **in parallel** to independent Workflow agents (each in an isolated git worktree), producing 20 real PRs in one pass, then the 5 highest-risk (money/race/schema) PRs were put through a second adversarial-review pass (independent reviewer agents specifically trying to refute each "verified" claim). **That adversarial pass caught 4 genuine, would-have-shipped bugs that self-reported "verified" implementations had missed** — validating that self-reported verification isn't sufficient for financially-sensitive code:
+- **`#216`** (DB constraints/indexes) — a follow-up fix was needed in `mergeGuestCartOnLogin`'s cart-creation branch, which didn't match the `onConflictDoNothing` race-safety pattern already used in its sibling branches.
+- **`#218`** (coupon perCustomerLimit) — the original enforcement had a TOCTOU race under concurrent checkouts; fixed with a `pg_advisory_xact_lock` scoped to `customerId:couponCode`.
+- **`#220`** (order-actions concurrency) — `createDelhiveryShipment`'s final success-write was unconditional; tightened to a conditional UPDATE guarding against a shipment being cancelled mid-creation, with an admin alert if the guard ever fires (real shipment booked externally, DB write lost).
+- **`#224`** (refund/invoice fixes) — the most severe: a coupon TOCTOU race, a coupon-budget-spent-by-never-paid-orders bug, a duplicate-webhook invoice-number mismatch, and `buildInvoiceData` using `new Date()` instead of `order.placedAt` on reprints. **The adversarial review caught a real regression in the first draft**: the idempotency guard as first written would have let a replayed webhook resurrect an already-*refunded* order back to `paid` — tightened to only allow `pending`/`failed` → `paid`.
+- **`#232`** (statement-timeout on categories query) — not a bug, but confirmed the review's "worth fixing" item was actually unfixable at the call site: postgres.js's `Query.cancel()` discards its own cancellation promise internally (confirmed by reading the installed driver source directly), so no caller can ever `.catch()` a failure there. Shipped as an honest doc-comment instead of a fake fix.
+- **A genuine gap in the dispatch itself**: task #12 ("prevent duplicate same-size variants when color is unset") was planned for the DB-constraints batch but got left out of the actual agent prompt — caught afterward, fixed separately as `#235` (`product_variants`' unique index tightened to `NULLS NOT DISTINCT`, Postgres 15+; also found and cleaned up one real pre-existing duplicate in the dev DB from manual test data entry).
+- **Merging 22 PRs into a fast-moving `main` produced 6 real conflicts**, not just mechanical ones — each was actually read and resolved on its merits (e.g. `#217`'s photo-URL validation vs `#216`'s race-safety insert both touching the same function; `#221`'s SKU-retry refactor vs `#235`'s new constraint both touching `createVariant`, resolved by wiring the new constraint into the retry helper rather than picking one side).
+- **`#236`** — signup silently failing when Supabase requires email confirmation (redirect into a protected page with no session, looked like a silent bounce) — opened by **Dhanush** (GitHub `Venomics14`), a friend of Sam's helping out informally on backend work. Reviewed independently (including a live empirical test proving the login error-message fix doesn't leak account existence) before merging.
+- **`#234`** — `verifyPaymentSignature` was missing the same `timingSafeEqual`-throws-on-length-mismatch guard already applied to `verifyWebhookSignature`; turned out to be dead code (zero callers anywhere), fixed anyway for consistency.
+- Merge convention used throughout: `gh pr merge <N> --admin --squash` — `main` requires 1 approval, and admins-exempt doesn't bypass that on a plain merge in practice, `--admin` is the actual working override. See "Git Workflow" below.
+- **PR #160** (Vismaya's mobile-PDP-gallery-arrow fix, open since Jul 19) closed as obsolete — the whole `GalleryArrow`/`ImageLightbox` system it patched no longer exists on `main`, superseded by a swipe-only mobile gallery redesign in an unrelated change.
+- **Still open from the original 77-finding audit:** 21 low-severity findings, not yet started.
+
+### Pre-launch coming-soon gate (Jul 24, PRs #237, #238)
+Built to bridge the "public Monday, ordering Wednesday" gap. New `lib/launch-gate.ts`: every storefront route rewrites to `/coming-soon` (a live countdown to `ORDERING_OPENS_AT`) until that instant passes; `/studio` and `/api` are never gated. `/?preview=<PREVIEW_ACCESS_SECRET>` sets a 30-day bypass cookie for Sam/Arpitha to see the real site throughout.
+- **A real lockout bug was caught live before shipping**: the first version didn't exempt `/login`, but `/studio`'s own unauthenticated-redirect goes through `/login` — meaning the gate would have silently locked admin out of the whole panel for the entire gated window. Caught specifically because a real browser (which follows redirects) was used to verify, not `curl` without `-L` (which doesn't, and looked like a pass).
+- **Both new env vars are deliberately NOT `NEXT_PUBLIC_`** — that class gets inlined into the JS bundle at build time, so changing the launch date would otherwise need a full rebuild instead of just a Vercel env-var edit + redeploy. The coming-soon page (a server component) reads the var and passes it to the client countdown as a prop, so the client never needs to read it directly. Verified live: the same build responds correctly to the env var changing with no rebuild.
+- Fails open on both missing config and an already-past date — never an accidental lockout of the real launch.
+- **Still needs Sam to activate**: set `ORDERING_OPENS_AT=2026-07-29T11:00:00+05:30` and `PREVIEW_ACCESS_SECRET=<random>` in Vercel production, then redeploy. Code is merged but inert without this.
+
+### Google sign-in was broken for every real customer — found + fixed Jul 24
+Reported as "goes to Google, picks an account, comes back to the site, not signed in" — for every Google account except `aarnabyarpithabhishek@gmail.com`. Two stacked, unrelated bugs, found in sequence:
+1. **Google Cloud Console's "Authorized JavaScript origins" was missing the production domain** (dashboard-only, fixed by Sam) — this was blocking the OAuth handshake from ever completing. The OAuth client was also fully recreated (new Client ID/Secret) as part of debugging this.
+2. **Underneath that, `/auth/callback` never created a `customers` row for a first-time OAuth or email-confirmation sign-in** — `login()` (password/OTP) has always had this exact defensive fallback (`onConflictDoNothing`, matching an older edge case), but the OAuth callback route never did. `exchangeCodeForSession` succeeded fine (real Supabase session, real cookie) but `getCurrentCustomer()` then found no matching row and returned `null` — so `/account` and everything else gated on "is there a customer" silently rendered as signed-out, no error at all. Arpitha's account only ever "worked" because it already had a row from unrelated prior testing — every other Google account, ever, would have hit this. **Fixed in `app/auth/callback/route.ts` (PR #241)** — same `onConflictDoNothing` pattern, safe to run unconditionally (a guaranteed no-op on the email-confirmation path, since `signup()` already creates the row there). Also added the guest-cart merge on this path, matching every other sign-in method. Verified live against the dev DB (reproduced the exact broken state, confirmed the fix, confirmed idempotency) and live on production with a fresh Google account after deploy.
 
 ### Round-2 audit — every critical and high finding fixed (Jul 22–23, PRs #196–#211)
 A follow-up "find everything, literally everything" audit produced 77 findings (3 critical, 17 high, 36 medium, 21 low) across a 13-dimension review, each independently re-verified against real code (round 1 had produced 6 false positives from a workflow reading the wrong git worktree — round 2 fixed that by having every agent self-verify its `git log` before reading anything). Full report: see the audit artifact referenced in session history. **All 3 critical + all 17 high findings are now fixed and merged, one PR at a time, each with live verification against the real dev DB or a real running server — not just tsc/build.** Medium (36) and low (21) findings are still open. In order merged:
@@ -45,7 +75,7 @@ A follow-up "find everything, literally everything" audit produced 77 findings (
 - **`#210`** — the auto-submit admin filters (`AutoSubmitForm`) fired a full page reload on *every* arrow-key press in a `<select>`, not just the final choice (native closed-select platform behavior) — debounced selects by 400ms; checkboxes stay instant.
 - **`#211`** — `main` had zero branch protection (verified via a direct `gh api` call — 404, not protected) despite CLAUDE.md documenting it as intended policy, and no CI at all. Added `.github/workflows/ci.yml` (lint/typecheck/test — **not** `build` yet, since that needs Supabase secrets in GitHub Actions, which only Sam should add) and enabled real branch protection: 1 required approval, the new CI check required, no force-push/deletion, admins exempt from the approval requirement so the existing solo-merge workflow is unaffected.
 
-**Still open:** 36 medium + 21 low findings from the same audit, not yet started. Bot/WAF + CAPTCHA still blocked on a Cloudflare/Turnstile account only Sam can create (see Jul 22 section below). CI doesn't run `npm run build` yet — needs `DATABASE_URL`/Supabase secrets added to the repo's GitHub Actions secrets first.
+**Medium findings: DONE as of Jul 23–24** — see the "Round-3 batch" section above (22 PRs). **Still open:** 21 low-severity findings, not started. Bot/WAF + CAPTCHA still blocked on a Cloudflare/Turnstile account only Sam can create (see Jul 22 section below). CI doesn't run `npm run build` yet — needs `DATABASE_URL`/Supabase secrets added to the repo's GitHub Actions secrets first.
 
 ### Admin panel moved from `/admin` to `/studio` (Jul 22)
 Client asked whether the admin panel could be reached somewhere less obvious than `/admin`. The real security is unchanged and was never resting on the URL — `/studio` still requires a valid Supabase session **and** a row in the `admins` table (`app/studio/layout.tsx`), enforced server-side on every request, plus every admin server action independently calls `requireAdmin()`. This rename is purely to cut down on bot/scanner traffic hitting the login page, not a substitute for that. Also: `robots.ts` no longer lists the admin path in its `disallow` rules (a public robots.txt naming an "obscure" path defeats the purpose) — `/studio` instead carries its own `robots: {index: false, follow: false}` metadata. **Only `app/admin/` → `app/studio/` moved** — internal folder names (`lib/actions/admin/`, `components/admin/`) and the `/api/admin/*` routes are unchanged, since those aren't publicly discoverable the way a browser-typed panel URL is.
@@ -153,7 +183,7 @@ Follow-up from a "launch spike and scaling" discussion — first lever picked wa
 Prod build clean · Code 128 barcode + **50×30mm landscape** hang-tag PDF (redesigned Jul 7 to match the client's reference template — barcode+SKU on top, two-column MRP/size vs. fabric/care, vertical HSN code on the right edge, black logo mark, rounded border) + GST invoice PDF all generate correctly (currency prints "Rs." — Helvetica has no ₹ glyph) · homepage renders dynamic banners/arrivals/categories · guest checkout open · coupon UI · Razorpay modal flow → `/payment-processing` → `/order-confirmation` · all 3 Razorpay webhook events · Delhivery status webhook · all 4 WhatsApp triggers (opt-in gated, no-op until API key) · OTP code in branded email · PDP SEO (metadata + JSON-LD, now incl. `aggregateRating`) · RLS on all 20 tables · admin RBAC gate.
 
 ### Storefront (Vismaya) — ~all pages shipped
-Homepage, PLP (/shop + /shop/[category]), PDP (now with star rating + reviews section), cart, checkout, payment-processing/failed, order-confirmation, search, full account section (orders page now has a "rate this" / "edit review" button per delivered item), legal pages (/privacy-policy, /return-policy, /shipping-policy, /terms, /contact, /fabric-care — note: NOT /privacy etc.), auth. **Auth = password + email-OTP + Google OAuth (all three; OTP-only was reverted by client-approved decision).** Google OAuth is enabled in Supabase (client ID 1095605963037-…) and verified working.
+Homepage, PLP (/shop + /shop/[category]), PDP (now with star rating + reviews section), cart, checkout, payment-processing/failed, order-confirmation, search, full account section (orders page now has a "rate this" / "edit review" button per delivered item), legal pages (/privacy-policy, /return-policy, /shipping-policy, /terms, /contact, /fabric-care — note: NOT /privacy etc.), auth. **Auth = password + email-OTP + Google OAuth (all three; OTP-only was reverted by client-approved decision).** Google OAuth is enabled in Supabase (client ID rotated Jul 24, see the "Google sign-in was broken" entry above) — **genuinely verified working now**, not just reaching Google. The earlier "verified working" note in this doc was wrong: Google's own handshake reached completion, but no `customers` row was ever created for a first-time OAuth sign-in, so every real customer except one pre-existing test account was silently signed out with no error. Fixed Jul 24 (PR #241) — see above for the full story before trusting any future "OAuth works" claim in this file without a live re-check.
 
 ### Admin — no longer read-only
 Full CRUD is live across **every** resource: products, **categories** (list/create/edit/delete — built from scratch Jul 7, previously had backend actions but zero UI, so "Dresses"/"Tops" only existed via seed script), inventory, orders, returns, coupons, banners, collections, reviews. Delete buttons added to all list pages Jul 7 (products/banners/collections/coupons/reviews — the actions already existed, just weren't wired to anything). Admin create/edit forms also had a real bug fixed Jul 7: submit buttons didn't visually disable on invalid input, so clicking submit with a missing field silently did nothing — now they properly disable.
@@ -182,7 +212,7 @@ Customers can submit a review from `/account/orders` (delivered items only, one 
 - **`/collections` — BUILT.** List + detail pages exist (`app/(storefront)/collections`), no longer an open build-vs-descope decision.
 - **PDP zoom — BUILT.** Pinch-zoom lightbox + desktop cursor-magnify on the product gallery; a mobile rendering bug was fixed in `fix/pdp-zoom-lightbox-mobile` (merged #154).
 - **Quotation debt, still not built:** best-sellers ranking, rate limiting, Cloudflare CDN (DNS is Hostinger→Vercel direct), handover documentation. (Customer reviews UI, product zoom, and `/collections` — previously listed here — are all built, see above.)
-- **DB content:** no longer literally zero — a handful of test products/variants/a test collection/coupon exist from dev testing, but **no real launch content** (16 real products with real photography, real banners, real collections). **Product photography RECEIVED Jul 8** — no longer blocked; next step is uploading to Cloudinary + entering all 16 products via the (now fully-built) admin product form.
+- **DB content — RESOLVED Jul 24: real launch catalog is in.** 11 real products live (8 Dresses / 3 Tops — client decision to launch with 11, not the originally-planned 16, see top of file), each verified with 5 variants, real photography (3–5 images), fabric composition, wash care, and MRP. 5 active banners, both homepage video slots configured. The one stray test product (`"hello"`, draft status) plus its one test order (Arpitha's own ₹100 test checkout) were deleted Jul 24 — cleanly, including the order's `message_log` rows and the return raised against it. Collections deliberately left at zero for launch (client decision, not a gap) — `/collections` renders empty, acceptable since it's outside the documented product/category scope.
 - **`requestReversePickup` now implemented** (`lib/delhivery/index.ts`, part of `#145`, pending merge) — points at Delhivery's **production** endpoint per current `.env.local`, not exercised live yet; manual returns still OK as a fallback (best-effort, failure doesn't block the status update). WhatsApp read-receipts not persisted; search is client-side over 60 products (fine at launch scale).
 
 ### Dev environment gotchas (learned Jul 7 — worth knowing before your next session)
@@ -206,8 +236,9 @@ Customers can submit a review from `/account/orders` (delivered items only, one 
 ### Hardware (client purchase list)
 **Decided (Jul 4): helett H30CPro printer (~₹6–7K, Amazon ASIN B0FKZPDH66)** — prints Delhivery 4×6 labels AND the 50×30mm hang tags (media range 26–116mm verified). Buy 4×6 rolls + **50mm-wide × 30mm** label rolls. **Barcode scanner deliberately skipped at launch** (16 products / low volume — not worth ₹2.7K); buy a Helett HT20pro later when volume justifies. `/admin/inventory` search accepts scanned or typed SKUs either way.
 
-### DEPLOY PLAN — steps 1–2 DONE Jul 8 (deployed at aarna-gamma.vercel.app — see status above); steps 3–5 remain
-1. Vercel under **Sam's** account (Sam1512-tech) — transfer to client at handover. Import repo, paste env vars (full list with test-Razorpay convention is in the Jul 4 session; `.env.example` documents it).
+### DEPLOY PLAN — historical, steps 1–4 DONE, superseded by "Immediate Next Steps" above
+Original 5-step plan from the pre-deploy era. Steps 1–4 (Vercel deploy, env vars, post-deploy dashboard config, test-key QA) are all long done. Step 5 (flip live, DNS cutover, prod Supabase decision) is the same work now tracked live in **"Immediate Next Steps"** near the end of this file — that section is the current source of truth for what's actually left, not this one. Left here only for the historical env-var/QA detail:
+1. Vercel under **Sam's** account (Sam1512-tech) — transfer to client at handover (now deliberately deferred, see Immediate Next Steps). Import repo, paste env vars (full list with test-Razorpay convention is in the Jul 4 session; `.env.example` documents it).
 2. Set `NEXT_PUBLIC_APP_URL` to the assigned `*.vercel.app` URL first (QA), redeploy.
 3. Post-deploy config: Razorpay TEST webhook → deployed URL (get `RAZORPAY_WEBHOOK_SECRET`); Supabase Auth hook URL + Site URL/redirect allowlist; Google OAuth authorized origins += vercel.app URL; Delhivery status webhook URL.
 4. Full QA with test keys (card 4111…, UPI success@razorpay), incl. real shipment creation via new `createDelhiveryShipment` admin action.
@@ -219,6 +250,7 @@ Customers can submit a review from `/account/orders` (delivered items only, one 
 
 - **Sam (you)** — project lead, handles all backend, can do frontend too
 - **Vismaya** — frontend only, zero backend knowledge, uses AI to build UI
+- **Dhanush** (GitHub `Venomics14`) — a friend of Sam's helping out informally on backend work, added Jul 23. Real repo collaborator (write access), not part of the original 2-person team — don't flag PRs from this account as unrecognized. Opened `#236` (a real backend/auth fix), independently reviewed and merged.
 - **Rule:** Sam reviews every PR. Nothing merges without Sam's approval.
 
 ---
@@ -276,7 +308,7 @@ Customers can submit a review from `/account/orders` (delivered items only, one 
 
 - [x] **Razorpay webhook secret** — confirmed present in Vercel production as of Jul 22, see the resolved section above (originally: Razorpay dashboard had a platform outage blocking this)
 - [x] Delhivery — Delhivery One account live; API token + pickup (`Aarna Godown`, 560085) + generated `DELHIVERY_WEBHOOK_TOKEN` in `.env.local` (production base `track.delhivery.com`). **Live serviceability verified** (prepaid serviceable: Bengaluru/Delhi/Mumbai/Kolkata/Sikkim); checkout pincode check now hits the real API. **Remaining:** live shipment creation + AWB + status webhook — exercised at deploy/first real shipment (webhook needs the deployed URL). Pickup name must match the Delhivery One panel exactly.
-- [ ] WhatsApp BSP (Interakt) — **code complete**, `WHATSAPP_API_KEY` live in `.env.local` as of Jul 8. `sendTemplate()` (Interakt) + all 4 trigger points wired (order_placed, delivered, return_received, refund_processed), opt-in gated via `orders.whatsapp_opt_in`, every send logged to `message_log`. **All 4 templates submitted to Meta Jul 8** — `order_placed` already Approved, the other 3 pending review. Template drafts: `docs/whatsapp-templates.md`.
+- [x] WhatsApp BSP (Interakt) — **code complete, all 4 templates Approved by Meta as of Jul 24** (`order_placed`, `delivered`, `return_received`, `refund_processed` — confirmed by Sam directly in Interakt → Templates). `sendTemplate()` (Interakt) + all 4 trigger points wired, opt-in gated via `orders.whatsapp_opt_in`, every send logged to `message_log`. Fully live, nothing pending. Template drafts: `docs/whatsapp-templates.md`.
 - [x] Resend — account live, domain `shopaarna.in` verified (DKIM + SPF + DMARC + tracking CNAME added in Hostinger DNS), `RESEND_API_KEY` + `RESEND_FROM_ADDRESS="Aarna <hello@shopaarna.in>"` in `.env.local`; live order-receipt test send to Gmail succeeded. Inbound mailbox `hello@shopaarna.in` now live via **Hostinger Email** (root MX mx1/mx2.hostinger.com + SPF `_spf.mail.hostinger.com`); coexists cleanly with Resend's `send`-subdomain records (sending + receiving both work, no conflict). All 4 email templates redesigned with the brand identity — gold logo on maroon header, gold seam, serif headings, branded footer; logos Cloudinary-hosted under `aarna/brand/`
 - [x] Cloudinary — account connected, keys in `.env.local`; `lib/cloudinary/` signed-upload helper done and verified live (upload → fetch metadata → f_auto/q_auto transform → destroy all OK)
 - [x] Mood board / design approval received from client → ₹52K milestone unlocked (payment received ~27 Jun 2026)
@@ -362,10 +394,12 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 ## Git Workflow
 
 - `main` is protected — PRs only, 1 approval required, no force push
-- Sam's branches: `be/<feature>` (e.g. `be/cart-actions`)
+- **In practice, a plain `gh pr merge` gets blocked by that requirement even for the sole maintainer** — `enforce_admins: false` only unlocks the `--admin` override flag, it doesn't silently bypass the review count on a normal merge. **Standard merge command going forward: `gh pr merge <N> --admin --squash`.** Confirmed as Sam's standing preference, not a one-off — don't ask before using it on a routine solo merge.
+- Sam's branches: `be/<feature>` (e.g. `be/cart-actions`), or a descriptive `fix/<name>`/`feat/<name>` for launch-sprint work
 - Vismaya's branches: `fe/<feature>` (e.g. `fe/homepage`)
 - SSH is configured — `git push` works without tokens
 - All merges go through GitHub PRs
+- `delete_branch_on_merge` is enabled — branches auto-delete on merge, no manual cleanup needed
 
 ---
 
@@ -377,15 +411,16 @@ Vismaya owns frontend design end-to-end — palette, typography, brand voice, la
 
 ---
 
-## Immediate Next Steps (launch sprint — see 🚨 CURRENT STATUS for full detail)
+## Immediate Next Steps (as of Jul 24 — see 🚨 CURRENT STATUS for full detail)
 
-1. **Deploy to Vercel** (step-by-step plan in the status section) — admin CRUD is done, this is now the top blocker.
-2. Post-deploy config: Razorpay test webhook, Supabase auth hook URL + redirect allowlist, Google OAuth origins, Delhivery webhook, Interakt webhook URL (`/api/webhooks/whatsapp`).
-3. **Upload received product photography to Cloudinary + enter all 16 products** via the admin product form (photography is no longer the blocker — data entry is).
-4. Wire up Interakt now that credentials are live: add `WHATSAPP_API_KEY` to `.env.local`, confirm the 4 Meta-approved template names match the code exactly (see External/accounts state above).
-5. Full QA on test keys → flip to live Razorpay keys + live webhook → load real content → DNS cutover from placeholder to real app.
-6. ~~Decide with client: product zoom / `/collections` page~~ — both are built now, no decision needed (see Known gaps above).
-7. Pre-go-live: prod Supabase (or accept dev DB), `npm run db:rls` on prod, handover docs + Loom videos, transfer Vercel to client.
+Deployment, admin CRUD, content entry, and Interakt are all long done — this list is now specifically the two-phase launch's remaining items, all external-dashboard work only Sam can do:
+
+1. **Activate the coming-soon gate**: set `ORDERING_OPENS_AT=2026-07-29T11:00:00+05:30` + `PREVIEW_ACCESS_SECRET=<random>` in Vercel production, redeploy. Code (PRs #237/238) is merged but inert without this.
+2. **Flip Razorpay to live keys + create the live webhook** — live keys already sit in `.env.local`, production deliberately still on test keys pending this. Real money — do deliberately, with buffer to re-test before the 29th.
+3. **DNS cutover**: shopaarna.in still points at Arpitha's placeholder mini-site. Re-point DNS → `NEXT_PUBLIC_APP_URL=https://shopaarna.in` + redeploy → re-point every webhook URL (Razorpay, Supabase auth, Google OAuth origins, Delhivery, Interakt) at the final domain, all in one sitting.
+4. **Decide: new prod Supabase project, or ship on the current dev DB?** No prod project exists yet. A new one needs `npm run db:rls` re-run (only applied to dev currently).
+5. **Vercel project transfer to the client's account — deliberately deferred** (Sam's call, Jul 24): still needs dashboard access for items 1–3 above, transferring now risked losing that mid-sprint. Revisit once those are done and stable.
+6. Handover documentation + Loom walkthrough videos, and an admin training session for Arpitha — still not started.
 
 ---
 
@@ -477,12 +512,11 @@ Garment labels must show MRP, manufacturer details, fabric composition, size, an
 
 ---
 
-## Risks to Watch (July 20 deadline)
+## Risks to Watch (two-phase launch: public Mon Jul 27, ordering Wed Jul 29 11 AM IST)
 
-- ~~Product photography — STATUS UNKNOWN as of Jul 4~~ **RECEIVED Jul 8.** Remaining work is upload + data entry, not waiting on the client.
-- ~~Meta template approval not yet submitted~~ **All 4 submitted Jul 8** — `order_placed` Approved already; `delivered`/`return_received`/`refund_processed` pending review (check Interakt → Templates → Active for status). Interakt required upgrading to the Growth plan (₹2,799/mo) to unlock template creation — free/trial tier blocks it.
-- ~~Interakt API-key access blocked~~ **Cleared Jul 8** — credentials live, key is in `.env.local`, subscription active, templates submitted.
-- Razorpay live webhook secret can only exist after deploy — deploy early, don't stack this to the last week
-- Deploy to Vercel is now the top blocker — admin CRUD, photography, and Interakt are all unblocked, nothing else is waiting on the client
-- Never run casual checkout tests once live Razorpay keys are active — real money moves
-- **No bot filtering, IP allowlisting, or CAPTCHA in front of `/studio` (admin panel) or the storefront's login/signup.** Application-level rate limiting now exists (login/OTP/signup/coupon-apply, see the Jul 22 security batch entry above) and closes the "unlimited attempts" part of this, but there's still no edge/WAF layer — the domain resolves straight to Vercel, no Cloudflare yet — and no CAPTCHA. Both remaining gaps are blocked on setting up a Cloudflare/Turnstile account, not a code change. The auth/RBAC gate itself is solid. Revisit once DNS moves to Cloudflare (Cloudflare Access is the planned fix).
+- ~~Product photography~~ **RECEIVED Jul 8, uploaded + entered.** ~~Meta template approval~~ **All 4 Approved as of Jul 24.** ~~Interakt API-key access~~ **Cleared Jul 8.** ~~Deploy to Vercel~~ **Done Jul 8.** ~~Product catalog~~ **11 products finalized Jul 24 (client decision).**
+- **Coming-soon gate is merged but inert until Sam sets the two env vars in Vercel and redeploys** (see Immediate Next Steps #1) — without this, "public Monday, ordering Wednesday" has no actual mechanism behind it.
+- Razorpay live webhook secret + live keys still need flipping on before the 29th — this is now the single highest-stakes remaining step. Never run casual checkout tests once live keys are active — real money moves.
+- **Don't trust a prior "verified working" claim in this file about Google OAuth without re-checking live** — it was wrong for weeks (see the Jul 24 entry above): the handshake reaching Google was mistaken for the whole flow working, when a `customers` row was silently never being created for real customers. Now actually fixed and verified, but this is the second time an auth integration "looked done" and wasn't — treat auth-flow claims in this doc as needing a fresh live check, not just a code read, before relying on them.
+- **No bot filtering, IP allowlisting, or CAPTCHA in front of `/studio` (admin panel) or the storefront's login/signup.** Application-level rate limiting exists (login/OTP/signup/coupon-apply) and closes the "unlimited attempts" part of this, but there's still no edge/WAF layer — no Cloudflare yet — and no CAPTCHA. Both blocked on creating a Cloudflare/Turnstile account, not a code change. Revisit once DNS moves (Cloudflare Access is the planned fix, would also handle the DNS cutover need above).
+- Vercel project transfer to the client is deliberately on hold (Sam's call, Jul 24) until the live-Razorpay/DNS work is done — don't transfer early without confirming Sam gets re-added as a collaborator, or he loses dashboard access mid-sprint.
