@@ -43,8 +43,8 @@ export async function getOrderByRazorpayId(
 }
 
 export type MarkOrderPaidResult =
-  | { won: true; invoiceNumber: string }
-  | { won: false; invoiceNumber: null };
+  | { won: true; invoiceNumber: string; needsStockDecrement: boolean }
+  | { won: false; invoiceNumber: null; needsStockDecrement: false };
 
 /**
  * Creates the per-financial-year invoice sequence the first time it's
@@ -144,23 +144,62 @@ export async function markOrderPaid(
 
   await ensureInvoiceSequence(sequenceName, invoicePrefix);
 
-  const updated = await db
-    .update(orders)
-    .set({
-      invoiceNumber: sql`${invoicePrefix} || lpad(nextval('${sql.raw(sequenceName)}')::text, 5, '0')`,
-      razorpayPaymentId,
-      paymentStatus: "paid",
-      fulfillmentStatus: "processing",
-      placedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(and(eq(orders.id, orderId), inArray(orders.paymentStatus, ["pending", "failed"])))
-    .returning({ id: orders.id, invoiceNumber: orders.invoiceNumber });
+  return db.transaction(async (tx) => {
+    // Lock the row and read its CURRENT paymentStatus/stockReserved before
+    // deciding anything — this must not be a value the caller read earlier
+    // and handed in, or read-then-write races against
+    // releaseExpiredCheckoutHolds (which flips a stale order to "failed"
+    // and restocks +1, but never touches stockReserved itself). A caller
+    // that computed "does this order still need its stock decremented"
+    // from a snapshot taken before this transaction started could compute
+    // the wrong answer if a release lands in between: the webhook would
+    // then believe stock is still reserved when it's actually just been
+    // given back, and the +1 restock is never taken back — a real,
+    // undetected oversold unit. Locking here and re-deriving the decision
+    // from the locked read closes that: any concurrent
+    // releaseExpiredCheckoutHolds on this exact order either already
+    // committed (so this read sees its result) or blocks until this
+    // transaction is done (so it can't land in the middle).
+    const [current] = await tx
+      .select({
+        paymentStatus: orders.paymentStatus,
+        stockReserved: orders.stockReserved,
+      })
+      .from(orders)
+      .where(eq(orders.id, orderId))
+      .for("update");
 
-  if (updated.length === 0 || !updated[0].invoiceNumber) {
-    return { won: false, invoiceNumber: null };
-  }
-  return { won: true, invoiceNumber: updated[0].invoiceNumber };
+    if (!current || !["pending", "failed"].includes(current.paymentStatus)) {
+      return { won: false, invoiceNumber: null, needsStockDecrement: false };
+    }
+
+    // Same logic the caller used to compute inline, now derived from the
+    // locked, guaranteed-current read instead of a pre-transaction snapshot.
+    const needsStockDecrement =
+      !current.stockReserved || current.paymentStatus === "failed";
+
+    const updated = await tx
+      .update(orders)
+      .set({
+        invoiceNumber: sql`${invoicePrefix} || lpad(nextval('${sql.raw(sequenceName)}')::text, 5, '0')`,
+        razorpayPaymentId,
+        paymentStatus: "paid",
+        fulfillmentStatus: "processing",
+        placedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(orders.id, orderId), inArray(orders.paymentStatus, ["pending", "failed"])))
+      .returning({ id: orders.id, invoiceNumber: orders.invoiceNumber });
+
+    if (updated.length === 0 || !updated[0].invoiceNumber) {
+      return { won: false, invoiceNumber: null, needsStockDecrement: false };
+    }
+    return {
+      won: true,
+      invoiceNumber: updated[0].invoiceNumber,
+      needsStockDecrement,
+    };
+  });
 }
 
 /**
@@ -689,16 +728,61 @@ export async function deleteStaleUnpaidOrders(
 
   const ids = safeToDelete.map((o) => o.id);
 
-  await db
-    .update(messageLog)
-    .set({ orderId: null })
-    .where(inArray(messageLog.orderId, ids));
+  // Re-derive who's actually still deletable right before acting, instead
+  // of trusting `ids` from the loop above — that loop makes one sequential
+  // Razorpay call per candidate, so by the time a later candidate is
+  // checked, an earlier one's per-order check can be seconds to tens of
+  // seconds stale. A real payment.captured webhook (a fully independent
+  // request) landing for one of these orders in that window must not be
+  // silently deleted along with the genuinely-abandoned ones. This fresh,
+  // minimal re-select — immediately before both the messageLog detach and
+  // the delete — is what keeps this irreversible operation actually safe.
+  const stillPending = await db
+    .select({ id: orders.id, orderNumber: orders.orderNumber })
+    .from(orders)
+    .where(and(inArray(orders.id, ids), inArray(orders.paymentStatus, ["pending", "failed"])));
+  const stillPendingIds = stillPending.map((o) => o.id);
 
-  await db.delete(orders).where(inArray(orders.id, ids));
+  if (stillPendingIds.length > 0) {
+    await db
+      .update(messageLog)
+      .set({ orderId: null })
+      .where(inArray(messageLog.orderId, stillPendingIds));
+  }
+
+  // The WHERE clause here is the actual safety guarantee (a single atomic
+  // statement, evaluated against whatever is truly current at the instant
+  // it runs) — the re-select above narrows the window this closes, this is
+  // what closes it. Any order that became paid between the re-select and
+  // this statement is still correctly excluded.
+  const deleted =
+    stillPendingIds.length === 0
+      ? []
+      : await db
+          .delete(orders)
+          .where(
+            and(
+              inArray(orders.id, stillPendingIds),
+              inArray(orders.paymentStatus, ["pending", "failed"]),
+            ),
+          )
+          .returning({ id: orders.id, orderNumber: orders.orderNumber });
+
+  const deletedIds = new Set(deleted.map((o) => o.id));
+  const savedByLateCapture = safeToDelete.filter((o) => !deletedIds.has(o.id));
+
+  if (savedByLateCapture.length > 0) {
+    await alertAdminSuspiciousActivity({
+      event: "Stale-order cleanup narrowly avoided deleting a now-paid order",
+      detail: `${savedByLateCapture.length} order(s) were confirmed unpaid via Razorpay earlier in this cleanup run, but had become paid by the moment of deletion and were excluded: ${savedByLateCapture.map((o) => o.orderNumber).join(", ")}. No action needed — these orders are fine as paid orders — but worth a glance at /studio/orders if anything looks off.`,
+    }).catch((err) => {
+      console.error("[cleanup-orders] failed to alert admin about late-capture save:", err);
+    });
+  }
 
   return {
-    deletedCount: ids.length,
-    orderNumbers: safeToDelete.map((o) => o.orderNumber),
+    deletedCount: deleted.length,
+    orderNumbers: deleted.map((o) => o.orderNumber),
     heldForReviewCount: heldForReview.length,
     heldForReviewOrderNumbers: heldForReview.map((o) => o.orderNumber),
   };

@@ -50,25 +50,23 @@ export async function POST(req: Request) {
       // Stock for this order was already reserved atomically at checkout
       // (see initCheckout) — normally there's nothing left to do here. Two
       // cases still need a decrement now:
-      //  - order.stockReserved is false: this order predates the reservation
+      //  - stockReserved is false: this order predates the reservation
       //    logic entirely (created right around deploy, under the old
       //    checkout that only checked stock without reserving it) — nothing
       //    was ever decremented for it, regardless of paymentStatus.
       //  - the reservation existed but was already given back — this
       //    capture arrived so late that releaseExpiredCheckoutHolds or an
-      //    earlier payment.failed already released it (paymentStatus is
-      //    "failed" right now).
-      // Both are best-effort, same as the original unconditional decrement
-      // this replaced: a confirmed, paid order must never be blocked by an
-      // inventory-side failure, and if the unit already sold to someone else
-      // in the gap, that's a genuine oversold conflict for an admin to
-      // reconcile in /admin/inventory.
-      const needsStockDecrementNow =
-        !order.stockReserved || order.paymentStatus === "failed";
-
+      //    earlier payment.failed already released it (paymentStatus was
+      //    "failed" right before this transitioned to "paid").
+      // This decision is made INSIDE markOrderPaid's own locked transaction,
+      // not from `order` read above — that read can be stale by the time
+      // markOrderPaid actually runs (a release can land in between), and a
+      // decision made from a stale snapshot could conclude stock is still
+      // reserved when it was just given back, silently overselling a unit
+      // with nothing to catch it. See markOrderPaid's own comment.
       const paidResult = await markOrderPaid(order.id, payment.id);
       if (!paidResult.won) break;
-      const { invoiceNumber } = paidResult;
+      const { invoiceNumber, needsStockDecrement: needsStockDecrementNow } = paidResult;
 
       // Coupon usage is spent here — at confirmed payment, not order
       // creation — and atomically bounded by its own usage limit. Never
