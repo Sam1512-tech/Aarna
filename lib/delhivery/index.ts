@@ -106,7 +106,9 @@ export interface CreateShipmentInput {
   weightGrams: number;
 }
 
-export async function createShipment(input: CreateShipmentInput) {
+export async function createShipment(
+  input: CreateShipmentInput,
+): Promise<{ waybill: string }> {
   const pickupName = process.env.DELHIVERY_PICKUP_NAME;
   if (!pickupName) throw new Error("DELHIVERY_PICKUP_NAME not set.");
 
@@ -137,11 +139,30 @@ export async function createShipment(input: CreateShipmentInput) {
     data: JSON.stringify(payload),
   });
 
-  return delhiveryFetch(`/api/cmu/create.json`, {
+  // Delhivery's bulk create endpoint can return HTTP 200 while still
+  // reporting a per-shipment failure inside the response body (bad pincode,
+  // serviceability issue, etc.) — an HTTP-level success here does NOT mean
+  // the shipment was actually accepted. requestReversePickup below already
+  // validates this correctly for the reverse flow; this forward path
+  // previously didn't, so a rejected shipment would silently look like a
+  // success to the caller, which saves a fake AWB and marks the order
+  // "shipped" with no real shipment behind it.
+  const result = await delhiveryFetch<{
+    packages?: Array<{ waybill?: string; status?: string; remarks?: string[] }>;
+  }>(`/api/cmu/create.json`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
   });
+
+  const pkg = result.packages?.[0];
+  if (!pkg?.waybill) {
+    throw new Error(
+      `Delhivery shipment creation failed: ${pkg?.remarks?.join(", ") ?? "no waybill returned"}`,
+    );
+  }
+
+  return { waybill: pkg.waybill };
 }
 
 // ── Tracking ───────────────────────────────────────────────────────────────
