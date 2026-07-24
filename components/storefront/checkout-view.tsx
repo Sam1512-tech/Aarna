@@ -292,13 +292,16 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
       }
 
       // Postal lookup failed (timeout/5xx/blocked) — don't penalize the
-      // customer for a third-party API hiccup. Skip auto-fill and fall back
-      // to whatever Delhivery's own serviceability check says.
+      // customer for a third-party API hiccup. Skip auto-fill and defer to
+      // Delhivery's own serviceability check: if Delhivery confirms it ships
+      // here, treat the pincode as verified (no postal-district hint, but no
+      // scary "couldn't verify" message and no submit block either) — only
+      // stay unverified/blocked if Delhivery itself says it can't deliver.
       if (postal.status === "unknown") {
         setPincodeStatus({
           serviceable: delhivery.serviceable,
           checking: false,
-          verified: false,
+          verified: delhivery.serviceable,
           postalHint: null,
           etaDays: delhivery.serviceable
             ? (delhivery as { etaDays?: number }).etaDays
