@@ -52,6 +52,13 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
   // hunting for a lost/expired first email.
   const [showResend, setShowResend] = useState(false);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
+  // Set on a generic invalid-credentials failure — a genuinely new person who
+  // lands on the password form gets nudged toward signup. Deliberately shown
+  // for BOTH wrong-password and no-account (we can't tell them apart, by
+  // design — see login() anti-enumeration), so it leaks nothing about whether
+  // the email is registered. Not shown for email_not_confirmed (that account
+  // exists — the resend action is the right affordance there).
+  const [showSignupNudge, setShowSignupNudge] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const emailIsValid = EMAIL_REGEX.test(email);
@@ -64,6 +71,7 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
     setError(null);
     setShowResend(false);
     setResendNotice(null);
+    setShowSignupNudge(false);
 
     if (mode === "password") {
       if (!canSubmitPassword) return;
@@ -72,7 +80,13 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
           const result = await login({ email, password });
           if (!result.ok) {
             setError(result.message ?? "Couldn't sign in. Please try again.");
-            if (result.code === "email_not_confirmed") setShowResend(true);
+            if (result.code === "email_not_confirmed") {
+              setShowResend(true);
+            } else {
+              // Generic failure — could be a wrong password or no account at
+              // all. Nudge toward signup either way (safe: reveals nothing).
+              setShowSignupNudge(true);
+            }
             return;
           }
           router.push(nextPath);
@@ -226,6 +240,18 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
               </p>
             ) : null}
 
+            {showSignupNudge ? (
+              <p className="text-center text-xs text-charcoal/60">
+                New to Aarna?{" "}
+                <Link
+                  href={`/signup?next=${encodeURIComponent(nextPath)}`}
+                  className="soft-link text-cocoa"
+                >
+                  Create an account
+                </Link>
+              </p>
+            ) : null}
+
             {resendNotice ? (
               <p className="text-center text-xs text-cocoa">{resendNotice}</p>
             ) : null}
@@ -270,6 +296,8 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
               onClick={() => {
                 setMode(mode === "password" ? "otp" : "password");
                 setError(null);
+                setShowResend(false);
+                setShowSignupNudge(false);
               }}
               className="soft-link text-xs text-charcoal/55 hover:text-cocoa"
             >
