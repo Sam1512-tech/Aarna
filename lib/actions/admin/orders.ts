@@ -447,11 +447,16 @@ export async function createDelhiveryShipment(orderId: string) {
 
     const { fetchWaybill, createShipment } = await import("@/lib/delhivery");
 
-    const waybill = await fetchWaybill();
+    const requestedWaybill = await fetchWaybill();
 
-    await createShipment({
+    // createShipment validates Delhivery's response and throws if the
+    // shipment was actually rejected (see lib/delhivery/index.ts) — the
+    // returned waybill is what Delhivery confirmed, which should match
+    // requestedWaybill but is trusted over it as the source of truth for
+    // what was really created.
+    const { waybill } = await createShipment({
       orderNumber: order.orderNumber,
-      waybill,
+      waybill: requestedWaybill,
       name: shipping.fullName,
       address: [shipping.line1, shipping.line2].filter(Boolean).join(", "),
       pincode: shipping.pincode,
