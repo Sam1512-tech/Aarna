@@ -7,6 +7,7 @@ import { ArrowRight, Heart, Minus, Plus, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import {
   applyCoupon,
+  getCart,
   removeFromCart,
   updateCartItem,
 } from "@/lib/actions/cart";
@@ -83,6 +84,25 @@ export function CartView({ initialCart }: CartViewProps) {
         clearStoredCoupon();
       }
     });
+  }, []);
+
+  // Stock can change while this tab is just sitting open — someone else's
+  // checkout hold can take the last unit, or an abandoned one can release
+  // stock back. Re-fetch on the realistic moment that matters (the customer
+  // comes back to this tab), rather than requiring a manual reload. Full
+  // real-time (a customer staring at this exact tab non-stop) would need
+  // websocket/polling infra that's disproportionate here — known limitation.
+  useEffect(() => {
+    function refreshOnReturn() {
+      if (document.visibilityState !== "visible") return;
+      getCart().then((fresh) => {
+        setCart(fresh);
+        useCartCount.getState().set(fresh.itemCount);
+      });
+    }
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    return () =>
+      document.removeEventListener("visibilitychange", refreshOnReturn);
   }, []);
 
   // Persist a removal through the server action. The server return is
@@ -210,6 +230,11 @@ export function CartView({ initialCart }: CartViewProps) {
   }
 
   const total = Math.max(0, cart.subtotal - discount);
+  // Real, live stock (see hydrateCart) — not whether the line merely looks
+  // fine from a stale render. A line short on stock must block progression
+  // here, on the cart page, rather than let the customer fill in the whole
+  // shipping form before initCheckout's transaction rejects it.
+  const hasStockIssue = cart.lines.some((l) => l.stock < l.quantity);
 
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[132px] md:px-6 md:pb-32 md:pt-36">
@@ -331,12 +356,12 @@ export function CartView({ initialCart }: CartViewProps) {
 
               <Link
                 href="/checkout"
-                aria-disabled={isPending}
+                aria-disabled={isPending || hasStockIssue}
                 onClick={(e) => {
-                  if (isPending) e.preventDefault();
+                  if (isPending || hasStockIssue) e.preventDefault();
                 }}
                 className={`group/cta mt-7 flex min-h-[58px] items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)] ${
-                  isPending ? "pointer-events-none opacity-60" : ""
+                  isPending || hasStockIssue ? "pointer-events-none opacity-60" : ""
                 }`}
               >
                 <span className="flex items-center gap-3 text-xs font-medium tracking-[0.24em] text-cream">
@@ -348,9 +373,15 @@ export function CartView({ initialCart }: CartViewProps) {
                 </span>
               </Link>
 
-              <p className="mt-5 text-center text-xs leading-6 text-charcoal/48">
-                Secure payment via razorpay · delivered across india
-              </p>
+              {hasStockIssue ? (
+                <p className="mt-4 text-center text-xs font-medium leading-6 text-burnt-red">
+                  Resolve the stock issue above before checking out
+                </p>
+              ) : (
+                <p className="mt-5 text-center text-xs leading-6 text-charcoal/48">
+                  Secure payment via razorpay · delivered across india
+                </p>
+              )}
             </div>
           </aside>
         </div>
@@ -436,9 +467,22 @@ function CartItemCard({
               {size ? <VariantChip label="Size" value={size} /> : null}
               {color ? <VariantChip label="Colour" value={color} /> : null}
             </div>
-            {!line.inStock ? (
+            {/* Real, live stock (hydrateCart re-joins productVariants on every
+                fetch) drives three honest, distinct states — never one vague
+                label covering "gone entirely" and "someone else has some of
+                it" alike. A variant that's out because another customer's
+                checkout hold currently has it looks identical here to one
+                that's genuinely sold out, which is the correct, honest thing
+                to show a *different* customer — it's true either way that
+                there's nothing left for them right now, and this app doesn't
+                say "holding for you" about a hold that isn't theirs. */}
+            {line.stock <= 0 ? (
               <p className="mt-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-burnt-red">
-                Low stock — review at checkout
+                Out of stock — remove to continue
+              </p>
+            ) : line.stock < line.quantity ? (
+              <p className="mt-2.5 text-[10px] font-bold uppercase tracking-[0.22em] text-burnt-red">
+                Only {line.stock} left — reduce quantity to continue
               </p>
             ) : null}
           </div>
@@ -459,6 +503,7 @@ function CartItemCard({
             <QtyStepper
               quantity={line.quantity}
               disabled={disabled}
+              disableIncrease={line.quantity >= line.stock}
               onDecrease={onDecrease}
               onIncrease={onIncrease}
             />
@@ -507,11 +552,15 @@ function VariantChip({ label, value }: { label: string; value: string }) {
 function QtyStepper({
   quantity,
   disabled,
+  disableIncrease,
   onDecrease,
   onIncrease,
 }: {
   quantity: number;
   disabled: boolean;
+  /** Real stock is already at (or below) the current quantity — same
+   *  "don't offer what isn't true" rule as the PDP's stepper. */
+  disableIncrease?: boolean;
   onDecrease: () => void;
   onIncrease: () => void;
 }) {
@@ -535,7 +584,7 @@ function QtyStepper({
       <button
         type="button"
         onClick={onIncrease}
-        disabled={disabled}
+        disabled={disabled || disableIncrease}
         aria-label="Increase quantity"
         className="inline-flex h-10 w-10 items-center justify-center rounded-r-full transition duration-300 hover:bg-cocoa/8 hover:text-cocoa disabled:opacity-30"
       >

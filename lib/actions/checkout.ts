@@ -165,7 +165,16 @@ export async function initCheckout(
         throw new ActionError(`"${line.productTitle}" is no longer available`);
       }
       if (variant.stock < line.quantity) {
-        throw new ActionError(`"${line.productTitle}" is out of stock`);
+        // Distinguish "gone entirely" from "not enough for the quantity you
+        // asked for" — both used to say the same "is out of stock", which is
+        // simply false in the second case (this is also the exact moment a
+        // last-unit race with another customer's checkout hold surfaces, so
+        // naming what's actually true here matters, not just the product).
+        throw new ActionError(
+          variant.stock <= 0
+            ? `"${line.productTitle}" just sold out — remove it from your bag to continue`
+            : `Only ${variant.stock} of "${line.productTitle}" left — please reduce the quantity in your bag`,
+        );
       }
 
       await tx

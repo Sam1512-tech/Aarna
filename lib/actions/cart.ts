@@ -166,17 +166,24 @@ async function hydrateCart(cartId: string): Promise<CartState> {
     }
   }
 
-  const lines: CartLine[] = rows.map((r) => ({
-    variantId: r.variantId,
-    productId: r.productId,
-    productSlug: r.productSlug,
-    productTitle: r.productTitle,
-    variantLabel: [r.size, r.color].filter(Boolean).join(" / "),
-    imageUrl: imageByProduct.get(r.productId) ?? null,
-    unitPrice: r.unitPrice,
-    quantity: r.quantity,
-    inStock: r.isActive && r.stock >= r.quantity,
-  }));
+  const lines: CartLine[] = rows.map((r) => {
+    // A deactivated variant is exactly as unavailable to buy as zero stock —
+    // collapse both into one honest number rather than a separate flag the
+    // UI has to remember to check too.
+    const stock = r.isActive ? r.stock : 0;
+    return {
+      variantId: r.variantId,
+      productId: r.productId,
+      productSlug: r.productSlug,
+      productTitle: r.productTitle,
+      variantLabel: [r.size, r.color].filter(Boolean).join(" / "),
+      imageUrl: imageByProduct.get(r.productId) ?? null,
+      unitPrice: r.unitPrice,
+      quantity: r.quantity,
+      stock,
+      inStock: stock >= r.quantity,
+    };
+  });
 
   const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   const itemCount = lines.reduce((sum, l) => sum + l.quantity, 0);
@@ -207,16 +214,46 @@ export async function addToCart(
 
   // Verify variant exists and is active
   const variant = await db
-    .select({ id: productVariants.id, stock: productVariants.stock, isActive: productVariants.isActive })
+    .select({
+      id: productVariants.id,
+      stock: productVariants.stock,
+      isActive: productVariants.isActive,
+      title: products.title,
+    })
     .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
     .where(eq(productVariants.id, variantId))
     .limit(1);
   if (!variant[0] || !variant[0].isActive) {
-    throw new ActionError("Variant not available");
+    throw new ActionError("This item is no longer available");
   }
 
   const cartId = await resolveOrCreateCartId({ createIfMissing: true });
   if (!cartId) throw new ActionError("Could not resolve cart");
+
+  // This is a real-time honesty check, not the actual stock-safety boundary —
+  // that's initCheckout's row-locked transaction, which stays the only place
+  // stock is genuinely reserved. Here we're just refusing to silently accept
+  // an add that's already impossible (someone else's checkout hold could
+  // have taken the last unit between this page loading and this click), so
+  // the customer gets a clear reason instead of a vague cart-page surprise
+  // later. Plain read, not FOR UPDATE — nothing is being decremented.
+  const existingLine = await db
+    .select({ quantity: cartItems.quantity })
+    .from(cartItems)
+    .where(and(eq(cartItems.cartId, cartId), eq(cartItems.variantId, variantId)))
+    .limit(1);
+  const alreadyInCart = existingLine[0]?.quantity ?? 0;
+  const requestedTotal = alreadyInCart + quantity;
+
+  if (requestedTotal > variant[0].stock) {
+    const remaining = Math.max(0, variant[0].stock - alreadyInCart);
+    throw new ActionError(
+      remaining <= 0
+        ? `"${variant[0].title}" just sold out`
+        : `Only ${remaining} more of "${variant[0].title}" available${alreadyInCart > 0 ? ` — you already have ${alreadyInCart} in your bag` : ""}`,
+    );
+  }
 
   // Upsert — if line exists, increment quantity; else insert
   await db

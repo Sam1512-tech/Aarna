@@ -16,6 +16,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { addToCart, getCart } from "@/lib/actions/cart";
 import { addToWishlist } from "@/lib/actions/account";
+import { getVariantsInStockForProduct } from "@/lib/actions/products";
+import { actionErrorMessage } from "@/lib/action-error";
 import { SizeGuideModal } from "@/components/storefront/size-guide-modal";
 import { useCartCount } from "@/store/cart-count";
 import type {
@@ -38,10 +40,40 @@ export function ProductDetailView({
   const router = useRouter();
 
   // ── Variant resolution ─────────────────────────────────────────────────────
+  // Starts from the server-rendered prop (fresh at page load) but is
+  // refreshed client-side below — a customer can sit on this exact page
+  // long enough for someone else's checkout hold to take the last unit, or
+  // for an abandoned one to release stock back.
+  const [variants, setVariants] = useState(product.variants);
   const activeVariants = useMemo(
-    () => product.variants.filter((v) => v.isActive),
-    [product.variants],
+    () => variants.filter((v) => v.isActive),
+    [variants],
   );
+
+  // Re-check real stock when the customer comes back to this tab — the
+  // realistic moment this matters, without building websocket/polling infra
+  // for a customer who never looks away (known, accepted limitation).
+  useEffect(() => {
+    function refreshOnReturn() {
+      if (document.visibilityState !== "visible") return;
+      getVariantsInStockForProduct(product.id).then((fresh) => {
+        setVariants((prev) =>
+          prev.map((v) => {
+            const match = fresh.find((f) => f.variantId === v.id);
+            // Not in the fresh active-only list means it was deactivated
+            // since this page loaded — same "nothing to sell" outcome as
+            // zero stock.
+            return match
+              ? { ...v, stock: match.stock, isActive: true }
+              : { ...v, isActive: false, stock: 0 };
+          }),
+        );
+      });
+    }
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    return () =>
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+  }, [product.id]);
   const sizes = useMemo(
     () => uniqueOrdered(activeVariants.map((v) => v.size).filter(isString)),
     [activeVariants],
@@ -118,13 +150,17 @@ export function ProductDetailView({
     (colors.length === 0 || selectedColor !== null) &&
     resolvedVariant !== null;
   const inStock = !!resolvedVariant && resolvedVariant.stock > 0;
+  // Healthy stock is silent by design (Amazon/Myntra convention) — a stock
+  // note only ever appears here to say something the customer needs to
+  // know (it's gone, or there's not much left), never to reassure them
+  // when there's nothing to say.
   const stockNote = !resolvedVariant
     ? null
     : !inStock
       ? "sold out — try another size or colour"
       : resolvedVariant.stock <= LOW_STOCK_THRESHOLD
         ? `only ${resolvedVariant.stock} left`
-        : "in stock";
+        : null;
 
   const onSale =
     typeof product.mrp === "number" && product.mrp > product.basePrice;
@@ -133,6 +169,10 @@ export function ProductDetailView({
   // ── Add to bag / wishlist ──────────────────────────────────────────────────
   const [isPending, startTransition] = useTransition();
   const [bagFeedback, setBagFeedback] = useState<null | "added" | "error">(null);
+  // The actual reason, when it's an error — "just sold out" and "only 1
+  // more available" are different, true things, not the same generic
+  // failure. The button label itself just says "try again" either way.
+  const [bagError, setBagError] = useState<string | null>(null);
   const [wished, setWished] = useState(false);
   const [wishError, setWishError] = useState<string | null>(null);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
@@ -160,6 +200,7 @@ export function ProductDetailView({
   const handleAddToBag = useCallback(() => {
     if (!resolvedVariant || !inStock || isPending) return;
     setBagFeedback(null);
+    setBagError(null);
     startTransition(async () => {
       try {
         const next = await addToCart(resolvedVariant.id, quantity);
@@ -168,7 +209,14 @@ export function ProductDetailView({
         setCartQty(line?.quantity ?? quantity);
         setBagFeedback("added");
         window.setTimeout(() => setBagFeedback(null), 2200);
-      } catch {
+      } catch (err) {
+        // A race with someone else's checkout hold surfaces exactly here —
+        // addToCart's own stock check throws a specific, honest reason
+        // ("X just sold out" / "only N more available"), not just a generic
+        // failure. Show it, don't swallow it.
+        setBagError(
+          actionErrorMessage(err, "Couldn't add to bag — please try again"),
+        );
         setBagFeedback("error");
         window.setTimeout(() => setBagFeedback(null), 2200);
       }
@@ -438,6 +486,11 @@ export function ProductDetailView({
                 />
               </button>
             </div>
+            {bagError ? (
+              <p className="mt-3 text-center text-xs text-burnt-red">
+                {bagError}
+              </p>
+            ) : null}
             {wishError ? (
               <p className="mt-3 text-center text-xs text-burnt-red">
                 {wishError}
