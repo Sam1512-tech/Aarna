@@ -152,8 +152,12 @@ export function SignupView({ nextPath }: SignupViewProps) {
 
               <p className="mt-4 text-xs text-charcoal/50">
                 Already had an account with this email?{" "}
-                <Link href="/login" className="soft-link text-cocoa">
-                  Sign in
+                {/* text-cocoa goes on the inner span, not the Link itself —
+                    the unlayered `a { color: inherit }` in globals.css beats
+                    Tailwind's text-* utilities applied directly to an anchor
+                    (same reasoning as the mobile nav drawer's comment above). */}
+                <Link href="/login" className="soft-link font-semibold">
+                  <span className="text-cocoa">Sign in</span>
                 </Link>{" "}
                 or{" "}
                 <Link href="/forgot-password" className="soft-link text-cocoa">
