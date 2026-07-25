@@ -273,9 +273,23 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
     const t = window.setTimeout(async () => {
       const [postal, delhivery] = await Promise.all([
         fetchIndiaPostal(pincode),
-        checkPincodeServiceability(pincode).catch(() => ({
-          serviceable: false,
-        })),
+        // A rejection here means the server-action round-trip itself failed
+        // (network blip, cold start, etc.) — checkPincodeServiceability's own
+        // try/catch already absorbs every real Delhivery-API failure and
+        // fails open, so this call only ever rejects on something outside
+        // Delhivery's answer. Failing this to `serviceable: false` (as this
+        // used to) is indistinguishable in the UI from Delhivery genuinely
+        // saying no, and intermittently rejects valid pincodes on nothing
+        // more than a transient network hiccup — same class of bug as the
+        // postal-lookup masking fixed above, just on the Delhivery call.
+        // Fail open instead, and log so a real recurrence is visible.
+        checkPincodeServiceability(pincode).catch((err) => {
+          console.error(
+            "[checkout] pincode serviceability call failed (network/transport error, not a Delhivery answer):",
+            err,
+          );
+          return { serviceable: true, etaDays: 5 };
+        }),
       ]);
       if (cancelled) return;
 
