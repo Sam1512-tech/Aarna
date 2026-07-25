@@ -4,6 +4,7 @@ import Script from "next/script";
 import { CheckoutView } from "@/components/storefront/checkout-view";
 import { getCart } from "@/lib/actions/cart";
 import { getCurrentCustomer } from "@/lib/actions/auth";
+import { getMyAddresses } from "@/lib/actions/account";
 
 export const metadata: Metadata = {
   title: "Checkout",
@@ -28,6 +29,10 @@ export default async function CheckoutPage() {
   const prefillPhone = customer.phone ?? "";
   const prefillName = customer.fullName ?? "";
 
+  // Saved addresses are a convenience, not a requirement — fail to an empty
+  // list (same as the account addresses page) rather than block checkout.
+  const savedAddresses = await getMyAddresses().catch(() => []);
+
   return (
     <>
       <Script
@@ -41,6 +46,17 @@ export default async function CheckoutPage() {
           phone: prefillPhone,
           fullName: prefillName,
         }}
+        addresses={savedAddresses.map((a) => ({
+          id: a.id,
+          fullName: a.fullName,
+          phone: a.phone,
+          line1: a.line1,
+          line2: a.line2 ?? undefined,
+          city: a.city,
+          state: a.state,
+          pincode: a.pincode,
+          isDefault: a.isDefault,
+        }))}
       />
     </>
   );
