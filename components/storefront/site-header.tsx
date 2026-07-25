@@ -83,10 +83,21 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
         one and the loop visibly jumps at reset. The second half is
         aria-hidden so screen readers only announce it once. will-change
         promotes the strip to its own compositor layer.
+
+        Font size is deliberately the SAME at every breakpoint (no md:
+        override) — the -50% keyframe above is a percentage, resolved
+        against the strip's current rendered width on every frame, not
+        baked in at animation start. A responsive text-[10px] md:text-[11px]
+        step here previously changed that width mid-loop, so any resize or
+        phone rotation crossing the breakpoint caused an instant ~40px snap
+        in the visible position (measured live: -508.66px → -549.67px in a
+        single animation frame). Keeping the width constant across
+        breakpoints removes the discontinuity at its source rather than
+        patching around it with a resize-triggered animation reset.
       */}
       <div className="fixed inset-x-0 top-0 z-50 h-9 overflow-hidden bg-maroon pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-cream">
         <div
-          className="flex h-full w-max animate-[mobile-marquee_36s_linear_infinite] items-center whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.22em] md:text-[11px]"
+          className="flex h-full w-max animate-[mobile-marquee_36s_linear_infinite] items-center whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.22em]"
           style={{ willChange: "transform" }}
         >
           {[false, true].map((isClone) => (
