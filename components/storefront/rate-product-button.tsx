@@ -4,6 +4,7 @@ import { Star, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { submitReview } from "@/lib/actions/reviews";
 import { actionErrorMessage } from "@/lib/action-error";
+import { useModalLock } from "@/hooks/use-modal-lock";
 
 export function RateProductButton({
   orderItemId,
@@ -63,6 +64,10 @@ function ReviewModal({
   const [pending, startTransition] = useTransition();
 
   const canSubmit = rating >= 1 && rating <= 5 && !pending;
+
+  // Mounted only while open (parent conditionally renders it) — lock body
+  // scroll and enable Escape-to-close for the whole lifetime.
+  useModalLock(true, onCancel);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

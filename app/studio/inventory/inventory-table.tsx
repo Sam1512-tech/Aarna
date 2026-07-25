@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { StatusPill, tableClasses } from "@/components/admin/admin-primitives";
 import { adjustStock, getInventoryMovements } from "@/lib/actions/admin/inventory";
 import { actionErrorMessage } from "@/lib/action-error";
+import { useModalLock } from "@/hooks/use-modal-lock";
 
 const LOW_STOCK_THRESHOLD = 5;
 
@@ -131,20 +132,8 @@ export function InventoryTable({ items: initial }: InventoryTableProps) {
   );
 }
 
-// Escape-to-close, shared by both modals in this file — matches the pattern
-// already used elsewhere (size-guide-modal.tsx, product-detail-view.tsx).
-function useEscapeToClose(onClose: () => void) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-}
-
 function HistoryModal({ row, onClose }: { row: Row; onClose: () => void }) {
-  useEscapeToClose(onClose);
+  useModalLock(true, onClose);
   const [movements, setMovements] = useState<Awaited<
     ReturnType<typeof getInventoryMovements>
   > | null>(null);
@@ -265,7 +254,7 @@ function AdjustModal({
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  useEscapeToClose(onClose);
+  useModalLock(true, onClose);
 
   const delta = Number.parseInt(deltaStr, 10);
   const deltaValid = Number.isInteger(delta) && delta !== 0;

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import { useModalLock } from "@/hooks/use-modal-lock";
 
 export interface ReturnPhotoGridProps {
   photos: string[];
@@ -14,6 +15,8 @@ export interface ReturnPhotoGridProps {
  */
 export function ReturnPhotoGrid({ photos }: ReturnPhotoGridProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  useModalLock(lightboxIndex !== null, () => setLightboxIndex(null));
 
   if (photos.length === 0) return null;
 

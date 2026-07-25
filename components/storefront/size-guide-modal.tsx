@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { Ruler, User, X } from "lucide-react";
+import { useModalLock } from "@/hooks/use-modal-lock";
 
 /**
  * Size guide bottom-sheet / centered modal opened from the PDP "size help"
@@ -31,20 +31,7 @@ interface SizeGuideModalProps {
 }
 
 export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
-  // Close on Escape + lock body scroll while open.
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open, onClose]);
+  useModalLock(open, onClose);
 
   if (!open) return null;
 

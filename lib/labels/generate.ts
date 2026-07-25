@@ -7,8 +7,8 @@ export type { HangTagData } from "./template";
 
 /**
  * Renders one or more hang-tag labels (50×30mm each) into a single PDF buffer.
- * Each tag becomes one page in the PDF, ready to print on label rolls in the
- * Xprinter XP-365B (or any thermal/laser printer with the right roll size).
+ * Each tag becomes one page in the PDF, ready to print on label rolls on any
+ * thermal/laser label printer with the right roll size.
  */
 export async function generateHangTagPdf(tags: HangTagData[]): Promise<Buffer> {
   if (tags.length === 0) throw new ActionError("At least one tag is required");
