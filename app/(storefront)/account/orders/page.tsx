@@ -202,9 +202,9 @@ export default async function AccountOrdersPage() {
                     {formatINR(order.total)}
                   </span>
                 </div>
-                {order.awbNumber ? (
+                {order.awbNumber && order.awbNumber !== "PENDING" ? (
                   <Link
-                    href={`https://www.delhivery.com/tracking/${encodeURIComponent(order.awbNumber)}`}
+                    href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(order.awbNumber)}`}
                     target="_blank"
                     rel="noopener"
                     className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
