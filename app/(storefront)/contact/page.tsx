@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, Mail, Phone } from "lucide-react";
+import { WhatsAppGlyph } from "@/components/storefront/brand-glyphs";
 import {
   CONTACT_EMAIL as EMAIL,
   CONTACT_PHONE_DISPLAY as PHONE_DISPLAY,
   CONTACT_PHONE_TEL as PHONE_TEL,
+  CONTACT_WHATSAPP_URL as WHATSAPP_URL,
 } from "@/lib/contact-info";
 
 export const metadata: Metadata = {
@@ -42,7 +44,11 @@ export default function ContactPage() {
           </p>
         </header>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        {/* Call and WhatsApp are the same number (see lib/contact-info.ts) —
+            shown as two distinct tiles rather than one ambiguous "Phone"
+            entry, since a customer can't tell from one line which channel
+            it's for. */}
+        <div className="mt-10 grid gap-4 sm:grid-cols-3">
           <a
             href={`mailto:${EMAIL}`}
             className="group/tile flex items-start gap-4 rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_10px_28px_rgba(43,38,35,0.04)] transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/25 hover:shadow-[0_18px_40px_rgba(43,38,35,0.08)]"
@@ -69,7 +75,26 @@ export default function ContactPage() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                Phone
+                Call us
+              </p>
+              <p className="mt-1 text-base text-charcoal/85 group-hover/tile:text-cocoa">
+                {PHONE_DISPLAY}
+              </p>
+            </div>
+          </a>
+
+          <a
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group/tile flex items-start gap-4 rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_10px_28px_rgba(43,38,35,0.04)] transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/25 hover:shadow-[0_18px_40px_rgba(43,38,35,0.08)]"
+          >
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-cocoa/10 text-cocoa">
+              <WhatsAppGlyph className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
+                WhatsApp us
               </p>
               <p className="mt-1 text-base text-charcoal/85 group-hover/tile:text-cocoa">
                 {PHONE_DISPLAY}
