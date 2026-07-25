@@ -17,7 +17,7 @@ export default async function AccountWishlistPage() {
         variantLabel: [r.size, r.color].filter(Boolean).join(" / ") || null,
         imageUrl: r.imageUrl,
         unitPrice: r.price,
-        inStock: r.inStock,
+        stock: r.stock,
       }))}
     />
   );

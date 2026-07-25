@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { PlpView, type SortOption } from "@/components/storefront/plp-view";
 import { toProductCardData } from "@/components/storefront/product-card";
-import { getCategories, getProducts } from "@/lib/actions/products";
+import {
+  getCategories,
+  getDefaultVariantsForProducts,
+  getProducts,
+} from "@/lib/actions/products";
 
 export const metadata: Metadata = {
   title: "Shop",
@@ -49,13 +53,18 @@ export default async function ShopPage({
       maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
     }),
   ]);
+  const defaultVariants = await getDefaultVariantsForProducts(
+    list.items.map((p) => p.id),
+  );
 
   return (
     <PlpView
       eyebrow="the wardrobe"
       title="Every piece, made slowly."
       intro="A small, considered collection. Browse all current pieces by sort and refine as you go."
-      products={list.items.map((p) => toProductCardData(p))}
+      products={list.items.map((p) =>
+        toProductCardData(p, undefined, defaultVariants.get(p.id) ?? null),
+      )}
       total={list.total}
       page={list.page}
       pageSize={list.pageSize}

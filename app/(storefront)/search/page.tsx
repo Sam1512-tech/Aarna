@@ -23,10 +23,15 @@ export default async function SearchPage({
   const defaultVariants = await getDefaultVariantsForProducts(
     productList.items.map((p) => p.id),
   );
+  const categoryIdToSlug = new Map(categories.map((c) => [c.id, c.slug]));
 
   return (
     <SearchView
-      categories={categories.map((c) => ({ name: c.name, slug: c.slug }))}
+      categories={categories.map((c) => ({
+        name: c.name,
+        slug: c.slug,
+        imageUrl: c.imageUrl,
+      }))}
       products={productList.items.map((p) => ({
         id: p.id,
         title: p.title,
@@ -36,6 +41,9 @@ export default async function SearchPage({
         image: p.image,
         fabric: p.fabric,
         defaultVariantId: defaultVariants.get(p.id) ?? null,
+        categorySlug: p.categoryId
+          ? (categoryIdToSlug.get(p.categoryId) ?? null)
+          : null,
       }))}
       initialQuery={q ?? ""}
     />
