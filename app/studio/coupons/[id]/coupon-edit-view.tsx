@@ -86,7 +86,7 @@ export function CouponEditView({ coupon }: { coupon: Coupon }) {
         });
         setSaved("Saved.");
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't save coupon."));
+        setError(actionErrorMessage(err, "Couldn't save coupon."));
       }
     });
   }

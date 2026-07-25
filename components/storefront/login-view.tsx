@@ -131,7 +131,7 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
         </Link>
 
         <h1 className="mt-8 font-display text-[38px] uppercase leading-[1.06] tracking-[0.02em] text-maroon md:text-5xl">
-          SIGN IN
+          Sign in
         </h1>
         <p className="mt-3 max-w-xs text-center text-sm leading-6 text-charcoal/60">
           Welcome back — sign in the way that suits you.
@@ -162,7 +162,7 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="You@example.com"
+                  placeholder="you@example.com"
                   className="w-full bg-transparent text-base text-charcoal outline-none placeholder:text-charcoal/35"
                   aria-label="Email address"
                   autoFocus
@@ -229,7 +229,7 @@ export function LoginView({ nextPath, initialError }: LoginViewProps) {
                     ? "Signing in…"
                     : "Sending code…"
                   : mode === "password"
-                    ? "sign in"
+                    ? "Sign in"
                     : "Send one-time code"
               }
             />

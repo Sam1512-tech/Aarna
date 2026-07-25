@@ -38,7 +38,7 @@ export default async function AdminBannersPage() {
         eyebrow="Homepage"
         title="Banners"
         intro="Hero images and videos the homepage carousel rotates through."
-        action={{ href: "/studio/banners/new", label: "add banner" }}
+        action={{ href: "/studio/banners/new", label: "Add banner" }}
       />
 
       <div className="mt-6">
@@ -46,7 +46,7 @@ export default async function AdminBannersPage() {
           <AdminEmpty
             title="No banners yet"
             description="Add a hero image or video to fill the homepage carousel."
-            cta={{ href: "/studio/banners/new", label: "add your first banner" }}
+            cta={{ href: "/studio/banners/new", label: "Add your first banner" }}
           />
         ) : (
           <div className={t.wrapper}>

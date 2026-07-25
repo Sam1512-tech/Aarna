@@ -28,7 +28,7 @@ export class ActionError extends Error {
  * server action, falling back to `fallback` for unexpected/masked errors.
  *
  *   catch (err) {
- *     setError(actionErrorMessage(err, "couldn't create product."));
+ *     setError(actionErrorMessage(err, "Couldn't create product."));
  *   }
  */
 export function actionErrorMessage(err: unknown, fallback: string): string {

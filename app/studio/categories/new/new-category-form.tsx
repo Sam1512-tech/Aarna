@@ -46,7 +46,7 @@ export function NewCategoryForm() {
         router.refresh();
       } catch (err) {
         setError(
-          actionErrorMessage(err, "couldn't create category."),
+          actionErrorMessage(err, "Couldn't create category."),
         );
       }
     });
@@ -67,7 +67,7 @@ export function NewCategoryForm() {
           label="Url slug"
           required
           wide
-          hint={`will appear as /shop/${effectiveSlug || "your-slug"}`}
+          hint={`Will appear as /shop/${effectiveSlug || "your-slug"}`}
         >
           <TextInput
             value={effectiveSlug}

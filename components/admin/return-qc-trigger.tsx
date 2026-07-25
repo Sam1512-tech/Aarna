@@ -25,7 +25,7 @@ export function ReturnQcTrigger({
           await markReturnQc(returnId, payload);
           router.refresh();
         } catch (err) {
-          throw new Error(actionErrorMessage(err, "couldn't submit qc"));
+          throw new Error(actionErrorMessage(err, "Couldn't submit QC"));
         }
       }}
     />

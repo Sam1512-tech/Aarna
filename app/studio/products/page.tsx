@@ -49,7 +49,7 @@ export default async function AdminProductsPage({
         eyebrow="Catalog"
         title="Products"
         intro="Every piece the storefront can show. Publish, archive, or edit inline."
-        action={{ href: "/studio/products/new", label: "add product" }}
+        action={{ href: "/studio/products/new", label: "Add product" }}
       />
 
       <AutoSubmitForm className="mt-6 flex flex-wrap items-end gap-3">
@@ -60,7 +60,7 @@ export default async function AdminProductsPage({
           <input
             name="search"
             defaultValue={search ?? ""}
-            placeholder="title, slug or sku…"
+            placeholder="title, slug or SKU…"
             className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
           />
         </label>
@@ -93,8 +93,8 @@ export default async function AdminProductsPage({
         {result.items.length === 0 ? (
           <AdminEmpty
             title="No products yet"
-            description="Pieces you add will appear here. drafts start hidden from the storefront until you set them to active."
-            cta={{ href: "/studio/products/new", label: "add your first product" }}
+            description="Pieces you add will appear here. Drafts start hidden from the storefront until you set them to active."
+            cta={{ href: "/studio/products/new", label: "Add your first product" }}
           />
         ) : (
           <>

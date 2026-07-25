@@ -30,20 +30,20 @@ export function Pagination({ page, totalPages, basePath, params = {} }: Paginati
     <nav className="mt-6 flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/60">
       {page > 1 ? (
         <Link href={build(page - 1)} className="soft-link text-cocoa">
-          ← previous
+          ← Previous
         </Link>
       ) : (
-        <span className="opacity-40">← previous</span>
+        <span className="opacity-40">← Previous</span>
       )}
       <span>
-        page {page} of {totalPages}
+        Page {page} of {totalPages}
       </span>
       {page < totalPages ? (
         <Link href={build(page + 1)} className="soft-link text-cocoa">
-          next →
+          Next →
         </Link>
       ) : (
-        <span className="opacity-40">next →</span>
+        <span className="opacity-40">Next →</span>
       )}
     </nav>
   );

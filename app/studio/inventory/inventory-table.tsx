@@ -157,7 +157,7 @@ function HistoryModal({ row, onClose }: { row: Row; onClose: () => void }) {
         if (!cancelled) setMovements(rows);
       })
       .catch((err) => {
-        if (!cancelled) setError(actionErrorMessage(err, "couldn't load history"));
+        if (!cancelled) setError(actionErrorMessage(err, "Couldn't load history"));
       });
     return () => {
       cancelled = true;
@@ -187,7 +187,7 @@ function HistoryModal({ row, onClose }: { row: Row; onClose: () => void }) {
               {row.productTitle}
             </h3>
             <p className="text-xs text-charcoal/55">
-              {[row.size, row.color].filter(Boolean).join(" / ") || "—"} · sku{" "}
+              {[row.size, row.color].filter(Boolean).join(" / ") || "—"} · SKU{" "}
               {row.sku}
             </p>
           </div>
@@ -205,10 +205,10 @@ function HistoryModal({ row, onClose }: { row: Row; onClose: () => void }) {
           {error ? (
             <p className="text-xs text-burnt-red">{error}</p>
           ) : movements === null ? (
-            <p className="text-sm text-charcoal/55">loading…</p>
+            <p className="text-sm text-charcoal/55">Loading…</p>
           ) : movements.length === 0 ? (
             <p className="text-sm text-charcoal/55">
-              no stock movements recorded for this variant yet.
+              No stock movements recorded for this variant yet.
             </p>
           ) : (
             <ul className="divide-y divide-cocoa/8">
@@ -287,7 +287,7 @@ function AdjustModal({
         });
         onAdjusted(row.variantId, projected);
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't adjust stock"));
+        setError(actionErrorMessage(err, "Couldn't adjust stock"));
       }
     });
   }
@@ -318,7 +318,7 @@ function AdjustModal({
               {row.productTitle}
             </h3>
             <p className="text-xs text-charcoal/55">
-              {[row.size, row.color].filter(Boolean).join(" / ") || "—"} · sku{" "}
+              {[row.size, row.color].filter(Boolean).join(" / ") || "—"} · SKU{" "}
               {row.sku} · currently {row.stock}
             </p>
           </div>
@@ -355,12 +355,12 @@ function AdjustModal({
                 }`}
               >
                 {wouldGoNegative
-                  ? `would drop stock below zero (would be ${projected})`
-                  : `new stock will be ${projected}`}
+                  ? `Would drop stock below zero (would be ${projected})`
+                  : `New stock will be ${projected}`}
               </p>
             ) : (
               <p className="mt-1 text-xs text-charcoal/55">
-                positive to restock, negative to remove. never zero.
+                Positive to restock, negative to remove. Never zero.
               </p>
             )}
           </label>

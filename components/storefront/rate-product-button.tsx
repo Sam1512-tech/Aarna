@@ -190,7 +190,7 @@ function ReviewModal({
             className="flex-1 rounded-2xl bg-maroon py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-cream shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-500 hover:bg-maroon/90 disabled:opacity-50"
           >
             {pending
-              ? "submitting…"
+              ? "Submitting…"
               : existingReview
                 ? "Update review"
                 : "Submit review"}

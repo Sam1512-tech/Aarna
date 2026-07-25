@@ -81,7 +81,7 @@ export function ForgotPasswordView() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="You@example.com"
+                  placeholder="you@example.com"
                   className="w-full bg-transparent text-base text-charcoal outline-none placeholder:text-charcoal/35"
                   aria-label="Email address"
                   autoFocus
@@ -123,7 +123,7 @@ export function ForgotPasswordView() {
         )}
 
         <p className="mt-6 text-center text-xs text-charcoal/50">
-          remembered it?{" "}
+          Remembered it?{" "}
           <Link href="/login" className="soft-link text-cocoa">
             Sign in
           </Link>

@@ -27,7 +27,7 @@ export default async function AdminCollectionsPage() {
         intro="Curated groupings of products — like 'slow essentials' or seasonal edits."
         action={{
           href: "/studio/collections/new",
-          label: "add collection",
+          label: "Add collection",
         }}
       />
 
@@ -36,7 +36,7 @@ export default async function AdminCollectionsPage() {
           <AdminEmpty
             title="No collections yet"
             description="Collections let you group pieces together for the storefront (e.g. 'slow essentials')."
-            cta={{ href: "/studio/collections/new", label: "add your first collection" }}
+            cta={{ href: "/studio/collections/new", label: "Add your first collection" }}
           />
         ) : (
           <div className={t.wrapper}>

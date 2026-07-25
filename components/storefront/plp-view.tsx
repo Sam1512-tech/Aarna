@@ -488,8 +488,8 @@ function EmptyState({ basePath }: { basePath: string }) {
       </h2>
       <p className="mt-4 max-w-sm text-base leading-7 text-charcoal/60">
         {isFiltered
-          ? "this corner of the wardrobe is still being prepared. browse the full collection while it arrives."
-          : "the first pieces are being prepared with care. come back soon."}
+          ? "This corner of the wardrobe is still being prepared. Browse the full collection while it arrives."
+          : "The first pieces are being prepared with care. Come back soon."}
       </p>
       {isFiltered ? (
         <Link

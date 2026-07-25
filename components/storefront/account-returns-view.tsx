@@ -157,19 +157,19 @@ export function AccountReturnsView({
         <TabButton
           active={tab === "all"}
           onClick={() => switchTab("all")}
-          label="all"
+          label="All"
           count={counts.all}
         />
         <TabButton
           active={tab === "returns"}
           onClick={() => switchTab("returns")}
-          label="returns"
+          label="Returns"
           count={counts.returns}
         />
         <TabButton
           active={tab === "exchanges"}
           onClick={() => switchTab("exchanges")}
-          label="exchanges"
+          label="Exchanges"
           count={counts.exchanges}
         />
       </div>

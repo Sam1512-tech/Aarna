@@ -41,7 +41,7 @@ export function OrderConfirmationView({
           </h1>
           <p className="mt-5 max-w-md text-base leading-7 text-charcoal/65">
             {stillVerifying
-              ? "your payment is still being verified. we'll automatically update your order status once confirmation is received."
+              ? "Your payment is still being verified. We'll automatically update your order status once confirmation is received."
               : SUPPORT_NOTE}
           </p>
         </header>

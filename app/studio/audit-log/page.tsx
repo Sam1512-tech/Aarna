@@ -135,7 +135,7 @@ export default async function AdminAuditLogPage({
 
       {totalPages > 1 ? (
         <p className="mt-6 text-center text-xs text-charcoal/50">
-          page {result.page} of {totalPages} · {result.total} total
+          Page {result.page} of {totalPages} · {result.total} total
         </p>
       ) : null}
     </div>

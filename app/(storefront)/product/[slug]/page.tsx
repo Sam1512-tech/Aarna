@@ -43,8 +43,8 @@ export default async function ProductDetailPage({
   ]);
   const productLd = buildProductLd(product, reviewSummary);
   const breadcrumbLd = buildBreadcrumbLd([
-    { name: "home", url: "/" },
-    { name: "shop", url: "/shop" },
+    { name: "Home", url: "/" },
+    { name: "Shop", url: "/shop" },
     ...(product.category
       ? [
           {

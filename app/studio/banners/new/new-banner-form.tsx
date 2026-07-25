@@ -62,7 +62,7 @@ export function NewBannerForm() {
         router.refresh();
       } catch (err) {
         setError(
-          actionErrorMessage(err, "couldn't create banner."),
+          actionErrorMessage(err, "Couldn't create banner."),
         );
       }
     });

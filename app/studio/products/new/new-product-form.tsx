@@ -82,7 +82,7 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
         router.refresh();
       } catch (err) {
         setError(
-          actionErrorMessage(err, "couldn't create product."),
+          actionErrorMessage(err, "Couldn't create product."),
         );
       }
     });
@@ -106,7 +106,7 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
           label="Url slug"
           required
           wide
-          hint={`will appear as /product/${effectiveSlug || "your-slug"}`}
+          hint={`Will appear as /product/${effectiveSlug || "your-slug"}`}
         >
           <TextInput
             value={effectiveSlug}
@@ -152,7 +152,7 @@ export function NewProductForm({ categories }: { categories: CategoryOption[] })
           />
         </Field>
         <Field
-          label="Mrp (₹)"
+          label="MRP (₹)"
           hint="Required by legal metrology if selling at a discount. Leave blank if same as selling price."
         >
           <TextInput

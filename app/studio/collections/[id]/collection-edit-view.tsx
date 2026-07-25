@@ -91,7 +91,7 @@ export function CollectionEditView({
         });
         setSaved("Saved.");
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't save collection."));
+        setError(actionErrorMessage(err, "Couldn't save collection."));
       }
     });
   }
@@ -203,7 +203,7 @@ function ProductMembershipSection({
         setSelectedId("");
         router.refresh();
       })
-      .catch((err) => setError(actionErrorMessage(err, "couldn't add product")))
+      .catch((err) => setError(actionErrorMessage(err, "Couldn't add product")))
       .finally(() => setAdding(false));
   }
 
@@ -212,7 +212,7 @@ function ProductMembershipSection({
     removeProductsFromCollection(collectionId, [productId])
       .then(() => router.refresh())
       .catch((err) =>
-        setError(actionErrorMessage(err, "couldn't remove product")),
+        setError(actionErrorMessage(err, "Couldn't remove product")),
       );
   }
 

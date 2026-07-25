@@ -149,7 +149,7 @@ export function ReturnExchangeModal({
 
   function handleNext() {
     if (!chosen) {
-      setError("please pick an item");
+      setError("Please pick an item");
       return;
     }
     setError(null);
@@ -189,8 +189,8 @@ export function ReturnExchangeModal({
       } catch (err) {
         setError(
           err instanceof Error
-            ? err.message.toLowerCase()
-            : "something went wrong. please try again.",
+            ? err.message
+            : "Something went wrong. Please try again.",
         );
       }
     });

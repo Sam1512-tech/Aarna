@@ -84,7 +84,7 @@ export default function FaqPage() {
             original packaging and tags intact. Sale items are not eligible.
             Full details on our{" "}
             <Link href="/return-policy" className="soft-link text-cocoa">
-              return &amp; exchange policy
+              Return &amp; exchange policy
             </Link>{" "}
             page.
           </p>

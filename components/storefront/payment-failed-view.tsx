@@ -138,7 +138,7 @@ export function PaymentFailedView({
               className="flex min-h-[52px] items-center justify-center rounded-2xl border border-cocoa/24 bg-cream px-6 transition duration-700 hover:bg-cocoa/8"
             >
               <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa">
-                return to checkout
+                Return to checkout
               </span>
             </Link>
             <Link
@@ -147,7 +147,7 @@ export function PaymentFailedView({
             >
               <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-cocoa">
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                return to cart
+                Return to cart
               </span>
             </Link>
           </div>

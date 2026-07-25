@@ -20,7 +20,7 @@ interface SiteHeaderProps {
 // filter exists yet) — only add links here once they resolve to something
 // real. /collections shipped, so it's back.
 const primaryLinks: { href: string; label: string }[] = [
-  { href: "/collections", label: "collections" },
+  { href: "/collections", label: "Collections" },
 ];
 
 export function SiteHeader({ categories }: SiteHeaderProps) {

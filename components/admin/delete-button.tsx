@@ -33,7 +33,7 @@ export function DeleteButton({
         await action(id);
         router.refresh();
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't delete"));
+        setError(actionErrorMessage(err, "Couldn't delete"));
       }
     });
   }

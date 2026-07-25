@@ -101,14 +101,14 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
 
   const shipmentReason = !order.awbNumber
     ? order.paymentStatus !== "paid"
-      ? "order is not paid yet"
+      ? "Order is not paid yet"
       : order.fulfillmentStatus !== "processing" &&
           order.fulfillmentStatus !== "pending"
-        ? `order is ${order.fulfillmentStatus.replace(/_/g, " ")}`
+        ? `Order is ${order.fulfillmentStatus.replace(/_/g, " ")}`
         : null
     : order.awbNumber === "PENDING"
-      ? "shipment creation is already in progress for this order"
-      : `already has AWB ${order.awbNumber}`;
+      ? "Shipment creation is already in progress for this order"
+      : `Already has AWB ${order.awbNumber}`;
 
   function announce(msg: string, isError = false) {
     if (isError) {
@@ -227,7 +227,7 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
                   </p>
                   <p className="text-xs text-charcoal/55">
                     {item.variantLabel ? `${item.variantLabel} · ` : ""}
-                    sku {item.sku} · qty {item.quantity}
+                    SKU {item.sku} · qty {item.quantity}
                   </p>
                 </div>
                 <div className="text-right text-sm tabular-nums">
@@ -372,7 +372,7 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
                 <input
                   value={awbInput}
                   onChange={(e) => setAwbInput(e.target.value)}
-                  placeholder="paste awb from delhivery"
+                  placeholder="Paste AWB from Delhivery"
                   className="rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
                 />
                 <button

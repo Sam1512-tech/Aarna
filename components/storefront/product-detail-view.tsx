@@ -161,9 +161,9 @@ export function ProductDetailView({
   const stockNote = !resolvedVariant
     ? null
     : !inStock
-      ? "sold out — try another size or colour"
+      ? "Sold out — try another size or colour"
       : resolvedVariant.stock <= LOW_STOCK_THRESHOLD
-        ? `only ${resolvedVariant.stock} left`
+        ? `Only ${resolvedVariant.stock} left`
         : null;
 
   const onSale =
@@ -262,7 +262,7 @@ export function ProductDetailView({
       } catch {
         // Most likely "Unauthorized — please sign in".
         setWished(wasWished);
-        setWishError("sign in to save to wishlist");
+        setWishError("Sign in to save to wishlist");
         router.push(
           `/login/otp?next=${encodeURIComponent(`/product/${product.slug}`)}`,
         );
@@ -487,16 +487,16 @@ export function ProductDetailView({
               >
                 <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-cream md:gap-3 md:text-[12px] md:tracking-[0.24em]">
                   {bagFeedback === "added"
-                    ? "added to bag ✓"
+                    ? "Added to bag ✓"
                     : bagFeedback === "error"
-                      ? "try again"
+                      ? "Try again"
                       : !variantSelected
-                        ? "select size & colour"
+                        ? "Select size & colour"
                         : !inStock
-                          ? "sold out"
+                          ? "Sold out"
                           : isPending
-                            ? "adding…"
-                            : "add to bag"}
+                            ? "Adding…"
+                            : "Add to bag"}
                 </span>
               </button>
               <button

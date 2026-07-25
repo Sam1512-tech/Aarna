@@ -145,7 +145,7 @@ export function ReturnQcPanel({
               step={5}
               value={partialPercent}
               onChange={(e) => setPartialPercent(Number(e.target.value))}
-              aria-label="partial refund percentage"
+              aria-label="Partial refund percentage"
               className="mt-2 w-full accent-maroon"
             />
             <div className="mt-1 flex justify-between text-[9px] uppercase tracking-[0.14em] text-charcoal/45">
