@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  AdminCard,
   AdminEmpty,
   AdminPageHeader,
 } from "@/components/admin/admin-primitives";
@@ -134,40 +135,32 @@ export default async function AdminReturnsPage({
         </div>
       ) : null}
 
-      {/* Type tabs */}
-      <div
-        role="tablist"
-        aria-label="Type filter"
-        className="mt-6 flex gap-1 overflow-x-auto border-b border-cocoa/12"
+      {/* Type + status filters — one row, matching the label+select pattern
+          used by every other admin list page (Orders, Products). Keyed to
+          the current filter values so a <Link>-driven navigation (e.g.
+          "Clear") always remounts these <select>s with a fresh defaultValue
+          — a native <select>'s defaultValue only applies on mount, so
+          without this key a soft client-side navigation left the dropdown
+          showing its last user-picked value even after the URL (and the
+          actual filtered results) had already reset. */}
+      <AutoSubmitForm
+        key={`${typeFilter}-${status ?? "all"}`}
+        className="mt-6 flex flex-wrap items-end gap-3"
       >
-        <TypeTab
-          label="All"
-          count={counts.all}
-          type="all"
-          active={typeFilter === "all"}
-          status={status}
-        />
-        <TypeTab
-          label="Returns"
-          count={counts.returns}
-          type="return"
-          active={typeFilter === "return"}
-          status={status}
-        />
-        <TypeTab
-          label="Exchanges"
-          count={counts.exchanges}
-          type="exchange"
-          active={typeFilter === "exchange"}
-          status={status}
-        />
-      </div>
-
-      {/* Status filter */}
-      <AutoSubmitForm className="mt-5 flex flex-wrap items-end gap-3">
-        {typeFilter !== "all" ? (
-          <input type="hidden" name="type" value={typeFilter} />
-        ) : null}
+        <label>
+          <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/72">
+            Type
+          </span>
+          <select
+            name="type"
+            defaultValue={typeFilter}
+            className="mt-1.5 block rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa sm:text-sm"
+          >
+            <option value="all">All types · {counts.all}</option>
+            <option value="return">Returns · {counts.returns}</option>
+            <option value="exchange">Exchanges · {counts.exchanges}</option>
+          </select>
+        </label>
         <label>
           <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/72">
             Status
@@ -185,14 +178,10 @@ export default async function AdminReturnsPage({
             ))}
           </select>
         </label>
-        {status ? (
+        {status || typeFilter !== "all" ? (
           <Link
-            href={
-              typeFilter === "all"
-                ? "/studio/returns"
-                : `/studio/returns?type=${typeFilter}`
-            }
-            className="text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55 transition hover:text-cocoa"
+            href="/studio/returns"
+            className="pb-2.5 text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55 transition hover:text-cocoa"
           >
             Clear
           </Link>
@@ -212,10 +201,8 @@ export default async function AdminReturnsPage({
                 r.status === "requested" &&
                 hoursSince(r.createdAt) > STALE_THRESHOLD_HOURS;
               return (
-                <li
-                  key={r.id}
-                  className="rounded-2xl border border-cocoa/12 bg-cream p-5 shadow-[0_10px_28px_rgba(43,38,35,0.04)] md:p-6"
-                >
+                <li key={r.id}>
+                <AdminCard>
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -344,6 +331,7 @@ export default async function AdminReturnsPage({
                       <p>Resolved {fmtDateTime(r.resolvedAt)}</p>
                     ) : null}
                   </div>
+                </AdminCard>
                 </li>
               );
             })}
@@ -358,54 +346,5 @@ export default async function AdminReturnsPage({
         params={{ status, type: typeFilter !== "all" ? typeFilter : undefined }}
       />
     </div>
-  );
-}
-
-function TypeTab({
-  label,
-  count,
-  type,
-  active,
-  status,
-}: {
-  label: string;
-  count: number;
-  type: TypeFilter;
-  active: boolean;
-  status: ReturnStatus | undefined;
-}) {
-  const params = new URLSearchParams();
-  if (type !== "all") params.set("type", type);
-  if (status) params.set("status", status);
-  const qs = params.toString();
-  const href = qs ? `/studio/returns?${qs}` : "/studio/returns";
-
-  return (
-    <Link
-      href={href}
-      role="tab"
-      aria-selected={active}
-      scroll={false}
-      className={`relative -mb-px flex shrink-0 items-center gap-2 px-4 py-3 text-[11px] font-medium uppercase tracking-[0.18em] transition duration-300 ${
-        active
-          ? "text-maroon"
-          : "text-charcoal/50 hover:text-charcoal/80"
-      }`}
-    >
-      {label}
-      <span
-        className={`rounded-full px-1.5 py-0.5 text-[9px] tabular-nums ${
-          active ? "bg-maroon/12 text-maroon" : "bg-cocoa/8 text-charcoal/55"
-        }`}
-      >
-        {count}
-      </span>
-      {active ? (
-        <span
-          aria-hidden="true"
-          className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-maroon"
-        />
-      ) : null}
-    </Link>
   );
 }
