@@ -44,6 +44,10 @@ export interface CartLine {
   imageUrl: string | null;
   unitPrice: number;
   quantity: number;
+  /** Real, live available stock right now (0 if the variant was deactivated)
+   *  — not a cart snapshot. Lets the UI say exactly what's true: 0 vs. some
+   *  vs. enough, instead of one vague inStock boolean. */
+  stock: number;
   inStock: boolean;
 }
 
