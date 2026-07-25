@@ -13,7 +13,7 @@ import { getPendingReviewCount } from "@/lib/actions/admin/reviews";
 import { formatINR } from "@/lib/utils";
 
 export const metadata = {
-  title: "Admin · dashboard",
+  title: "Admin · Dashboard",
 };
 
 const DAYS = 30;
@@ -34,10 +34,10 @@ export default async function AdminDashboardPage() {
     <div>
       <header className="border-b border-cocoa/12 pb-6">
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-          overview · last {DAYS} days
+          Overview · last {DAYS} days
         </p>
         <h1 className="mt-2 font-display text-4xl uppercase leading-tight text-maroon">
-          dashboard
+          Dashboard
         </h1>
       </header>
 
@@ -50,14 +50,14 @@ export default async function AdminDashboardPage() {
           hint={
             totalOrders > 0
               ? `${paidOrders} paid`
-              : "no orders yet in this window"
+              : "No orders yet in this window"
           }
         />
         <KpiCard
           Icon={IndianRupee}
           label="Revenue"
           value={formatINR(revenue)}
-          hint={`from ${paidOrders} paid ${paidOrders === 1 ? "order" : "orders"}`}
+          hint={`From ${paidOrders} paid ${paidOrders === 1 ? "order" : "orders"}`}
         />
         <KpiCard
           Icon={AlertTriangle}
@@ -65,8 +65,8 @@ export default async function AdminDashboardPage() {
           value={String(lowStock.length)}
           hint={
             lowStock.length > 0
-              ? "variants at or below threshold"
-              : "everything comfortably stocked"
+              ? "Variants at or below threshold"
+              : "Everything comfortably stocked"
           }
           tone={lowStock.length > 0 ? "warn" : "ok"}
         />
@@ -74,7 +74,7 @@ export default async function AdminDashboardPage() {
           Icon={Star}
           label="Reviews awaiting"
           value={String(pendingReviews)}
-          hint={pendingReviews > 0 ? "queued for moderation" : "queue is clear"}
+          hint={pendingReviews > 0 ? "Queued for moderation" : "Queue is clear"}
           tone={pendingReviews > 0 ? "warn" : "ok"}
         />
       </div>
@@ -84,13 +84,13 @@ export default async function AdminDashboardPage() {
         <section className="mt-10 rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_10px_28px_rgba(43,38,35,0.04)]">
           <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-cocoa/10 pb-4">
             <h2 className="font-display text-2xl uppercase text-maroon">
-              fulfillment breakdown
+              Fulfillment breakdown
             </h2>
             <Link
               href="/studio/orders"
               className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
             >
-              view all orders
+              View all orders
             </Link>
           </div>
           <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -115,13 +115,13 @@ export default async function AdminDashboardPage() {
         <section className="mt-6 rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_10px_28px_rgba(43,38,35,0.04)]">
           <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-cocoa/10 pb-4">
             <h2 className="font-display text-2xl uppercase text-maroon">
-              running low
+              Running low
             </h2>
             <Link
               href="/studio/inventory"
               className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
             >
-              open inventory
+              Open inventory
             </Link>
           </div>
           <ul className="mt-4 divide-y divide-cocoa/8">
@@ -133,7 +133,7 @@ export default async function AdminDashboardPage() {
                 <div className="min-w-0">
                   <p className="truncate text-charcoal">{v.productTitle}</p>
                   <p className="truncate text-xs text-charcoal/55">
-                    {[v.size, v.color].filter(Boolean).join(" / ")} · sku{" "}
+                    {[v.size, v.color].filter(Boolean).join(" / ")} · SKU{" "}
                     {v.sku}
                   </p>
                 </div>
@@ -153,10 +153,10 @@ export default async function AdminDashboardPage() {
             <Box className="h-5 w-5" aria-hidden="true" />
           </span>
           <h2 className="mt-5 font-display text-2xl uppercase text-maroon">
-            all clear
+            All clear
           </h2>
           <p className="mt-2 max-w-md text-sm text-charcoal/60">
-            nothing needs attention right now. add a banner, publish a
+            Nothing needs attention right now. Add a banner, publish a
             collection, or check inventory below.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -164,14 +164,14 @@ export default async function AdminDashboardPage() {
               href="/studio/products"
               className="inline-flex items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90"
             >
-              manage products
+              Manage products
               <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>
             <Link
               href="/studio/banners"
               className="inline-flex items-center gap-2 rounded-full border border-cocoa/22 bg-cream px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa transition duration-500 hover:border-cocoa"
             >
-              update banners
+              Update banners
             </Link>
           </div>
         </section>
@@ -214,7 +214,7 @@ function KpiCard({
       <p className="mt-4 font-display text-3xl leading-none text-maroon tabular-nums">
         {value}
       </p>
-      <p className="mt-2 text-xs lowercase text-charcoal/55">{hint}</p>
+      <p className="mt-2 text-xs text-charcoal/55">{hint}</p>
     </article>
   );
 }

@@ -57,7 +57,7 @@ export function NewCollectionForm() {
         void collection;
       } catch (err) {
         setError(
-          actionErrorMessage(err, "couldn't create collection."),
+          actionErrorMessage(err, "Couldn't create collection."),
         );
       }
     });
@@ -78,7 +78,7 @@ export function NewCollectionForm() {
           label="Url slug"
           required
           wide
-          hint={`will appear as /collections/${effectiveSlug || "your-slug"}`}
+          hint={`Will appear as /collections/${effectiveSlug || "your-slug"}`}
         >
           <TextInput
             value={effectiveSlug}

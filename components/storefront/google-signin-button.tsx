@@ -38,13 +38,13 @@ export function GoogleSignInButton({
         },
       });
       if (error) {
-        onError?.("Couldn't open google sign-in. Please try again.");
+        onError?.("Couldn't open Google sign-in. Please try again.");
         setPending(false);
       }
       // On success supabase performs a top-level navigation to Google — no
       // need to reset pending on the happy path.
     } catch {
-      onError?.("Couldn't open google sign-in. Please try again.");
+      onError?.("Couldn't open Google sign-in. Please try again.");
       setPending(false);
     }
   }

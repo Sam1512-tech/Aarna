@@ -72,7 +72,7 @@ export function NewCouponForm() {
         router.refresh();
       } catch (err) {
         setError(
-          actionErrorMessage(err, "couldn't create coupon."),
+          actionErrorMessage(err, "Couldn't create coupon."),
         );
       }
     });

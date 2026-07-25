@@ -596,7 +596,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
               />
               <Field
                 label="Phone number"
-                hint="10-digit indian mobile"
+                hint="10-digit Indian mobile"
                 error={errors.phone?.message}
                 {...register("phone")}
                 type="tel"
@@ -774,7 +774,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                   <Lock className="h-4 w-4" aria-hidden="true" />
                   {submitting
                     ? "Opening secure payment…"
-                    : `continue to secure payment · ${formatINR(previewTotal)}`}
+                    : `Continue to secure payment · ${formatINR(previewTotal)}`}
                   {!submitting ? (
                     <ArrowRight
                       className="h-4 w-4 transition-transform duration-500 group-hover/cta:translate-x-1"
@@ -858,7 +858,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                 <Row label="Subtotal" value={formatINR(cart.subtotal)} />
                 {discount > 0 ? (
                   <Row
-                    label={`discount${couponCode ? ` (${couponCode})` : ""}`}
+                    label={`Discount${couponCode ? ` (${couponCode})` : ""}`}
                     value={`−${formatINR(discount)}`}
                   />
                 ) : null}
@@ -866,7 +866,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                   label="Shipping"
                   value={
                     estimatedShipping === 0
-                      ? "free"
+                      ? "Free"
                       : formatINR(estimatedShipping)
                   }
                 />

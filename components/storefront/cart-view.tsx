@@ -187,7 +187,7 @@ export function CartView({ initialCart }: CartViewProps) {
       try {
         await addToWishlist(line.variantId);
       } catch {
-        flashToast("sign in to save to wishlist");
+        flashToast("Sign in to save to wishlist");
         router.push(`/login/otp?next=${encodeURIComponent("/cart")}`);
         return;
       }
@@ -379,7 +379,7 @@ export function CartView({ initialCart }: CartViewProps) {
                 </p>
               ) : (
                 <p className="mt-5 text-center text-xs leading-6 text-charcoal/48">
-                  Secure payment via razorpay · delivered across india
+                  Secure payment via Razorpay · delivered across India
                 </p>
               )}
             </div>

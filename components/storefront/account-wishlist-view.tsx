@@ -79,7 +79,7 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
   return (
     <div>
       <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-        wishlist · {items.length}
+        Wishlist · {items.length}
       </p>
       {error ? (
         <p className="mt-3 text-xs text-burnt-red">{error}</p>
@@ -159,10 +159,10 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
                   >
                     <ShoppingBag className="h-3 w-3" aria-hidden="true" />
                     {row.stock <= 0
-                      ? "sold out"
+                      ? "Sold out"
                       : busy
-                        ? "moving…"
-                        : "move to bag"}
+                        ? "Moving…"
+                        : "Move to bag"}
                   </button>
                 </div>
               </div>

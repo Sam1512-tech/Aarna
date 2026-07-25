@@ -50,7 +50,7 @@ export function PaymentProcessingView({
           Please wait
         </p>
         <h1 className="mt-4 font-display text-[40px] leading-[1.05] text-maroon md:text-6xl">
-          processing your payment…
+          Processing your payment…
         </h1>
         <p className="mt-5 max-w-md text-base leading-7 text-charcoal/60">
           Please wait while we securely verify your payment and confirm your

@@ -29,13 +29,13 @@ export function ReturnPhotoGrid({ photos }: ReturnPhotoGridProps) {
               key={url}
               type="button"
               onClick={() => setLightboxIndex(i)}
-              aria-label={`open photo ${i + 1}`}
+              aria-label={`Open photo ${i + 1}`}
               className="group/tile aspect-square overflow-hidden rounded-lg border border-cocoa/12 bg-cocoa/4 transition duration-500 hover:border-cocoa"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={url}
-                alt={`return evidence ${i + 1}`}
+                alt={`Return evidence ${i + 1}`}
                 className="h-full w-full object-cover transition duration-500 group-hover/tile:scale-105"
               />
             </button>
@@ -47,19 +47,19 @@ export function ReturnPhotoGrid({ photos }: ReturnPhotoGridProps) {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={`photo ${lightboxIndex + 1} of ${photos.length}`}
+          aria-label={`Photo ${lightboxIndex + 1} of ${photos.length}`}
           className="fixed inset-0 z-[80] flex items-center justify-center bg-charcoal/80 p-6 backdrop-blur"
         >
           <button
             type="button"
             onClick={() => setLightboxIndex(null)}
-            aria-label="close photo"
+            aria-label="Close photo"
             className="absolute inset-0"
           />
           <button
             type="button"
             onClick={() => setLightboxIndex(null)}
-            aria-label="close photo"
+            aria-label="Close photo"
             className="absolute right-6 top-6 inline-flex h-10 w-10 items-center justify-center rounded-full bg-cream/12 text-cream backdrop-blur hover:bg-cream/20"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -67,7 +67,7 @@ export function ReturnPhotoGrid({ photos }: ReturnPhotoGridProps) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={photos[lightboxIndex]}
-            alt={`return evidence ${lightboxIndex + 1}`}
+            alt={`Return evidence ${lightboxIndex + 1}`}
             className="relative z-10 max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
           />
           {photos.length > 1 ? (

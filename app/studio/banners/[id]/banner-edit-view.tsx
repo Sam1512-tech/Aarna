@@ -73,7 +73,7 @@ export function BannerEditView({ banner }: { banner: Banner }) {
         setSaved("Saved.");
         router.refresh();
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't save banner."));
+        setError(actionErrorMessage(err, "Couldn't save banner."));
       }
     });
   }

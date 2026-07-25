@@ -54,13 +54,13 @@ export default function NotFound() {
         </div>
 
         <p className="mt-12 text-xs leading-6 text-charcoal/50">
-          or head back{" "}
+          Or head back{" "}
           <Link href="/" className="soft-link text-cocoa">
             Home
           </Link>{" "}
           · questions? Visit our{" "}
           <Link href="/faq" className="soft-link text-cocoa">
-            Faq
+            FAQ
           </Link>
           .
         </p>

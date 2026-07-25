@@ -66,7 +66,7 @@ export default async function AdminCouponsPage({
         eyebrow="Commerce"
         title="Coupons"
         intro="Discount codes customers apply at checkout."
-        action={{ href: "/studio/coupons/new", label: "add coupon" }}
+        action={{ href: "/studio/coupons/new", label: "Add coupon" }}
       />
 
       <AutoSubmitForm className="mt-6 flex flex-wrap items-end gap-3">
@@ -83,11 +83,11 @@ export default async function AdminCouponsPage({
         </label>
         <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-charcoal/70">
           <input type="checkbox" name="active" value="1" defaultChecked={onlyActive} className="h-4 w-4 accent-cocoa" />
-          active only
+          Active only
         </label>
         <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-charcoal/70">
           <input type="checkbox" name="expired" value="1" defaultChecked={onlyExpired} className="h-4 w-4 accent-cocoa" />
-          expired only
+          Expired only
         </label>
         <button
           type="submit"
@@ -102,7 +102,7 @@ export default async function AdminCouponsPage({
           <AdminEmpty
             title="No coupons yet"
             description="Add a code — flat amount or percentage — to offer at checkout."
-            cta={{ href: "/studio/coupons/new", label: "add coupon" }}
+            cta={{ href: "/studio/coupons/new", label: "Add coupon" }}
           />
         ) : (
           <div className={t.wrapper}>

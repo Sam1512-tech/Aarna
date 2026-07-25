@@ -124,7 +124,7 @@ export function AccountProfileView({
           className="inline-flex items-center gap-2 rounded-full bg-cocoa px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90 disabled:opacity-50"
         >
           {pending ? (
-            "saving…"
+            "Saving…"
           ) : saved ? (
             <>
               Saved

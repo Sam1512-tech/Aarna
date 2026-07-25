@@ -192,7 +192,7 @@ export function SearchView({
         else next.delete(product.id);
         return next;
       });
-      flashToast("sign in to save to wishlist");
+      flashToast("Sign in to save to wishlist");
       router.push(`/login/otp?next=${encodeURIComponent("/search")}`);
     }
   }
@@ -256,7 +256,7 @@ export function SearchView({
                       className="rounded-full border border-cocoa/20 bg-cocoa/5 px-5 py-2.5 transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/35 hover:bg-cocoa/10"
                     >
                       <span className="text-sm text-charcoal/80">
-                        <Highlight text={c.name.toLowerCase()} query={trimmed} />
+                        <Highlight text={c.name} query={trimmed} />
                       </span>
                     </Link>
                   ))}
@@ -300,7 +300,7 @@ export function SearchView({
                 {[
                   ...QUICK_PICKS,
                   ...categories.slice(0, 2).map((c) => ({
-                    label: c.name.toLowerCase(),
+                    label: c.name,
                     href: `/shop/${c.slug}`,
                     Icon: categoryIcon(c.slug),
                   })),
@@ -374,7 +374,7 @@ export function SearchView({
                       onClick={() => commitSearch(c.name)}
                       className="rounded-full border border-cocoa/20 bg-cocoa/5 px-5 py-2.5 text-sm text-charcoal/80 transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/35 hover:bg-cocoa/10 hover:text-maroon"
                     >
-                      {c.name.toLowerCase()}
+                      {c.name}
                     </button>
                   ))}
                 </div>
@@ -623,7 +623,7 @@ function EmptyResults({
               onClick={() => onPick(c.name)}
               className="rounded-full border border-cocoa/20 bg-cocoa/5 px-5 py-2.5 text-sm text-charcoal/80 transition duration-500 hover:-translate-y-0.5 hover:border-cocoa/35 hover:bg-cocoa/10 hover:text-maroon"
             >
-              {c.name.toLowerCase()}
+              {c.name}
             </button>
           ))}
         </div>

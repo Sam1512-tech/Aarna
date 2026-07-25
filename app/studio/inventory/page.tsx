@@ -78,7 +78,7 @@ export default async function AdminInventoryPage({
           <input
             name="search"
             defaultValue={search ?? ""}
-            placeholder="sku or product title…"
+            placeholder="SKU or product title…"
             autoFocus
             className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa sm:text-sm"
           />
@@ -91,7 +91,7 @@ export default async function AdminInventoryPage({
             defaultChecked={onlyLowStock}
             className="h-4 w-4 accent-cocoa"
           />
-          low stock only
+          Low stock only
         </label>
         <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-charcoal/70">
           <input
@@ -101,7 +101,7 @@ export default async function AdminInventoryPage({
             defaultChecked={onlyOutOfStock}
             className="h-4 w-4 accent-cocoa"
           />
-          out of stock only
+          Out of stock only
         </label>
         <button
           type="submit"

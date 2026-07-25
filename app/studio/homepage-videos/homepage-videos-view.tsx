@@ -72,7 +72,7 @@ function VideoSlotForm({
         });
         setSaved("Saved.");
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't save video."));
+        setError(actionErrorMessage(err, "Couldn't save video."));
       }
     });
   }

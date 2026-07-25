@@ -101,7 +101,7 @@ export function SignupView({ nextPath }: SignupViewProps) {
           CREATE ACCOUNT
         </h1>
         <p className="mt-3 max-w-xs text-center text-sm leading-6 text-charcoal/60">
-          Welcome to aarna — a few details to get you started.
+          Welcome to Aarna — a few details to get you started.
         </p>
 
         <div className="mt-10 w-full space-y-6">
@@ -144,8 +144,8 @@ export function SignupView({ nextPath }: SignupViewProps) {
                     className="soft-link text-cocoa disabled:opacity-50"
                   >
                     {resendCountdown > 0
-                      ? `resend in ${resendCountdown}s`
-                      : "resend the email"}
+                      ? `Resend in ${resendCountdown}s`
+                      : "Resend the email"}
                   </button>
                 </p>
               )}
@@ -174,7 +174,7 @@ export function SignupView({ nextPath }: SignupViewProps) {
             <>
               <GoogleSignInButton
                 nextPath={nextPath}
-                label="Sign up with google"
+                label="Sign up with Google"
                 disabled={pending}
                 onError={setError}
               />
@@ -264,7 +264,7 @@ export function SignupView({ nextPath }: SignupViewProps) {
         </div>
 
         <p className="mt-6 text-center text-xs text-charcoal/50">
-          already have an account?{" "}
+          Already have an account?{" "}
           <Link
             href={`/login?next=${encodeURIComponent(nextPath)}`}
             className="soft-link text-cocoa"
@@ -274,7 +274,7 @@ export function SignupView({ nextPath }: SignupViewProps) {
         </p>
 
         <p className="mt-6 text-center text-xs leading-6 text-charcoal/40">
-          by creating an account, you agree to our{" "}
+          By creating an account, you agree to our{" "}
           <Link href="/terms" className="soft-link">
             Terms
           </Link>{" "}

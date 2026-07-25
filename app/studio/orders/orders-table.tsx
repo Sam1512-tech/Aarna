@@ -70,12 +70,12 @@ export function OrdersTable({ items }: { items: AdminOrderListItem[] }) {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? "couldn't generate invoices");
+        throw new Error(body?.error ?? "Couldn't generate invoices");
       }
       const blob = await res.blob();
       window.open(URL.createObjectURL(blob), "_blank");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "couldn't generate invoices");
+      setError(err instanceof Error ? err.message : "Couldn't generate invoices");
     } finally {
       setPrinting(false);
     }

@@ -64,7 +64,7 @@ export function ResetPasswordView() {
         <p className="mt-3 max-w-xs text-center text-sm leading-6 text-charcoal/60">
           {done
             ? "You're signed in — taking you to your account."
-            : "choose a password you'll remember — at least 8 characters."}
+            : "Choose a password you'll remember — at least 8 characters."}
         </p>
 
         {!done ? (

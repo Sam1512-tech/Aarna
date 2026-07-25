@@ -25,7 +25,7 @@ export default async function AdminCategoriesPage() {
         eyebrow="Catalog"
         title="Categories"
         intro="The wardrobe paths customers browse by — shown in the nav and homepage exactly in this order."
-        action={{ href: "/studio/categories/new", label: "add category" }}
+        action={{ href: "/studio/categories/new", label: "Add category" }}
       />
 
       <div className="mt-6">
@@ -33,7 +33,7 @@ export default async function AdminCategoriesPage() {
           <AdminEmpty
             title="No categories yet"
             description="Add at least one category so products have somewhere to live on the storefront."
-            cta={{ href: "/studio/categories/new", label: "add your first category" }}
+            cta={{ href: "/studio/categories/new", label: "Add your first category" }}
           />
         ) : (
           <div className={t.wrapper}>

@@ -141,13 +141,13 @@ export function LoginOtpView({ nextPath, initialEmail }: LoginOtpViewProps) {
         },
       });
       if (oauthError) {
-        setError("Couldn't open google sign-in. Please try again.");
+        setError("Couldn't open Google sign-in. Please try again.");
         setPending(false);
       }
       // On success, supabase.auth.signInWithOAuth performs a top-level
       // navigation to Google — no need to setPending(false) on the happy path.
     } catch {
-      setError("Couldn't open google sign-in. Please try again.");
+      setError("Couldn't open Google sign-in. Please try again.");
       setPending(false);
     }
   }
@@ -172,7 +172,7 @@ export function LoginOtpView({ nextPath, initialEmail }: LoginOtpViewProps) {
         <p className="mt-3 max-w-xs break-words text-center text-sm leading-6 text-charcoal/60">
           {step === "email"
             ? "Enter your email — we'll send a one-time code to verify it."
-            : `we sent a 6-digit code to ${email}.`}
+            : `We sent a 6-digit code to ${email}.`}
         </p>
 
         {step === "email" ? (
@@ -185,7 +185,7 @@ export function LoginOtpView({ nextPath, initialEmail }: LoginOtpViewProps) {
             >
               <GoogleGlyph />
               <span className="text-[12px] font-medium uppercase tracking-[0.18em] text-charcoal/85">
-                Continue with google
+                Continue with Google
               </span>
             </button>
 
@@ -213,7 +213,7 @@ export function LoginOtpView({ nextPath, initialEmail }: LoginOtpViewProps) {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="You@example.com"
+                  placeholder="you@example.com"
                   className="w-full bg-transparent text-base text-charcoal outline-none placeholder:text-charcoal/35"
                   aria-label="Email address"
                   autoFocus

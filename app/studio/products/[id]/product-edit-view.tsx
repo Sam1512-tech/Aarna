@@ -162,7 +162,7 @@ function BasicsForm({
         });
         setSaved("Basics saved.");
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't save product."));
+        setError(actionErrorMessage(err, "Couldn't save product."));
       }
     });
   }
@@ -182,7 +182,7 @@ function BasicsForm({
             onChange={(e) => setSlug(slugify(e.target.value))}
           />
         </Field>
-        <Field label="Style code" wide hint="auto-generated · used to build tag SKUs">
+        <Field label="Style code" wide hint="Auto-generated · used to build tag SKUs">
           <TextInput value={product.styleCode ?? "—"} disabled readOnly className="font-mono" />
         </Field>
         <Field label="Category" wide>
@@ -203,7 +203,7 @@ function BasicsForm({
           <TextInput inputMode="decimal" value={priceRupees}
             onChange={(e) => setPriceRupees(e.target.value)} />
         </Field>
-        <Field label="Mrp (₹)" hint="blank = same as selling price">
+        <Field label="MRP (₹)" hint="Blank = same as selling price">
           <TextInput inputMode="decimal" value={mrpRupees}
             onChange={(e) => setMrpRupees(e.target.value)} />
         </Field>
@@ -221,9 +221,9 @@ function BasicsForm({
       <FormSection title="Visibility">
         <Field label="Status" wide>
           <Select value={status} onChange={(e) => setStatus(e.target.value as ProductStatus)}>
-            <option value="draft">draft — hidden</option>
-            <option value="active">active — live</option>
-            <option value="archived">archived — hidden, kept</option>
+            <option value="draft">Draft — hidden</option>
+            <option value="active">Active — live</option>
+            <option value="archived">Archived — hidden, kept</option>
           </Select>
         </Field>
       </FormSection>
@@ -312,7 +312,7 @@ function VariantsSection({
         onChange(variants.filter((v) => !ids.has(v.id)));
         setDraftSizes((s) => s.filter((x) => x !== size));
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't remove size."));
+        setError(actionErrorMessage(err, "Couldn't remove size."));
       } finally {
         setRemoving(null);
       }
@@ -564,7 +564,7 @@ function AddTagRow({
           isActive: created.isActive,
         });
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't add tag."));
+        setError(actionErrorMessage(err, "Couldn't add tag."));
       }
     });
   }
@@ -596,7 +596,7 @@ function AddTagRow({
             placeholder={styleCode ? "auto" : "assigned on save"}
             value={effectiveSku}
             onChange={(e) => { setSku(e.target.value); setSkuEdited(true); }}
-            aria-label="Sku"
+            aria-label="SKU"
             className={`mt-1 ${variantInputClass} font-mono`}
           />
         </label>
@@ -676,7 +676,7 @@ function TagRow({
     const price = rupeesToPaise(priceRupees);
     const stock = Number.parseInt(stockStr, 10);
     if (Number.isNaN(price) || Number.isNaN(stock)) {
-      setError("check price and stock");
+      setError("Check price and stock");
       return;
     }
     startTransition(async () => {
@@ -703,7 +703,7 @@ function TagRow({
         setStockStr(String(next.stock));
         onUpdated(next);
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't save"));
+        setError(actionErrorMessage(err, "Couldn't save"));
       }
     });
   }
@@ -715,7 +715,7 @@ function TagRow({
         await deleteVariant(v.id);
         onDeleted(v.id);
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't delete"));
+        setError(actionErrorMessage(err, "Couldn't delete"));
       }
     });
   }
@@ -726,7 +726,7 @@ function TagRow({
         <input value={v.color} onChange={(e) => setV({ ...v, color: e.target.value })}
           placeholder="tag (e.g. color)" aria-label="Tag / color" className={variantInputClass} />
         <input value={v.sku} onChange={(e) => setV({ ...v, sku: e.target.value })}
-          placeholder="sku" aria-label="Sku" className={`${variantInputClass} font-mono`} />
+          placeholder="SKU" aria-label="SKU" className={`${variantInputClass} font-mono`} />
         <input inputMode="decimal" value={priceRupees}
           onChange={(e) => setPriceRupees(e.target.value)}
           placeholder="price" aria-label="Price" className={variantInputClass} />
@@ -749,7 +749,7 @@ function TagRow({
         <input type="checkbox" checked={v.isActive}
           onChange={(e) => setV({ ...v, isActive: e.target.checked })}
           className="h-3.5 w-3.5 accent-cocoa" />
-        active
+        Active
       </label>
       {error ? <p className="mt-1 text-xs text-burnt-red">{error}</p> : null}
     </li>
@@ -796,19 +796,19 @@ function ImagesSection({
         ]);
         setAlt("");
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't add image"));
+        setError(actionErrorMessage(err, "Couldn't add image"));
       }
     });
   }
 
   function handleRemove(id: string) {
-    if (!confirm("remove this image?")) return;
+    if (!confirm("Remove this image?")) return;
     startTransition(async () => {
       try {
         await removeProductImage(id);
         onChange(images.filter((img) => img.id !== id));
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't remove image"));
+        setError(actionErrorMessage(err, "Couldn't remove image"));
       }
     });
   }
@@ -844,7 +844,7 @@ function ImagesSection({
           </p>
         </label>
       </div>
-      {pending ? <p className="mt-2 text-xs text-charcoal/55">saving…</p> : null}
+      {pending ? <p className="mt-2 text-xs text-charcoal/55">Saving…</p> : null}
       {error ? <p className="mt-1 text-xs text-burnt-red">{error}</p> : null}
 
       {images.length === 0 ? (
@@ -918,7 +918,7 @@ function PrintTagsCard({
         quantity: Math.max(1, Number.parseInt(qtyFor(v), 10) || 1),
       }));
     if (items.length === 0) {
-      setError("select at least one tag");
+      setError("Select at least one tag");
       return;
     }
     setError(null);
@@ -931,12 +931,12 @@ function PrintTagsCard({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? "couldn't generate tags");
+        throw new Error(body?.error ?? "Couldn't generate tags");
       }
       const blob = await res.blob();
       window.open(URL.createObjectURL(blob), "_blank");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "couldn't generate tags");
+      setError(err instanceof Error ? err.message : "Couldn't generate tags");
     } finally {
       setPrinting(false);
     }

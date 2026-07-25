@@ -13,7 +13,7 @@ import { REJECT_REASONS } from "@/lib/returns/reject-reasons";
 import { getAdminReturns } from "@/lib/actions/admin/returns";
 import { formatINR } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Admin · returns" };
+export const metadata: Metadata = { title: "Admin · Returns" };
 
 const STATUSES = [
   "requested",
@@ -54,13 +54,13 @@ function hoursSince(d: Date | string): number {
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
-  size_fit: "size or fit",
-  quality: "quality issue",
-  damaged: "arrived damaged",
-  wrong_item: "wrong item sent",
-  changed_mind: "changed mind",
-  color: "different colour",
-  style: "different style",
+  size_fit: "Size or fit",
+  quality: "Quality issue",
+  damaged: "Arrived damaged",
+  wrong_item: "Wrong item sent",
+  changed_mind: "Changed mind",
+  color: "Different colour",
+  style: "Different style",
 };
 
 const REJECT_REASON_LABEL: Record<string, string> = Object.fromEntries(
@@ -170,14 +170,14 @@ export default async function AdminReturnsPage({
         ) : null}
         <label>
           <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/72">
-            status
+            Status
           </span>
           <select
             name="status"
             defaultValue={status ?? ""}
             className="mt-1.5 block rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa sm:text-sm"
           >
-            <option value="">all statuses</option>
+            <option value="">All statuses</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -194,7 +194,7 @@ export default async function AdminReturnsPage({
             }
             className="text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55 transition hover:text-cocoa"
           >
-            clear
+            Clear
           </Link>
         ) : null}
       </AutoSubmitForm>
@@ -232,7 +232,7 @@ export default async function AdminReturnsPage({
                           href={`/studio/orders/${r.orderId}`}
                           className="soft-link text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/60"
                         >
-                          order · {r.orderNumber}
+                          Order · {r.orderNumber}
                         </Link>
                         {isStale ? (
                           <span className="inline-flex items-center gap-1 rounded-full border border-burnt-red/25 bg-burnt-red/6 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-burnt-red">
@@ -241,7 +241,7 @@ export default async function AdminReturnsPage({
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-2 font-display text-xl lowercase leading-tight text-maroon">
+                      <p className="mt-2 font-display text-xl leading-tight text-maroon">
                         {r.productTitle}
                       </p>
                       <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-charcoal/55">
@@ -254,7 +254,7 @@ export default async function AdminReturnsPage({
                       </div>
                       {r.type === "exchange" ? (
                         <p className="mt-2 text-xs text-charcoal/65">
-                          <span className="text-charcoal/45">wants </span>
+                          <span className="text-charcoal/45">Wants </span>
                           {r.desiredProductTitle ? (
                             <>
                               {r.desiredProductTitle}
@@ -270,12 +270,12 @@ export default async function AdminReturnsPage({
                                 }
                               >
                                 {(r.desiredStock ?? 0) <= 0
-                                  ? "out of stock"
+                                  ? "Out of stock"
                                   : `${r.desiredStock} in stock`}
                               </span>
                             </>
                           ) : (
-                            "not picked yet"
+                            "Not picked yet"
                           )}
                         </p>
                       ) : null}
@@ -288,7 +288,7 @@ export default async function AdminReturnsPage({
                       />
                       {r.refundAmount ? (
                         <p className="text-right text-sm">
-                          <span className="text-charcoal/55">refund </span>
+                          <span className="text-charcoal/55">Refund </span>
                           <span className="font-medium text-cocoa">
                             {formatINR(r.refundAmount)}
                           </span>
@@ -301,7 +301,7 @@ export default async function AdminReturnsPage({
                   <div className="mt-4 rounded-xl border border-cocoa/10 bg-cocoa/4 px-4 py-3">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
-                        customer note
+                        Customer note
                       </p>
                       {r.reasonCategory ? (
                         <span className="rounded-full bg-cocoa/8 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-cocoa">
@@ -319,7 +319,7 @@ export default async function AdminReturnsPage({
                   {r.status === "rejected" && r.rejectionReason ? (
                     <div className="mt-4 rounded-xl border border-burnt-red/20 bg-burnt-red/4 px-4 py-3">
                       <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-burnt-red">
-                        rejected · {REJECT_REASON_LABEL[r.rejectionReason] ?? r.rejectionReason}
+                        Rejected · {REJECT_REASON_LABEL[r.rejectionReason] ?? r.rejectionReason}
                       </p>
                       {r.adminNote ? (
                         <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6 text-charcoal/70">
@@ -339,9 +339,9 @@ export default async function AdminReturnsPage({
 
                   {/* Meta footer */}
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-cocoa/8 pt-3 text-xs text-charcoal/55">
-                    <p>raised {fmtDateTime(r.createdAt)}</p>
+                    <p>Raised {fmtDateTime(r.createdAt)}</p>
                     {r.resolvedAt ? (
-                      <p>resolved {fmtDateTime(r.resolvedAt)}</p>
+                      <p>Resolved {fmtDateTime(r.resolvedAt)}</p>
                     ) : null}
                   </div>
                 </li>

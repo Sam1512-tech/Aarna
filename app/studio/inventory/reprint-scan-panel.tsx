@@ -74,7 +74,7 @@ export function ReprintScanPanel() {
           });
         }
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't look up that SKU"));
+        setError(actionErrorMessage(err, "Couldn't look up that SKU"));
       }
     }
     processingRef.current = false;
@@ -127,13 +127,13 @@ export function ReprintScanPanel() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? "couldn't generate tags");
+        throw new Error(body?.error ?? "Couldn't generate tags");
       }
       const blob = await res.blob();
       window.open(URL.createObjectURL(blob), "_blank");
       setQueue([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "couldn't generate tags");
+      setError(err instanceof Error ? err.message : "Couldn't generate tags");
     } finally {
       setPrinting(false);
       inputRef.current?.focus();
@@ -160,7 +160,7 @@ export function ReprintScanPanel() {
           ref={inputRef}
           value={sku}
           onChange={(e) => setSku(e.target.value)}
-          placeholder="scan or type sku…"
+          placeholder="scan or type SKU…"
           className="flex-1 rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa disabled:opacity-60 sm:text-sm"
         />
         <button

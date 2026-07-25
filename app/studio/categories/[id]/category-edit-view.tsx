@@ -41,7 +41,7 @@ export function CategoryEditView({ category }: { category: Category }) {
         });
         setSaved("Saved.");
       } catch (err) {
-        setError(actionErrorMessage(err, "couldn't save category."));
+        setError(actionErrorMessage(err, "Couldn't save category."));
       }
     });
   }

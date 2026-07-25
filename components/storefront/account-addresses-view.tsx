@@ -41,7 +41,7 @@ export function AccountAddressesView({
   }
 
   function remove(id: string) {
-    if (!window.confirm("delete this address?")) return;
+    if (!window.confirm("Delete this address?")) return;
     startTransition(async () => {
       try {
         await deleteAddress(id);
@@ -288,7 +288,7 @@ function AddressEditor({
         <div className="overflow-y-auto p-6 md:p-8">
           <div className="flex items-start justify-between">
             <h2 className="font-display text-3xl text-maroon">
-              {initial ? "edit address" : "add address"}
+              {initial ? "Edit address" : "Add address"}
             </h2>
             <button
               type="button"
@@ -388,7 +388,7 @@ function AddressEditor({
           >
             <span className="inline-flex items-center gap-2">
               {pending ? (
-                "saving…"
+                "Saving…"
               ) : (
                 <>
                   Save

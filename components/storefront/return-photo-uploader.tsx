@@ -106,13 +106,13 @@ export function ReturnPhotoUploader({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={url}
-              alt={`return evidence ${i + 1}`}
+              alt={`Return evidence ${i + 1}`}
               className="h-full w-full object-cover"
             />
             <button
               type="button"
               onClick={() => remove(i)}
-              aria-label={`remove photo ${i + 1}`}
+              aria-label={`Remove photo ${i + 1}`}
               className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-charcoal/70 text-cream opacity-100 backdrop-blur-sm transition sm:opacity-0 sm:group-hover/tile:opacity-100 focus:opacity-100"
             >
               <X className="h-3 w-3" aria-hidden="true" />
