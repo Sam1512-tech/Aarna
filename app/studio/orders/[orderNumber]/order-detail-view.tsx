@@ -86,10 +86,24 @@ function toneForFulfillment(s: FulfillmentStatus) {
 
 export function OrderDetailView({ order: initial }: { order: Order }) {
   const [order, setOrder] = useState(initial);
-  const [awbInput, setAwbInput] = useState(order.awbNumber ?? "");
+  // "PENDING" is an internal sentinel (createDelhiveryShipment's in-flight
+  // claim), never a real AWB to show/resubmit — start the input blank for
+  // that case rather than literally pre-filling the word "PENDING".
+  const [awbInput, setAwbInput] = useState(
+    order.awbNumber && order.awbNumber !== "PENDING" ? order.awbNumber : "",
+  );
+  // Separate from the normal "attach" flow — only reachable once a real AWB
+  // already exists, and only after an explicit confirmation. See
+  // handleAttachAwb / lib/actions/admin/orders.ts's attachAwbNumber for why
+  // this can't just be the same button: silently overwriting an existing
+  // AWB is exactly the bug that corrupted AARNA-001034's awb_number into
+  // two waybills concatenated together.
+  const [replacingAwb, setReplacingAwb] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const hasRealAwb = !!order.awbNumber && order.awbNumber !== "PENDING";
 
   const shipping = order.shippingAddress as Address | null;
 
@@ -136,19 +150,26 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
     });
   }
 
-  function handleAttachAwb() {
+  function handleAttachAwb(replace: boolean) {
     const trimmed = awbInput.trim();
     if (!trimmed) return;
+    if (replace) {
+      const confirmed = window.confirm(
+        `Replace the existing AWB (${order.awbNumber}) with "${trimmed}"? This only updates Aarna's record — it does not cancel any real shipment already booked with Delhivery under the old AWB.`,
+      );
+      if (!confirmed) return;
+    }
     startTransition(async () => {
       try {
-        const updated = await attachAwbNumber(order.id, trimmed);
+        const updated = await attachAwbNumber(order.id, trimmed, { replace });
         setOrder((o) => ({
           ...o,
           awbNumber: updated.awbNumber ?? trimmed,
           fulfillmentStatus:
             updated.fulfillmentStatus as FulfillmentStatus,
         }));
-        announce(`AWB attached${updated.fulfillmentStatus === "shipped" ? " · status → shipped" : ""}.`);
+        setReplacingAwb(false);
+        announce(`AWB ${replace ? "replaced" : "attached"}${updated.fulfillmentStatus === "shipped" ? " · status → shipped" : ""}.`);
       } catch (err) {
         announce(actionErrorMessage(err, "Couldn't attach AWB"), true);
       }
@@ -364,35 +385,80 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
           )}
 
           <div className="mt-5 border-t border-cocoa/10 pt-4">
-            <label className="block">
-              <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
-                awb number
-              </span>
-              <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-2">
-                <input
-                  value={awbInput}
-                  onChange={(e) => setAwbInput(e.target.value)}
-                  placeholder="Paste AWB from Delhivery"
-                  className="rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
-                />
+            {hasRealAwb && !replacingAwb ? (
+              <>
+                <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+                  awb number
+                </span>
+                <p className="mt-1.5 rounded-xl border border-cocoa/20 bg-cocoa/5 px-4 py-2.5 text-sm text-charcoal">
+                  {order.awbNumber}
+                </p>
                 <button
                   type="button"
-                  onClick={handleAttachAwb}
-                  disabled={
-                    pending ||
-                    awbInput.trim().length === 0 ||
-                    awbInput.trim() === order.awbNumber
-                  }
-                  className="rounded-full border border-cocoa/22 bg-cream px-4 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa transition duration-500 hover:border-cocoa disabled:opacity-50"
+                  onClick={() => {
+                    setAwbInput("");
+                    setReplacingAwb(true);
+                  }}
+                  className="soft-link mt-2 text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55"
                 >
-                  attach
+                  Replace shipment…
                 </button>
-              </div>
-            </label>
-            <p className="mt-1 text-xs text-charcoal/50">
-              Use this when the shipment was created manually. Auto-advances
-              to shipped when currently processing.
-            </p>
+                <p className="mt-1 text-xs text-charcoal/50">
+                  A shipment is already attached. Only replace it to correct
+                  a mistake — this doesn&apos;t cancel any real shipment
+                  already booked with Delhivery under the old AWB.
+                </p>
+              </>
+            ) : (
+              <label className="block">
+                <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+                  {replacingAwb ? "new awb number" : "awb number"}
+                </span>
+                {replacingAwb ? (
+                  <p className="mt-1 text-xs text-burnt-red">
+                    Replacing the existing AWB ({order.awbNumber}) — updates
+                    Aarna&apos;s record only.
+                  </p>
+                ) : null}
+                <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-2">
+                  <input
+                    value={awbInput}
+                    onChange={(e) => setAwbInput(e.target.value)}
+                    placeholder="Paste AWB from Delhivery"
+                    className="rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAttachAwb(replacingAwb)}
+                    disabled={
+                      pending ||
+                      awbInput.trim().length === 0 ||
+                      (!replacingAwb && awbInput.trim() === order.awbNumber)
+                    }
+                    className="rounded-full border border-cocoa/22 bg-cream px-4 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa transition duration-500 hover:border-cocoa disabled:opacity-50"
+                  >
+                    {replacingAwb ? "replace" : "attach"}
+                  </button>
+                </div>
+                {replacingAwb ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplacingAwb(false);
+                      setAwbInput("");
+                    }}
+                    className="mt-2 text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/45 transition duration-500 hover:text-charcoal/70"
+                  >
+                    cancel
+                  </button>
+                ) : (
+                  <p className="mt-1 text-xs text-charcoal/50">
+                    Use this when the shipment was created manually.
+                    Auto-advances to shipped when currently processing.
+                  </p>
+                )}
+              </label>
+            )}
           </div>
         </Card>
 

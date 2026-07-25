@@ -319,15 +319,36 @@ export async function updateOrderFulfillmentStatus(
 }
 
 /**
- * Attach a courier AWB number (after admin creates the shipment). This is the
- * point at which the order is considered "shipped" — so we move the status
- * forward automatically.
+ * Attach a courier AWB number (after admin creates the shipment manually, or
+ * to recover from a "PENDING" claim left behind by a failed
+ * createDelhiveryShipment rollback — see that function's catch block). This
+ * is the point at which the order is considered "shipped" — so we move the
+ * status forward automatically.
+ *
+ * Blocks silently overwriting an already-attached real AWB by default — a
+ * genuine duplicate/data-corruption bug found live in the dev DB: order
+ * AARNA-001034 ended up with awb_number "5517341000004455173410000044", two
+ * real waybills ("55173410000044") concatenated into one string, because
+ * this action previously had no check at all and the admin UI's input
+ * starts pre-filled with the existing AWB — nothing stopped submitting a
+ * second attach over it. Pass `{ replace: true }` for the one legitimate
+ * case, correcting a mistake — the UI surfaces that as an explicit,
+ * separately-confirmed "Replace shipment" action, not the same "Attach"
+ * button silently allowing it.
  */
-export async function attachAwbNumber(orderId: string, awbNumber: string) {
+export async function attachAwbNumber(
+  orderId: string,
+  awbNumber: string,
+  options?: { replace?: boolean },
+) {
   const admin = await requireAdmin();
 
   const existing = await db
-    .select({ fulfillmentStatus: orders.fulfillmentStatus, orderNumber: orders.orderNumber })
+    .select({
+      fulfillmentStatus: orders.fulfillmentStatus,
+      orderNumber: orders.orderNumber,
+      awbNumber: orders.awbNumber,
+    })
     .from(orders)
     .where(eq(orders.id, orderId))
     .limit(1);
@@ -337,8 +358,28 @@ export async function attachAwbNumber(orderId: string, awbNumber: string) {
   const trimmed = awbNumber.trim();
   if (!trimmed) throw new ActionError("AWB number is required");
 
+  const currentAwb = existing[0].awbNumber;
+  // "PENDING" is createDelhiveryShipment's internal claim sentinel, not a
+  // real shipment — attaching over it is the legitimate recovery path, not
+  // a replace.
+  const hasRealAwb = !!currentAwb && currentAwb !== "PENDING";
+
+  if (hasRealAwb && !options?.replace) {
+    throw new ActionError(
+      trimmed === currentAwb
+        ? `This order already has this AWB attached (${currentAwb}).`
+        : `This order already has a shipment attached — AWB: ${currentAwb}. Use "Replace shipment" to override.`,
+    );
+  }
+
   const willMoveToShipped = existing[0].fulfillmentStatus === "processing";
 
+  // Conditional on the SAME "may I write" check re-evaluated at the instant
+  // of the write, not just the SELECT above — otherwise two concurrent
+  // attach attempts could both pass the check above and both write, the
+  // second one silently overwriting the first with no error to either
+  // admin. Mirrors the atomic-claim pattern createDelhiveryShipment already
+  // uses for the same reason.
   const [updated] = await db
     .update(orders)
     .set({
@@ -346,15 +387,29 @@ export async function attachAwbNumber(orderId: string, awbNumber: string) {
       ...(willMoveToShipped && { fulfillmentStatus: "shipped" }),
       updatedAt: new Date(),
     })
-    .where(eq(orders.id, orderId))
+    .where(
+      and(
+        eq(orders.id, orderId),
+        hasRealAwb
+          ? eq(orders.awbNumber, currentAwb)
+          : or(isNull(orders.awbNumber), eq(orders.awbNumber, "PENDING")),
+      ),
+    )
     .returning();
+
+  if (!updated) {
+    throw new ActionError(
+      "This order's shipment changed while you were editing it — refresh and try again.",
+    );
+  }
 
   revalidatePath("/studio/orders");
   revalidatePath(`/studio/orders/${existing[0].orderNumber}`);
   revalidatePath("/account/orders");
 
   await logAdminAction(admin.id, "order.attach_awb", "order", orderId, {
-    awbNumber,
+    awbNumber: trimmed,
+    ...(hasRealAwb && { replacedAwb: currentAwb }),
   });
 
   return updated;
