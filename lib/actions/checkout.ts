@@ -281,6 +281,11 @@ export async function checkPincodeServiceability(
 
   try {
     const result = await checkServiceability(pincode);
+    // Raw upstream result, not just the boolean we return — so a "why did
+    // this pincode read as not-serviceable" question can be answered from
+    // logs alone instead of guessing whether Delhivery said no or something
+    // upstream of Delhivery's answer went wrong.
+    console.log(`[checkout] Delhivery serviceability for ${pincode}:`, result);
     // Aarna is prepaid-only, so prepaid serviceability is what matters.
     // (Delhivery's pincode endpoint doesn't return an ETA; 5 days is a placeholder.)
     return {
@@ -288,7 +293,7 @@ export async function checkPincodeServiceability(
       etaDays: result.serviceable ? 5 : undefined,
     };
   } catch (err) {
-    console.error("[checkout] Delhivery serviceability failed:", err);
+    console.error(`[checkout] Delhivery serviceability call failed for ${pincode}:`, err);
     // Don't block checkout on a logistics-API hiccup.
     return { serviceable: true, etaDays: 5 };
   }
