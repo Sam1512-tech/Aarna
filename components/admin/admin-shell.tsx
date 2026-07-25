@@ -67,7 +67,7 @@ export function AdminShell({ displayName, children }: AdminShellProps) {
 
   return (
     <div className="grid min-h-screen bg-cream text-charcoal md:grid-cols-[240px_1fr]">
-      <aside className="border-b border-cocoa/12 bg-cream md:border-b-0 md:border-r">
+      <aside className="min-w-0 border-b border-cocoa/12 bg-cream md:border-b-0 md:border-r">
         <div className="flex items-center justify-between px-4 py-5 md:px-5 md:py-6">
           <p className="font-display text-2xl uppercase leading-none text-maroon">
             Aarna admin
@@ -160,7 +160,7 @@ export function AdminShell({ displayName, children }: AdminShellProps) {
         </nav>
       </aside>
 
-      <section className="max-w-6xl px-5 py-8 md:px-8">{children}</section>
+      <section className="min-w-0 max-w-6xl px-5 py-8 md:px-8">{children}</section>
     </div>
   );
 }
