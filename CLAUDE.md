@@ -574,7 +574,7 @@ The client uses pre-printed branded hang tags (design already done). For each pr
 **Legal requirement — Legal Metrology Act (India):**
 Garment labels must show MRP, manufacturer details, fabric composition, size, and care instructions. This is a compliance requirement, not optional. All these fields must be captured in the product form and printed on the label.
 
-**Printer:** Xprinter XP-365B — same printer as shipping labels, just swap to a smaller label roll for hang tags.
+**Printer:** a compatible label printer — same printer as shipping labels, just swap to a smaller label roll for hang tags. (See "Hardware (client purchase list)" below for the actual model decided on.)
 
 **Barcode standard — Code 128 (decided, not EAN-13):**
 - Use **Code 128** generated from the existing `sku` column. Free, no registration, alphanumeric, encodes the SKU as-is. Scans on any reader.

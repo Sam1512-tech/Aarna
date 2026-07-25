@@ -9,6 +9,7 @@ import {
   updateAddress,
 } from "@/lib/actions/account";
 import type { AddressInput, AddressRow } from "@/lib/types";
+import { useModalLock } from "@/hooks/use-modal-lock";
 
 interface AccountAddressesViewProps {
   addresses: AddressRow[];
@@ -259,6 +260,11 @@ function AddressEditor({
     form.city.trim().length >= 2 &&
     form.state.trim().length >= 2 &&
     /^\d{6}$/.test(form.pincode);
+
+  // This component only exists in the tree while the editor is open (the
+  // parent conditionally renders it), so mounting IS the "open" state —
+  // lock body scroll and enable Escape-to-close for the whole lifetime.
+  useModalLock(true, onCancel);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

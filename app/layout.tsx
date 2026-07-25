@@ -21,6 +21,30 @@ export const metadata: Metadata = {
   },
   description:
     "Aarna by Arpitha Abhishek is a slow-made women's clothing line for soft everyday rituals, intimate gatherings, travel, and thoughtful styling.",
+  // Light-mode icons are the brand maroon mark; the media-scoped entries
+  // below swap in a gold version for dark browser/OS themes — same
+  // "gold on dark, maroon on light" convention already used for the email
+  // templates' header/footer marks (lib/resend/index.ts).
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      {
+        url: "/favicon-16x16-dark.png",
+        sizes: "16x16",
+        type: "image/png",
+        media: "(prefers-color-scheme: dark)",
+      },
+      {
+        url: "/favicon-32x32-dark.png",
+        sizes: "32x32",
+        type: "image/png",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 // Explicit viewport so every device gets:

@@ -6,6 +6,7 @@ import { Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { getCart } from "@/lib/actions/cart";
 import { useCartCount } from "@/store/cart-count";
+import { useModalLock } from "@/hooks/use-modal-lock";
 
 interface CategoryLink {
   name: string;
@@ -32,16 +33,12 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
   // after the drawer has actually been opened at least once.
   const hasOpenedRef = useRef(false);
 
-  // Escape closes the mobile drawer, matching every other overlay in the app
-  // (size-guide-modal.tsx, product-detail-view.tsx's lightbox).
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [menuOpen]);
+  // Escape closes the drawer, and body scroll locks while it's open — the
+  // drawer is a full-screen fixed overlay, so without the lock the page
+  // underneath can still scroll (confirmed live: scrollTo while the drawer
+  // is open moves window.scrollY), leaving the header out of sync with the
+  // content behind it once the drawer closes.
+  useModalLock(menuOpen, () => setMenuOpen(false));
 
   // Move focus into the drawer on open, and back to the trigger on close —
   // otherwise a keyboard user's focus is left on a now-hidden/inert control.

@@ -8,6 +8,7 @@ import { ExchangeVariantChooser, type VariantOption } from "@/components/storefr
 import { ReturnPhotoUploader } from "@/components/storefront/return-photo-uploader";
 import { uploadReturnPhoto } from "@/lib/cloudinary/upload-return-photo";
 import { formatINR } from "@/lib/utils";
+import { useModalLock } from "@/hooks/use-modal-lock";
 
 export interface RequestableItem {
   orderItemId: string;
@@ -86,6 +87,8 @@ export function ReturnExchangeModal({
   const [variantsLoading, startVariantsTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  useModalLock(open, onClose);
 
   const chosen = useMemo(
     () => eligibleItems.find((e) => e.orderItemId === orderItemId) ?? null,

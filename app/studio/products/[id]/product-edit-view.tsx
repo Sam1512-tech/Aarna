@@ -952,8 +952,8 @@ function PrintTagsCard({
       <p className="mt-3 text-sm text-charcoal/60">
         Pick which tags to print and how many copies of each — size, MRP,
         fabric, care, HSN 6211, and a Code 128 barcode from the SKU. Quantity
-        defaults to current stock. Feed the PDF into the Xprinter with the
-        small-label roll.
+        defaults to current stock. Feed the PDF into your label printer with
+        the small-label roll.
       </p>
 
       {sorted.length === 0 ? (

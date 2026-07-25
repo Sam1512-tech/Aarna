@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { AlertTriangle } from "lucide-react";
 import {
   REJECT_REASONS,
   type RejectReason,
 } from "@/lib/returns/reject-reasons";
+import { useModalLock } from "@/hooks/use-modal-lock";
 
 export interface ReturnRejectPickerProps {
   onReject: (payload: { reason: RejectReason; note?: string }) => Promise<void>;
@@ -30,14 +31,9 @@ export function ReturnRejectPicker({
   const canSubmit =
     !!reason && (!needsNote || note.trim().length >= 10) && !pending;
 
-  // Escape dismisses, matching size-guide-modal.tsx's existing convention.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  // Mounted only while open — lock body scroll and enable Escape-to-close
+  // for the whole lifetime (previously only had the Escape half of this).
+  useModalLock(true, onCancel);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
