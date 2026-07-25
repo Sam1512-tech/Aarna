@@ -8,12 +8,7 @@ import {
   setDefaultAddress,
   updateAddress,
 } from "@/lib/actions/account";
-import type { AddressInput } from "@/lib/types";
-
-export interface AddressRow extends AddressInput {
-  id: string;
-  isDefault: boolean;
-}
+import type { AddressInput, AddressRow } from "@/lib/types";
 
 interface AccountAddressesViewProps {
   addresses: AddressRow[];

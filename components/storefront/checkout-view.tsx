@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Lock, ShieldCheck, Truck } from "lucide-react";
+import { ArrowRight, Check, Lock, MapPin, Plus, ShieldCheck, Truck } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +14,7 @@ import {
 import { createAddress } from "@/lib/actions/account";
 import { applyCoupon } from "@/lib/actions/cart";
 import { clearStoredCoupon, getStoredCoupon } from "@/lib/cart/coupon-storage";
-import type { CartState } from "@/lib/types";
+import type { AddressRow, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/action-error";
 import { GSTIN_PATTERN } from "@/lib/gst";
@@ -151,10 +151,22 @@ declare global {
 interface CheckoutViewProps {
   cart: CartState;
   prefill: { email: string; phone: string; fullName: string };
+  /** Saved addresses from the account address book — empty if the customer
+   *  has none yet. Purely a convenience layer over the same manual form. */
+  addresses: AddressRow[];
 }
 
-export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
+export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
   const router = useRouter();
+  // Pre-select the default saved address (or the first one if none is
+  // marked default) so the form opens already filled in for a returning
+  // customer. `addresses` is server-rendered, not client-fetched, so this
+  // is safe to compute once up front rather than in an effect.
+  const initialAddress =
+    addresses.find((a) => a.isDefault) ?? addresses[0] ?? null;
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    initialAddress?.id ?? null,
+  );
   const [pincodeStatus, setPincodeStatus] = useState<
     null | {
       serviceable: boolean;
@@ -204,19 +216,64 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
     resolver: zodResolver(shippingSchema),
     mode: "onBlur",
     defaultValues: {
-      fullName: prefill.fullName,
+      // The account's own name/phone are the fallback when there's no saved
+      // address to pick from; a selected address's own recipient name/phone
+      // (which can legitimately differ — shipping to a family member, say)
+      // takes over below once one exists.
+      fullName: initialAddress?.fullName ?? prefill.fullName,
       email: prefill.email,
-      phone: prefill.phone,
-      line1: "",
-      line2: "",
-      city: "",
-      state: "",
-      pincode: "",
+      phone: initialAddress?.phone ?? prefill.phone,
+      line1: initialAddress?.line1 ?? "",
+      line2: initialAddress?.line2 ?? "",
+      city: initialAddress?.city ?? "",
+      state: initialAddress?.state ?? "",
+      pincode: initialAddress?.pincode ?? "",
       whatsappOptIn: true,
       saveAddress: false,
       gstNumber: "",
     },
   });
+
+  // Fill the (single, shared) form from a saved address — or clear the
+  // address fields for a fresh manual entry when `row` is null. This is the
+  // only place a saved address's data ever reaches the form: from here on
+  // it's just normal form state, so the existing pincode-serviceability
+  // effect (keyed off watch("pincode")) and the server-side
+  // shippingAddressSchema re-validation in initCheckout both apply exactly
+  // as they do to a fully hand-typed address — nothing about this path
+  // skips either check.
+  //
+  // Assumption (stated per the fix protocol, no existing pattern to follow
+  // here): editing a pre-filled saved address changes what's submitted for
+  // THIS order only. It never calls updateAddress() on the saved record —
+  // if the customer wants to keep the edited version, "save this address
+  // for future orders" (manual-entry mode only, see below) adds it as a new
+  // saved address rather than silently overwriting the one they started from.
+  function selectAddress(row: AddressRow | null) {
+    setSelectedAddressId(row?.id ?? null);
+    const fields: Array<[keyof ShippingForm, string]> = row
+      ? [
+          ["fullName", row.fullName],
+          ["phone", row.phone],
+          ["line1", row.line1],
+          ["line2", row.line2 ?? ""],
+          ["city", row.city],
+          ["state", row.state],
+          ["pincode", row.pincode],
+        ]
+      : [
+          ["fullName", ""],
+          ["phone", ""],
+          ["line1", ""],
+          ["line2", ""],
+          ["city", ""],
+          ["state", ""],
+          ["pincode", ""],
+        ];
+    for (const [field, value] of fields) {
+      setValue(field, value, { shouldValidate: true, shouldDirty: true });
+    }
+  }
 
   // Restore saved draft on mount (auto-save / restore per brief).
   useEffect(() => {
@@ -577,6 +634,36 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                   </span>
                 ) : null}
               </div>
+
+              {addresses.length > 0 ? (
+                <div className="space-y-2.5" role="radiogroup" aria-label="Choose a saved address">
+                  {addresses.map((addr) => (
+                    <SavedAddressOption
+                      key={addr.id}
+                      address={addr}
+                      selected={selectedAddressId === addr.id}
+                      onSelect={() => selectAddress(addr)}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => selectAddress(null)}
+                    className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition duration-500 ${
+                      selectedAddressId === null
+                        ? "border-cocoa bg-cocoa/6"
+                        : "border-cocoa/18 hover:border-cocoa/40"
+                    }`}
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cocoa/30 text-cocoa">
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                    </span>
+                    <span className="text-sm font-medium text-charcoal/80">
+                      Add a new address
+                    </span>
+                  </button>
+                </div>
+              ) : null}
+
               <Field
                 label="Full name"
                 error={errors.fullName?.message}
@@ -649,16 +736,23 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
                   </p>
                 ) : null}
               </div>
-              <label className="flex cursor-pointer items-start gap-3 pt-1">
-                <input
-                  type="checkbox"
-                  {...register("saveAddress")}
-                  className="mt-1 h-4 w-4 cursor-pointer accent-cocoa"
-                />
-                <span className="text-sm leading-6 text-charcoal/72">
-                  Save this address for future orders
-                </span>
-              </label>
+              {/* Only offered in manual-entry mode — picking an already-saved
+                  address has nothing new to save, and an edited saved
+                  address is deliberately "this order only" (see
+                  selectAddress above); this checkbox is how a customer adds
+                  an edited or brand-new address to their book on purpose. */}
+              {selectedAddressId === null ? (
+                <label className="flex cursor-pointer items-start gap-3 pt-1">
+                  <input
+                    type="checkbox"
+                    {...register("saveAddress")}
+                    className="mt-1 h-4 w-4 cursor-pointer accent-cocoa"
+                  />
+                  <span className="text-sm leading-6 text-charcoal/72">
+                    Save this address for future orders
+                  </span>
+                </label>
+              ) : null}
             </fieldset>
 
             <TrustStrip />
@@ -802,6 +896,53 @@ export function CheckoutView({ cart, prefill }: CheckoutViewProps) {
         </form>
       </div>
     </section>
+  );
+}
+
+function SavedAddressOption({
+  address,
+  selected,
+  onSelect,
+}: {
+  address: AddressRow;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
+      className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3.5 text-left transition duration-500 ${
+        selected ? "border-cocoa bg-cocoa/6" : "border-cocoa/18 hover:border-cocoa/40"
+      }`}
+    >
+      <span
+        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+          selected ? "border-cocoa bg-cocoa text-cream" : "border-cocoa/30 text-cocoa"
+        }`}
+      >
+        <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+      </span>
+      <span className="min-w-0">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-display text-lg text-maroon">
+            {address.fullName}
+          </span>
+          {address.isDefault ? (
+            <span className="rounded-full border border-cocoa/25 bg-cocoa/8 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-cocoa">
+              Default
+            </span>
+          ) : null}
+        </span>
+        <span className="mt-1 block text-sm leading-6 text-charcoal/70">
+          {address.line1}
+          {address.line2 ? `, ${address.line2}` : ""}, {address.city},{" "}
+          {address.state} {address.pincode}
+        </span>
+      </span>
+    </button>
   );
 }
 

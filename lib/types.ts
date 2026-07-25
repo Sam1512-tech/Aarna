@@ -63,6 +63,12 @@ export interface AddressInput {
   pincode: string;
 }
 
+/** A saved address row from the account address book (getMyAddresses). */
+export interface AddressRow extends AddressInput {
+  id: string;
+  isDefault: boolean;
+}
+
 export interface CheckoutSummary {
   subtotal: number;
   discount: number;
