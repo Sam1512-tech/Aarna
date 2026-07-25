@@ -6,7 +6,7 @@ interface TwoVideoSectionProps {
   left: PublicVideoSlot | null;
   right: PublicVideoSlot | null;
   /**
-   * Tailwind aspect-ratio class per panel (e.g. "aspect-[9/16]"). The
+   * Tailwind aspect-ratio class per panel (e.g. "aspect-[4/5]"). The
    * videos here are portrait, so the panel's shape needs to match the
    * source instead of a fixed landscape-ish height that crops it badly.
    * Defaults to a portrait ratio.
@@ -44,9 +44,10 @@ function VideoPanel({
   return (
     <div
       className={`relative isolate overflow-hidden rounded-[26px] shadow-[0_22px_60px_rgba(43,38,35,0.08)] ${
-        // True 9:16 — matches the source portrait video exactly (1080x1920)
-        // at every breakpoint, so object-cover has nothing to crop.
-        aspectClassName ?? "aspect-[9/16]"
+        // 4:5 — matches the source portrait video exactly (1080x1350, changed
+        // from the earlier 1080x1920/9:16 spec) at every breakpoint, so
+        // object-cover has nothing to crop.
+        aspectClassName ?? "aspect-[4/5]"
       }`}
     >
       {slot?.videoUrl ? (
