@@ -35,6 +35,18 @@
 
 html {
   background: var(--background);
+  /* Reserve the scrollbar's gutter permanently, whether or not a scrollbar
+     is actually shown at a given moment. Without this, locking body scroll
+     (any modal via hooks/use-modal-lock.ts) removes the scrollbar and the
+     viewport's effective width grows by the scrollbar's width — visibly
+     shifting every `fixed inset-x-0` element (the header, the marquee) by
+     that amount the instant a modal opens, and back on close. Confirmed
+     live: docClientWidth/headerWidth both measured 1265px with the
+     scrollbar present, 1280px the instant body.style.overflow was set to
+     "hidden" — a real, exact 15px jump, not a rounding artifact. This
+     reserves that 15px unconditionally so the width never changes.
+   */
+  scrollbar-gutter: stable;
 }
 
 body {
