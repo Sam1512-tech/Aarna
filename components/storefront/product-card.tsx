@@ -3,6 +3,7 @@ import Link from "next/link";
 import { videoPosterUrl } from "@/lib/media";
 import type { Product, ProductImage } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
+import { WishlistHeartButton } from "@/components/storefront/wishlist-heart-button";
 
 // What the card needs. Accept a plain shape so callers can pass either a full
 // Product row or a slimmed-down query result without ceremony.
@@ -14,15 +15,24 @@ export interface ProductCardData {
   mrp?: number | null;
   fabric?: string | null;
   image?: { url: string; altText: string | null } | null;
+  /** The variant a wishlist toggle acts on. Only present where the caller
+   *  actually wired up wishlisting (currently PLP grids) — omit it (or the
+   *  wish props below) and no heart renders at all, same card either way. */
+  defaultVariantId?: string | null;
 }
 
 interface ProductCardProps {
   product: ProductCardData;
+  /** Whether defaultVariantId is currently in the customer's wishlist.
+   *  Omit along with onToggleWish to render the card with no heart, e.g. on
+   *  the homepage rail or PDP's related products, which don't wire this up. */
+  wished?: boolean;
+  onToggleWish?: () => void;
 }
 
 /**
  * Premium product card. Reused on the homepage rail, search results, PLP
- * grids, related-products on the PDP, and (later) the wishlist.
+ * grids, related-products on the PDP, and the wishlist.
  *
  * Image-first composition with a cloth-window placeholder when no image is
  * available, a subtle on-hover zoom, an optional discount chip when mrp >
@@ -31,12 +41,13 @@ interface ProductCardProps {
  * Title and meta come from real product data. All prices go through formatINR
  * (input is paise — Aarna's source-of-truth convention).
  */
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, wished, onToggleWish }: ProductCardProps) {
   const onSale =
     typeof product.mrp === "number" && product.mrp > product.basePrice;
   const discountPct = onSale
     ? Math.round(((product.mrp! - product.basePrice) / product.mrp!) * 100)
     : 0;
+  const showWishlist = !!product.defaultVariantId && !!onToggleWish;
 
   return (
     <Link
@@ -61,6 +72,10 @@ export function ProductCard({ product }: ProductCardProps) {
           <span className="absolute left-3 top-3 rounded-full border border-cream/60 bg-cream/95 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-burnt-red shadow-[0_8px_20px_rgba(43,38,35,0.06)] backdrop-blur-md">
             {discountPct}% off
           </span>
+        ) : null}
+
+        {showWishlist ? (
+          <WishlistHeartButton wished={!!wished} onToggle={onToggleWish!} />
         ) : null}
       </div>
 
@@ -96,6 +111,7 @@ export function ProductCard({ product }: ProductCardProps) {
 export function toProductCardData(
   product: Product & { image?: { url: string; altText: string | null } | null },
   images?: ProductImage[],
+  defaultVariantId?: string | null,
 ): ProductCardData {
   const first = images?.length
     ? [...images].sort((a, b) => a.sortOrder - b.sortOrder)[0]
@@ -112,5 +128,6 @@ export function toProductCardData(
     image: first
       ? { url: videoPosterUrl(first.url), altText: first.altText }
       : null,
+    defaultVariantId: defaultVariantId ?? null,
   };
 }

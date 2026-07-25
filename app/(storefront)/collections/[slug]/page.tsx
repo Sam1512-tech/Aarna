@@ -5,6 +5,7 @@ import { toProductCardData } from "@/components/storefront/product-card";
 import {
   getCategories,
   getCollectionBySlug,
+  getDefaultVariantsForProducts,
   getProducts,
 } from "@/lib/actions/products";
 import { collectionMetadata } from "@/lib/seo/metadata";
@@ -70,13 +71,18 @@ export default async function CollectionPage({
     minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
     maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
   });
+  const defaultVariants = await getDefaultVariantsForProducts(
+    list.items.map((p) => p.id),
+  );
 
   return (
     <PlpView
       eyebrow="the collection"
       title={collection.name}
       intro={collection.description ?? undefined}
-      products={list.items.map((p) => toProductCardData(p))}
+      products={list.items.map((p) =>
+        toProductCardData(p, undefined, defaultVariants.get(p.id) ?? null),
+      )}
       total={list.total}
       page={list.page}
       pageSize={list.pageSize}

@@ -10,16 +10,20 @@ import {
   Heart,
   Plus,
   Search,
-  Sparkles,
-  Star,
+  Shirt,
   ShoppingBag,
   X,
+  type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRecentSearches } from "@/store/recent-searches";
 import { useCartCount } from "@/store/cart-count";
 import { addToCart } from "@/lib/actions/cart";
-import { addToWishlist, removeFromWishlist } from "@/lib/actions/account";
+import {
+  addToWishlist,
+  getWishlistedVariantIds,
+  removeFromWishlist,
+} from "@/lib/actions/account";
 import { formatINR } from "@/lib/utils";
 
 interface SearchProduct {
@@ -31,11 +35,18 @@ interface SearchProduct {
   image: { url: string; altText: string | null } | null;
   fabric: string | null;
   defaultVariantId: string | null;
+  /** Which category this product actually belongs to — needed so searching
+   *  a category NAME can match by real membership, not just by whether that
+   *  name happens to appear inside a product's title (see matchedProducts:
+   *  it almost never does — "Dresses" the category vs. "Beige Aura Dress"
+   *  the product title). */
+  categorySlug: string | null;
 }
 
 interface SearchCategory {
   name: string;
   slug: string;
+  imageUrl: string | null;
 }
 
 interface SearchViewProps {
@@ -51,7 +62,40 @@ const QUICK_PICKS = [
   { label: "Continue shopping", href: "/shop", Icon: ShoppingBag },
   { label: "Recently viewed", href: "/shop", Icon: Clock },
 ];
-const CATEGORY_ICONS = [Star, Sparkles];
+
+// A dress silhouette — Lucide (checked the full ~1950-icon set first) has no
+// literal dress/gown/skirt icon, so this is a small hand-drawn one matching
+// Lucide's own conventions (24x24, 2px stroke, round caps/joins, currentColor)
+// rather than reaching for a mismatched generic icon.
+function DressIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M9 3.5 7 7l1.6 2-1.8 10.5a1 1 0 0 0 1 1.5h8.4a1 1 0 0 0 1-1.5L15.4 9l1.6-2-2-3.5" />
+      <path d="M9 3.5c1 .8 2 .8 3 0M12 3.5c1 .8 2 .8 3 0" />
+      <path d="M9.3 9h5.4" />
+    </svg>
+  );
+}
+
+// Matched by category identity (slug), never by array position — a category
+// added later that isn't one of these two falls through to a neutral generic
+// icon instead of silently inheriting whatever happened to be left over.
+const CATEGORY_ICON_BY_SLUG: Record<string, LucideIcon | typeof DressIcon> = {
+  dresses: DressIcon,
+  tops: Shirt,
+};
+function categoryIcon(slug: string): LucideIcon | typeof DressIcon {
+  return CATEGORY_ICON_BY_SLUG[slug] ?? ShoppingBag;
+}
 
 export function SearchView({
   categories,
@@ -67,6 +111,20 @@ export function SearchView({
   const [wished, setWished] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
 
+  // Hydrate real wishlist membership on mount — this used to start empty
+  // unconditionally, so a product already saved from a previous visit
+  // always showed an empty heart here until toggled again in that session.
+  useEffect(() => {
+    let cancelled = false;
+    getWishlistedVariantIds().then((ids) => {
+      if (cancelled) return;
+      setWished(new Set(ids));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function flashToast(message: string) {
     setToast(message);
     window.setTimeout(() => setToast((t) => (t === message ? null : t)), 2200);
@@ -75,21 +133,28 @@ export function SearchView({
   const trimmed = query.trim();
   const isSearching = trimmed.length > 0;
 
-  const matchedProducts = useMemo(() => {
-    if (!isSearching) return [];
-    const q = trimmed.toLowerCase();
-    return products.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        (p.fabric ?? "").toLowerCase().includes(q),
-    );
-  }, [products, trimmed, isSearching]);
-
   const matchedCategories = useMemo(() => {
     if (!isSearching) return [];
     const q = trimmed.toLowerCase();
     return categories.filter((c) => c.name.toLowerCase().includes(q));
   }, [categories, trimmed, isSearching]);
+
+  const matchedProducts = useMemo(() => {
+    if (!isSearching) return [];
+    const q = trimmed.toLowerCase();
+    // Real category membership, not just whether the category's name
+    // happens to appear inside a title — it essentially never does
+    // ("Dresses" the category vs. "Beige Aura Dress" the product title),
+    // which is exactly why searching or clicking a category used to always
+    // land on "No products found" even when it genuinely has products.
+    const matchedSlugs = new Set(matchedCategories.map((c) => c.slug));
+    return products.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        (p.fabric ?? "").toLowerCase().includes(q) ||
+        (p.categorySlug !== null && matchedSlugs.has(p.categorySlug)),
+    );
+  }, [products, trimmed, isSearching, matchedCategories]);
 
   const recommended = useMemo(() => products.slice(0, 8), [products]);
 
@@ -234,10 +299,10 @@ export function SearchView({
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   ...QUICK_PICKS,
-                  ...categories.slice(0, 2).map((c, i) => ({
+                  ...categories.slice(0, 2).map((c) => ({
                     label: c.name.toLowerCase(),
                     href: `/shop/${c.slug}`,
-                    Icon: CATEGORY_ICONS[i % CATEGORY_ICONS.length],
+                    Icon: categoryIcon(c.slug),
                   })),
                 ].map(({ label, href, Icon }) => (
                   <Link
@@ -327,7 +392,19 @@ export function SearchView({
                       href={`/shop/${c.slug}`}
                       className="group block w-[calc(50%-10px)] sm:w-[230px]"
                     >
-                      <div className="cloth-window aspect-[4/5] rounded-[20px] shadow-[0_16px_44px_rgba(43,38,35,0.07)] transition duration-500 group-hover:scale-[1.01]" />
+                      <div className="relative aspect-[4/5] overflow-hidden rounded-[20px] shadow-[0_16px_44px_rgba(43,38,35,0.07)] transition duration-500 group-hover:scale-[1.01]">
+                        {c.imageUrl ? (
+                          <Image
+                            src={c.imageUrl}
+                            alt={c.name}
+                            fill
+                            sizes="(min-width: 640px) 230px, 50vw"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="cloth-window h-full w-full" />
+                        )}
+                      </div>
                       <p className="mt-3.5 font-display text-2xl leading-tight text-maroon">
                         {c.name}
                       </p>

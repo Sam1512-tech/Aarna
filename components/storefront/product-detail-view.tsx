@@ -15,7 +15,11 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { addToCart, getCart } from "@/lib/actions/cart";
-import { addToWishlist } from "@/lib/actions/account";
+import {
+  addToWishlist,
+  getWishlistedVariantIds,
+  removeFromWishlist,
+} from "@/lib/actions/account";
 import { getVariantsInStockForProduct } from "@/lib/actions/products";
 import { actionErrorMessage } from "@/lib/action-error";
 import { SizeGuideModal } from "@/components/storefront/size-guide-modal";
@@ -197,6 +201,22 @@ export function ProductDetailView({
     };
   }, [resolvedVariant]);
 
+  // The heart must reflect whether THIS variant is actually already
+  // wishlisted, not just this session's own toggles — without this, a
+  // customer who wishlisted a piece last week sees an empty heart every
+  // time they come back to it.
+  useEffect(() => {
+    if (!resolvedVariant) return;
+    let cancelled = false;
+    getWishlistedVariantIds().then((ids) => {
+      if (cancelled) return;
+      setWished(ids.includes(resolvedVariant.id));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedVariant]);
+
   const handleAddToBag = useCallback(() => {
     if (!resolvedVariant || !inStock || isPending) return;
     setBagFeedback(null);
@@ -226,20 +246,29 @@ export function ProductDetailView({
   const handleWishlist = useCallback(() => {
     if (!resolvedVariant) return;
     setWishError(null);
-    setWished((w) => !w); // optimistic
+    // This was always calling addToWishlist regardless of direction — a
+    // second click emptied the heart in the UI but never actually removed
+    // the item server-side (onConflictDoNothing silently no-opped), so the
+    // item stayed in the real wishlist while the PDP claimed it didn't.
+    const wasWished = wished;
+    setWished(!wasWished); // optimistic
     startTransition(async () => {
       try {
-        await addToWishlist(resolvedVariant.id);
+        if (wasWished) {
+          await removeFromWishlist(resolvedVariant.id);
+        } else {
+          await addToWishlist(resolvedVariant.id);
+        }
       } catch {
         // Most likely "Unauthorized — please sign in".
-        setWished(false);
+        setWished(wasWished);
         setWishError("sign in to save to wishlist");
         router.push(
           `/login/otp?next=${encodeURIComponent(`/product/${product.slug}`)}`,
         );
       }
     });
-  }, [resolvedVariant, router, product.slug]);
+  }, [resolvedVariant, router, product.slug, wished]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (

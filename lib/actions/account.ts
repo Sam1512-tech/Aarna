@@ -97,6 +97,25 @@ export async function getMyOrderDetail(orderNumber: string) {
 
 // ── Wishlist ─────────────────────────────────────────────────────────────────
 
+/**
+ * Just the variant ids currently in the signed-in customer's wishlist — no
+ * joins, no product/image data. For hydrating a heart icon's true state on
+ * PDP/PLP/search cards, which only need membership, not the full wishlist
+ * page's row data (that's getWishlist below). Guests aren't an error case
+ * here (PDP/PLP/search are all public pages) — fails to an empty list rather
+ * than throwing, same as every other "is this signed-in customer's stuff"
+ * read on a page guests can also view.
+ */
+export async function getWishlistedVariantIds(): Promise<string[]> {
+  const customer = await getCurrentCustomer();
+  if (!customer) return [];
+  const rows = await db
+    .select({ variantId: wishlists.variantId })
+    .from(wishlists)
+    .where(eq(wishlists.customerId, customer.id));
+  return rows.map((r) => r.variantId);
+}
+
 export async function getWishlist() {
   const customer = await requireCustomer();
 
@@ -140,19 +159,26 @@ export async function getWishlist() {
       imageByProduct.set(img.productId, img.url);
   }
 
-  return rows.map((r) => ({
-    variantId: r.variantId,
-    addedAt: r.addedAt,
-    productId: r.productId,
-    productSlug: r.productSlug,
-    productTitle: r.productTitle,
-    size: r.size,
-    color: r.color,
-    sku: r.sku,
-    price: r.variantPrice,
-    imageUrl: imageByProduct.get(r.productId) ?? null,
-    inStock: r.isActive && r.inStock > 0,
-  }));
+  return rows.map((r) => {
+    // Same collapse as cart's hydrateCart: a deactivated variant is exactly
+    // as unavailable as zero stock — one honest number, not a separate flag
+    // the UI has to remember to check too (see lib/actions/cart.ts).
+    const stock = r.isActive ? r.inStock : 0;
+    return {
+      variantId: r.variantId,
+      addedAt: r.addedAt,
+      productId: r.productId,
+      productSlug: r.productSlug,
+      productTitle: r.productTitle,
+      size: r.size,
+      color: r.color,
+      sku: r.sku,
+      price: r.variantPrice,
+      imageUrl: imageByProduct.get(r.productId) ?? null,
+      stock,
+      inStock: stock > 0,
+    };
+  });
 }
 
 export async function addToWishlist(variantId: string) {

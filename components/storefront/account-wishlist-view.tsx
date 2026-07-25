@@ -8,6 +8,10 @@ import { removeFromWishlist } from "@/lib/actions/account";
 import { useCartCount } from "@/store/cart-count";
 import { formatINR } from "@/lib/utils";
 
+// Matches the threshold PDP and cart already use (product-detail-view.tsx,
+// cart-view.tsx) — same honest silent/low/out convention everywhere.
+const LOW_STOCK_THRESHOLD = 3;
+
 export interface WishlistRow {
   variantId: string;
   productSlug: string;
@@ -15,7 +19,9 @@ export interface WishlistRow {
   variantLabel: string | null;
   imageUrl: string | null;
   unitPrice: number;
-  inStock: boolean;
+  /** Real, live stock (0 if deactivated) — not just a boolean, so this page
+   *  can say the same honest thing cart/PDP already say. */
+  stock: number;
 }
 
 interface AccountWishlistViewProps {
@@ -45,7 +51,7 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
   }
 
   function moveToBag(row: WishlistRow) {
-    if (!row.inStock) return;
+    if (row.stock <= 0) return;
     setBusyId(row.variantId);
     setError(null);
     startTransition(async () => {
@@ -120,6 +126,15 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
                         {row.variantLabel}
                       </p>
                     ) : null}
+                    {row.stock <= 0 ? (
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-burnt-red">
+                        Out of stock
+                      </p>
+                    ) : row.stock <= LOW_STOCK_THRESHOLD ? (
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-burnt-red">
+                        Only {row.stock} left
+                      </p>
+                    ) : null}
                   </div>
                   <button
                     type="button"
@@ -139,11 +154,11 @@ export function AccountWishlistView({ items: initial }: AccountWishlistViewProps
                   <button
                     type="button"
                     onClick={() => moveToBag(row)}
-                    disabled={!row.inStock || busy}
+                    disabled={row.stock <= 0 || busy}
                     className="inline-flex items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-cream shadow-[0_8px_20px_rgba(140,106,90,0.2)] transition duration-500 hover:bg-cocoa/90 disabled:opacity-45 disabled:hover:bg-cocoa"
                   >
                     <ShoppingBag className="h-3 w-3" aria-hidden="true" />
-                    {!row.inStock
+                    {row.stock <= 0
                       ? "sold out"
                       : busy
                         ? "moving…"

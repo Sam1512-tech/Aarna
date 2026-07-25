@@ -3,11 +3,16 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ProductCard,
   type ProductCardData,
 } from "@/components/storefront/product-card";
+import {
+  addToWishlist,
+  getWishlistedVariantIds,
+  removeFromWishlist,
+} from "@/lib/actions/account";
 
 export type SortOption = "newest" | "price_asc" | "price_desc";
 
@@ -60,6 +65,46 @@ export function PlpView({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [wished, setWished] = useState<Set<string>>(new Set());
+
+  // Hydrate real wishlist membership once on mount — same fix as PDP/search
+  // (product-detail-view.tsx, search-view.tsx): without this every heart
+  // here would start empty regardless of the customer's actual wishlist.
+  useEffect(() => {
+    let cancelled = false;
+    getWishlistedVariantIds().then((ids) => {
+      if (cancelled) return;
+      setWished(new Set(ids));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function toggleWish(variantId: string) {
+    const wasWished = wished.has(variantId);
+    setWished((prev) => {
+      const next = new Set(prev);
+      if (wasWished) next.delete(variantId);
+      else next.add(variantId);
+      return next;
+    });
+    (wasWished ? removeFromWishlist(variantId) : addToWishlist(variantId)).catch(
+      () => {
+        // Most likely not signed in — revert and send them to sign in,
+        // same pattern PDP/search/cart already use for this exact failure.
+        setWished((prev) => {
+          const next = new Set(prev);
+          if (wasWished) next.add(variantId);
+          else next.delete(variantId);
+          return next;
+        });
+        router.push(
+          `/login/otp?next=${encodeURIComponent(basePath)}`,
+        );
+      },
+    );
+  }
 
   const currentSort = (searchParams.get("sort") as SortOption) || "newest";
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -145,7 +190,16 @@ export function PlpView({
             {products.length > 0 ? (
               <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
                 {products.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    wished={!!p.defaultVariantId && wished.has(p.defaultVariantId)}
+                    onToggleWish={
+                      p.defaultVariantId
+                        ? () => toggleWish(p.defaultVariantId!)
+                        : undefined
+                    }
+                  />
                 ))}
               </div>
             ) : (

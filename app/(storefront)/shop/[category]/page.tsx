@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PlpView, type SortOption } from "@/components/storefront/plp-view";
 import { toProductCardData } from "@/components/storefront/product-card";
-import { getCategories, getProducts } from "@/lib/actions/products";
+import {
+  getCategories,
+  getDefaultVariantsForProducts,
+  getProducts,
+} from "@/lib/actions/products";
 import { categoryMetadata } from "@/lib/seo/metadata";
 
 const PAGE_SIZE = 24;
@@ -65,12 +69,17 @@ export default async function ShopCategoryPage({
     minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
     maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
   });
+  const defaultVariants = await getDefaultVariantsForProducts(
+    list.items.map((p) => p.id),
+  );
 
   return (
     <PlpView
       eyebrow="the wardrobe"
       title={category.name}
-      products={list.items.map((p) => toProductCardData(p))}
+      products={list.items.map((p) =>
+        toProductCardData(p, undefined, defaultVariants.get(p.id) ?? null),
+      )}
       total={list.total}
       page={list.page}
       pageSize={list.pageSize}
