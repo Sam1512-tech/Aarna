@@ -98,14 +98,14 @@ export function AccountAddressesView({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
           your addresses · {addresses.length}
         </p>
         <button
           type="button"
           onClick={() => setEditor({ mode: "create" })}
-          className="inline-flex items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90"
+          className="inline-flex shrink-0 items-center gap-2 rounded-full bg-cocoa px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cream transition duration-500 hover:bg-cocoa/90"
         >
           <Plus className="h-3.5 w-3.5" aria-hidden="true" />
           Add address
