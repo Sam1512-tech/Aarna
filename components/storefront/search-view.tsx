@@ -169,27 +169,36 @@ export function SearchView({
   // Wishlist is server-backed (lib/actions/account) so it follows the signed-in
   // customer everywhere (PDP, account page) — same pattern as product-detail-view
   // and cart-view's moveToWishlist. Optimistic toggle, rolled back on failure.
+  //
+  // `wished` is keyed by variantId throughout (matching what
+  // getWishlistedVariantIds actually returns, and what add/removeFromWishlist
+  // actually take) — this used to key the Set by product.id instead, which
+  // matched itself fine for a toggle within one session but never matched the
+  // hydration effect's variantId keys, so a genuinely-saved item always
+  // rendered unwished again after a refresh. Same bug in both places this
+  // Set is read (the search-results grid below and "Recommended for you").
   async function toggleWish(product: SearchProduct) {
     if (!product.defaultVariantId) return;
-    const wasWished = wished.has(product.id);
+    const variantId = product.defaultVariantId;
+    const wasWished = wished.has(variantId);
     setWished((prev) => {
       const next = new Set(prev);
-      if (wasWished) next.delete(product.id);
-      else next.add(product.id);
+      if (wasWished) next.delete(variantId);
+      else next.add(variantId);
       return next;
     });
     try {
       if (wasWished) {
-        await removeFromWishlist(product.defaultVariantId);
+        await removeFromWishlist(variantId);
       } else {
-        await addToWishlist(product.defaultVariantId);
+        await addToWishlist(variantId);
         flashToast("Saved to wishlist");
       }
     } catch {
       setWished((prev) => {
         const next = new Set(prev);
-        if (wasWished) next.add(product.id);
-        else next.delete(product.id);
+        if (wasWished) next.add(variantId);
+        else next.delete(variantId);
         return next;
       });
       flashToast("sign in to save to wishlist");
@@ -277,7 +286,10 @@ export function SearchView({
                       key={product.id}
                       product={product}
                       query={trimmed}
-                      wished={wished.has(product.id)}
+                      wished={
+                        !!product.defaultVariantId &&
+                        wished.has(product.defaultVariantId)
+                      }
                       onWish={() => toggleWish(product)}
                       onAdd={() => quickAdd(product)}
                     />
@@ -424,7 +436,10 @@ export function SearchView({
                       <ProductCard
                         product={product}
                         query=""
-                        wished={wished.has(product.id)}
+                        wished={
+                          !!product.defaultVariantId &&
+                          wished.has(product.defaultVariantId)
+                        }
                         onWish={() => toggleWish(product)}
                         onAdd={() => quickAdd(product)}
                       />
