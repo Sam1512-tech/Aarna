@@ -67,7 +67,18 @@ We'll let you know the moment it arrives. 💛
 
 ## 2. `delivered`  ·  UTILITY · en
 
-**Body**
+**⚠️ Body below is the ORIGINAL submission draft — no longer accurate.**
+Confirmed live (2026-07-26) via message_log + a direct test call to
+Interakt's `/message/` endpoint: the actually-approved template now takes
+**2 body variables, not 3** — Interakt rejects a 3rd value with "Number of
+Body's variable values (3) does not match the expected number of params
+(2)". The return-window mention below was evidently dropped at some point
+during/after Meta review; the exact current wording isn't visible from the
+app side (Interakt's public API has no template-fetch endpoint — template
+management is dashboard-only). Check Interakt → Templates → `delivered` for
+the real current copy and update this doc to match if you need it verbatim.
+
+**Body (stale — kept for history, do not resubmit as-is)**
 ```
 Hi {{1}}, your Aarna order *{{2}}* has been delivered. 🤍
 
@@ -82,7 +93,6 @@ We'd love to see how you style it — tag us @aarna_arpithabhishek 💛
 |---|---|---|
 | {{1}} | Customer first name | Priya |
 | {{2}} | Order number | AARNA-000123 |
-| {{3}} | Return window (days) | 3 |
 
 **Trigger:** Delhivery webhook, on `DELIVERED` status → `fulfillment_status = "delivered"`.
 

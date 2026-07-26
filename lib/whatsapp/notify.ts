@@ -28,6 +28,22 @@ export async function notifyWhatsApp(input: WhatsAppNotifyInput): Promise<void> 
 
     if (result.skipped) return; // BSP not configured yet — nothing to log
 
+    // A failed send is non-blocking by design (never breaks the webhook/
+    // action that triggered it — see the docstring above), but a failure
+    // that only ever shows up as a message_log row nobody's looking at is
+    // effectively invisible. This was exactly how the "delivered" template's
+    // body-value-count drift (2026-07-26 — Interakt's live template had
+    // been edited to 2 vars, code still sent 3) went unnoticed: every
+    // attempt failed, silently, with a real, specific error from Interakt
+    // sitting unread in the DB. Log a greppable line on every failure so
+    // this class of bug surfaces in server logs, not just on-demand DB
+    // queries.
+    if (!result.ok) {
+      console.error(
+        `[whatsapp] send failed — template=${input.templateKey} order=${input.orderId} to=${input.phone}: ${result.error}`,
+      );
+    }
+
     await db.insert(messageLog).values({
       channel: "whatsapp",
       toAddress: input.phone,

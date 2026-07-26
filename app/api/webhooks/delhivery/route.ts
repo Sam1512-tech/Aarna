@@ -9,10 +9,6 @@ import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 
 const { orders } = schema;
 
-// Days the customer has to request a return after delivery (shown in the
-// delivered WhatsApp). Keep in sync with the returns policy.
-const RETURN_WINDOW_DAYS = 3;
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -100,9 +96,18 @@ export async function POST(req: Request) {
 
       // In-transit / shipped / out-for-delivery updates are left to Delhivery's
       // own comms — we don't duplicate those. On delivery we send Aarna's own
-      // branded WhatsApp (a key milestone: return reminder + brand touch). No
-      // email here — delivery isn't one of Aarna's transactional emails.
-      // (docs/whatsapp-templates.md)
+      // branded WhatsApp (a key milestone: brand touch). No email here —
+      // delivery isn't one of Aarna's transactional emails.
+      //
+      // Only 2 body values, not 3 — confirmed live against Interakt's actual
+      // API (2026-07-26): the template's live/approved body no longer
+      // mentions the return window (docs/whatsapp-templates.md's 3-variable
+      // draft is stale, likely edited down during/after Meta review). A real
+      // delivered order (AARNA-001023) had been failing with "Number of
+      // Body's variable values (3) does not match the expected number of
+      // params (2)" on every attempt — confirmed via message_log and a
+      // direct test call to Interakt's /message/ endpoint with these same 2
+      // values, which the template accepted (HTTP 201).
       if (next === "delivered") {
         await notifyWhatsApp({
           orderId: order.id,
@@ -112,7 +117,6 @@ export async function POST(req: Request) {
           bodyValues: [
             firstNameFromAddress(order.shippingAddress),
             order.orderNumber,
-            String(RETURN_WINDOW_DAYS),
           ],
         });
       }
