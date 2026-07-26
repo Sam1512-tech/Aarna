@@ -101,9 +101,10 @@ export function AccountShell({ displayName, children }: AccountShellProps) {
         <div className="mt-8 grid gap-10 lg:grid-cols-[230px_1fr] lg:gap-14">
           {/* Sidebar (desktop) + horizontal rail (mobile) */}
           <aside>
-            {/* Mobile nav — wrap all 6 pills onto two rows so nothing is
-                hidden behind a horizontal swipe. Sign-out lives in the
-                header top-right on mobile (see the <header> block above). */}
+            {/* Mobile nav — wraps so nothing is hidden behind a horizontal
+                swipe (row count varies with viewport width and pill count,
+                not fixed at two). Sign-out lives in the header top-right on
+                mobile (see the <header> block above). */}
             <nav
               aria-label="Account (mobile)"
               className="flex flex-wrap gap-2 pb-2 lg:hidden"
