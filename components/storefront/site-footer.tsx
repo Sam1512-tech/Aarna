@@ -129,7 +129,7 @@ export function SiteFooter({ categories }: SiteFooterProps) {
           <p className="mt-4 text-base text-charcoal/54">
             (c) 2026 Aarna by Arpitha Abhishek. All rights reserved.
           </p>
-          <p className="mt-1 text-base text-charcoal/54">
+          <p className="mt-4 text-base text-charcoal/70">
             Crafted by{" "}
             <a
               href="https://www.solarisstudios.co.in"

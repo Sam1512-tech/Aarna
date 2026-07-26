@@ -47,6 +47,20 @@ html {
      reserves that 15px unconditionally so the width never changes.
    */
   scrollbar-gutter: stable;
+
+  /* The sticky asides on checkout/cart/PDP/search reserve this much space
+     below the top bar (marquee + header pill) so they dock right beneath
+     it instead of overlapping. Toggled by components/storefront/
+     site-header.tsx's scroll-hide effect (adds/removes the .header-hidden
+     class on this element) — when the bar has slid out of view, the offset
+     drops to a small constant gap instead of leaving stale dead space where
+     the bar used to be. Paired with `transition: top` on each sticky
+     element so the change animates in step with the bar's own slide. */
+  --header-offset: 116px;
+}
+
+html.header-hidden {
+  --header-offset: 20px;
 }
 
 body {

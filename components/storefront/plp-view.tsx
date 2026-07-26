@@ -13,6 +13,7 @@ import {
   getWishlistedVariantIds,
   removeFromWishlist,
 } from "@/lib/actions/account";
+import { useModalLock } from "@/hooks/use-modal-lock";
 
 export type SortOption = "newest" | "price_asc" | "price_desc";
 
@@ -140,91 +141,102 @@ export function PlpView({
   }
 
   return (
-    <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[128px] md:px-6 md:pt-36">
-      <div className="mx-auto max-w-7xl">
-        <header className="border-b border-cocoa/12 pb-9">
-          <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
-            {eyebrow}
-          </p>
-          <h1 className="mt-4 font-display text-[44px] leading-[1.05] text-maroon md:text-6xl">
-            {title}
-          </h1>
-          {intro ? (
-            <p className="mt-4 max-w-xl text-base leading-7 text-charcoal/65">
-              {intro}
+    <>
+      <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[128px] md:px-6 md:pt-36">
+        <div className="mx-auto max-w-7xl">
+          <header className="border-b border-cocoa/12 pb-9">
+            <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
+              {eyebrow}
             </p>
-          ) : null}
-        </header>
-
-        {/* Toolbar — count + filter + sort. Scrolls normally with the page
-            (not sticky/pinned) — deliberately not touching the site-wide
-            header's own fixed positioning, which is a separate component. */}
-        <div className="-mx-5 mt-6 flex items-center justify-between gap-3 border-b border-cocoa/10 bg-cream/85 px-5 py-3.5 backdrop-blur-xl md:-mx-6 md:px-6">
-          <p className="text-sm text-charcoal/65">
-            {total} {total === 1 ? "product" : "products"}
-          </p>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setMobileFiltersOpen(true)}
-              className="inline-flex min-h-11 items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa lg:hidden"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-              Filters
-            </button>
-            <SortDropdown value={currentSort} onChange={changeSort} />
-          </div>
-        </div>
-
-        <div className="mt-10 grid gap-10 lg:grid-cols-[230px_1fr] lg:gap-14">
-          {/* Sidebar (desktop) */}
-          <aside className="hidden lg:block">
-            <FilterPanel
-              categories={categories}
-              activeCategorySlug={activeCategorySlug}
-            />
-          </aside>
-
-          {/* Grid */}
-          <div>
-            {products.length > 0 ? (
-              <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-                {products.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    wished={!!p.defaultVariantId && wished.has(p.defaultVariantId)}
-                    onToggleWish={
-                      p.defaultVariantId
-                        ? () => toggleWish(p.defaultVariantId!)
-                        : undefined
-                    }
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState basePath={basePath} />
-            )}
-
-            {totalPages > 1 ? (
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                buildUrl={(p) => buildUrl({ page: p === 1 ? null : String(p) })}
-              />
+            <h1 className="mt-4 font-display text-[44px] leading-[1.05] text-maroon md:text-6xl">
+              {title}
+            </h1>
+            {intro ? (
+              <p className="mt-4 max-w-xl text-base leading-7 text-charcoal/65">
+                {intro}
+              </p>
             ) : null}
+          </header>
+
+          {/* Toolbar — count + filter + sort. Scrolls normally with the page
+              (not sticky/pinned) — deliberately not touching the site-wide
+              header's own fixed positioning, which is a separate component. */}
+          <div className="-mx-5 mt-6 flex items-center justify-between gap-3 border-b border-cocoa/10 bg-cream/85 px-5 py-3.5 backdrop-blur-xl md:-mx-6 md:px-6">
+            <p className="text-sm text-charcoal/65">
+              {total} {total === 1 ? "product" : "products"}
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(true)}
+                className="inline-flex min-h-11 items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa lg:hidden"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+                Filters
+              </button>
+              <SortDropdown value={currentSort} onChange={changeSort} />
+            </div>
+          </div>
+
+          <div className="mt-10 grid gap-10 lg:grid-cols-[230px_1fr] lg:gap-14">
+            {/* Sidebar (desktop) */}
+            <aside className="hidden lg:block">
+              <FilterPanel
+                categories={categories}
+                activeCategorySlug={activeCategorySlug}
+              />
+            </aside>
+
+            {/* Grid */}
+            <div>
+              {products.length > 0 ? (
+                <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+                  {products.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      wished={!!p.defaultVariantId && wished.has(p.defaultVariantId)}
+                      onToggleWish={
+                        p.defaultVariantId
+                          ? () => toggleWish(p.defaultVariantId!)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState basePath={basePath} />
+              )}
+
+              {totalPages > 1 ? (
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  buildUrl={(p) => buildUrl({ page: p === 1 ? null : String(p) })}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Mobile filter sheet */}
+      {/* Mobile filter sheet — deliberately a sibling of the .paper-grain
+          section above, not a descendant. .paper-grain sets `isolation:
+          isolate` (so its own grain-texture pseudo-element stays contained),
+          which creates a new stacking context — a fixed-position child
+          inside it can never paint above the site header/marquee (in a
+          separate top-level stacking context) regardless of z-index math,
+          since z-index only compares within the same stacking context.
+          Confirmed live: with the sheet nested inside the section, the
+          header rendered on top of the sheet's own close button and
+          swallowed taps meant for it. */}
       <MobileFilterSheet
         open={mobileFiltersOpen}
         onClose={() => setMobileFiltersOpen(false)}
         categories={categories}
         activeCategorySlug={activeCategorySlug}
       />
-    </section>
+    </>
   );
 }
 
@@ -329,12 +341,15 @@ function MobileFilterSheet({
   categories: PlpCategory[];
   activeCategorySlug: string | null;
 }) {
+  useModalLock(open, onClose);
+
   return (
     <div
       className={`fixed inset-0 z-[60] transition duration-500 lg:hidden ${
         open ? "pointer-events-auto" : "pointer-events-none"
       }`}
       aria-hidden={!open}
+      inert={!open}
     >
       {/* Scrim */}
       <div
@@ -345,11 +360,11 @@ function MobileFilterSheet({
       />
       {/* Panel */}
       <div
-        className={`absolute inset-y-0 right-0 flex w-[88%] max-w-sm flex-col bg-cream shadow-[-12px_0_40px_rgba(43,38,35,0.16)] transition-transform duration-500 ${
+        className={`absolute inset-y-0 right-0 flex w-[88%] max-w-sm flex-col bg-cream pr-[env(safe-area-inset-right)] shadow-[-12px_0_40px_rgba(43,38,35,0.16)] transition-transform duration-500 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between border-b border-cocoa/12 px-6 py-5">
+        <div className="flex shrink-0 items-center justify-between border-b border-cocoa/12 px-6 py-5">
           <h2 className="font-display text-2xl text-maroon">
             Filters
           </h2>
@@ -362,7 +377,10 @@ function MobileFilterSheet({
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-7">
+        <div
+          className="flex-1 overflow-y-auto px-6 py-7"
+          style={{ paddingBottom: "calc(1.75rem + env(safe-area-inset-bottom))" }}
+        >
           <FilterPanel
             categories={categories}
             activeCategorySlug={activeCategorySlug}

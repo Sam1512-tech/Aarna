@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { getCart } from "@/lib/actions/cart";
 import { useCartCount } from "@/store/cart-count";
 import { useModalLock } from "@/hooks/use-modal-lock";
+import { useScrollDirection } from "@/hooks/use-scroll-direction";
 
 interface CategoryLink {
   name: string;
@@ -68,8 +69,26 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
   }, []);
   const cartCount = useCartCount((s) => s.count);
 
+  // Scroll-direction show/hide: the bar slides away on scroll-down, back in
+  // on scroll-up. Marquee + header move as ONE unit (a single wrapping
+  // transform) rather than two independently-hidden elements — they're
+  // visually one top bar, and hiding only one of them would look broken.
+  // The sticky asides on checkout/cart/PDP/search read the bar's current
+  // height back via the --header-offset CSS variable (set below, consumed
+  // in globals.css / those pages' own top-[var(--header-offset)]) so they
+  // don't reserve a dead gap once the bar is gone.
+  const hidden = useScrollDirection();
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("header-hidden", hidden);
+  }, [hidden]);
+
   return (
     <>
+      <div
+        className="fixed inset-x-0 top-0 z-50 transition-transform duration-500 ease-out"
+        style={{ transform: hidden ? "translateY(-100%)" : "translateY(0)" }}
+      >
       {/*
         Looping announcement marquee — the only animation kept after the rest
         of the site motion was removed. The mobile-marquee keyframe
@@ -92,7 +111,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
         breakpoints removes the discontinuity at its source rather than
         patching around it with a resize-triggered animation reset.
       */}
-      <div className="fixed inset-x-0 top-0 z-50 h-9 overflow-hidden bg-maroon pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-cream">
+      <div className="h-9 overflow-hidden bg-maroon pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-cream">
         <div
           className="flex h-full w-max animate-[mobile-marquee_36s_linear_infinite] items-center whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.22em]"
           style={{ willChange: "transform" }}
@@ -111,11 +130,18 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
         </div>
       </div>
 
-      <header className="fixed inset-x-0 top-9 z-40 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-3 md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] md:pt-4">
+      <header
+        className="pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-3 md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] md:pt-4"
+        // Scrolled out of view via the wrapper's translateY — inert so a
+        // keyboard user tabbing through the page can't land focus on a nav
+        // link that's currently off-screen (same convention already used
+        // on the mobile drawer below).
+        inert={hidden || undefined}
+      >
         <div
-          // Header stays fully visible at all times — the scroll-driven
-          // fade-out has been removed. Solid semi-opaque cream fill, no
-          // backdrop-filter, no state, no scroll listener.
+          // Solid semi-opaque cream fill, no backdrop-filter — the pill's
+          // own show/hide is handled by the wrapping fixed container above,
+          // not by this div (which has no scroll state of its own).
           //
           // The 1fr/1fr outer columns are equal width, so the centered column
           // (nav on desktop, logo on mobile) sits at their exact mathematical
@@ -234,6 +260,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
           </div>
         </div>
       </header>
+      </div>
 
       <div
         id="mobile-nav-drawer"

@@ -220,7 +220,7 @@ export function SearchView({
   return (
     <section className="paper-grain min-h-screen bg-cream pb-24 pt-[128px] md:pt-32">
       {/* Sticky search bar */}
-      <div className="sticky top-[120px] z-30 border-b border-maroon/8 bg-cream/85 px-5 py-3.5 backdrop-blur-xl md:top-[116px] md:px-6">
+      <div className="sticky top-[var(--header-offset)] z-30 border-b border-maroon/8 bg-cream/85 px-5 py-3.5 backdrop-blur-xl transition-[top] duration-500 md:px-6">
         <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-full border border-cocoa/20 bg-cream px-5 py-3 shadow-[0_10px_30px_rgba(43,38,35,0.05)] transition duration-500 focus-within:border-cocoa">
           <Search
             className="h-[18px] w-[18px] shrink-0 text-cocoa"
