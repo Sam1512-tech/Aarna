@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useTransition } from "react";
 import { logout } from "@/lib/actions/auth";
+import { CONTACT_EMAIL } from "@/lib/contact-info";
 
 interface NavItem {
   href: string;
@@ -163,6 +164,16 @@ export function AccountShell({ displayName, children }: AccountShellProps) {
                 {pending ? "Signing out…" : "Sign out"}
               </button>
             </nav>
+
+            <p className="mt-6 text-center text-xs leading-6 text-charcoal/50 lg:text-left">
+              Need help?{" "}
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className="soft-link font-medium text-cocoa"
+              >
+                {CONTACT_EMAIL}
+              </a>
+            </p>
           </aside>
 
           {/* Content */}

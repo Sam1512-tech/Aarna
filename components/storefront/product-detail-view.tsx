@@ -286,7 +286,7 @@ export function ProductDetailView({
           />
 
           {/* Info */}
-          <div className="md:sticky md:top-[116px] md:self-start">
+          <div className="md:sticky md:top-[var(--header-offset)] md:self-start md:transition-[top] md:duration-500">
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
               {product.category?.name ?? "Wardrobe"}
             </p>

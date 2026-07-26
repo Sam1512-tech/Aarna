@@ -90,10 +90,6 @@ export default async function AccountDashboardPage() {
           </Link>
         ))}
       </div>
-
-      <p className="mt-8 text-center text-xs leading-6 text-charcoal/50">
-        Need help with an order? Our support team is here to assist you.
-      </p>
     </div>
   );
 }
