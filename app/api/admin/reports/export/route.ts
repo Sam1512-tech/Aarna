@@ -44,6 +44,29 @@ const GENERAL_HEADERS = [
   "AWB Number",
 ];
 
+// Relative PDF column widths, same order as GENERAL_HEADERS — see the
+// comment on ReportPdfData.columnWidths (lib/reports/report-pdf.tsx) for
+// why every column can't just share one flex value. Sized by content type:
+// free text (Customer, Email) gets the most room, fixed-length numbers
+// (Items, money columns) stay narrow, everything else lands in between.
+const GENERAL_COL_WIDTHS = [
+  1.4, // Order Number
+  1.3, // Order Date
+  1.8, // Customer
+  2.0, // Email
+  1.0, // Phone
+  0.6, // Items
+  1.1, // Subtotal (Rs.)
+  1.1, // Discount (Rs.)
+  1.1, // Shipping (Rs.)
+  1.1, // Total (Rs.)
+  1.0, // Coupon
+  1.1, // Payment Status
+  1.3, // Fulfillment Status
+  1.4, // Invoice Number
+  1.2, // AWB Number
+];
+
 const GST_HEADERS = [
   "Invoice Number",
   "Invoice Date",
@@ -60,6 +83,29 @@ const GST_HEADERS = [
   "IGST (Rs.)",
   "Total (Rs.)",
   "Payment Status",
+];
+
+// Same reasoning as GENERAL_COL_WIDTHS. Customer GSTIN gets deliberately
+// generous width — it's a fixed 15-character alphanumeric string with no
+// spaces or punctuation, so it has no opportunity to wrap onto a second
+// line if the column is too narrow; it must fit on one line or it overflows
+// into the next column instead.
+const GST_COL_WIDTHS = [
+  1.4, // Invoice Number
+  1.2, // Invoice Date
+  1.3, // Order Number
+  1.7, // Customer
+  1.6, // Customer GSTIN
+  1.2, // Place of Supply
+  1.0, // Supply Type
+  0.7, // HSN Code
+  0.8, // GST Rate (%)
+  1.1, // Taxable Value (Rs.)
+  0.9, // CGST (Rs.)
+  0.9, // SGST (Rs.)
+  0.9, // IGST (Rs.)
+  1.1, // Total (Rs.)
+  1.0, // Payment Status
 ];
 
 function money(n: number): string {
@@ -112,6 +158,7 @@ export async function GET(req: Request) {
   const title = type === "gst" ? "GST Sales Register" : "Sales Report";
 
   let headers: string[];
+  let columnWidths: number[];
   let rows: (string | number)[][];
   let totalsRow: (string | number)[] | undefined;
 
@@ -119,6 +166,7 @@ export async function GET(req: Request) {
     if (type === "gst") {
       const data = await getGstSalesRegisterRows(range.from, range.to);
       headers = GST_HEADERS;
+      columnWidths = GST_COL_WIDTHS;
       rows = data.map((r) => [
         r.invoiceNumber,
         r.invoiceDate,
@@ -152,6 +200,7 @@ export async function GET(req: Request) {
     } else {
       const data = await getGeneralSalesReportRows(range.from, range.to);
       headers = GENERAL_HEADERS;
+      columnWidths = GENERAL_COL_WIDTHS;
       rows = data.map((r) => [
         r.orderNumber,
         r.orderDate,
@@ -234,6 +283,7 @@ export async function GET(req: Request) {
       title,
       dateRangeLabel: range.label,
       headers,
+      columnWidths,
       rows,
       totalsRow,
       generatedAtLabel,
