@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  alertStaleShipments,
   deleteStaleUnpaidOrders,
   releaseExpiredCheckoutHolds,
 } from "@/lib/db/queries/orders";
@@ -28,6 +29,11 @@ const STALE_DAYS = 7;
  * riding this same daily cron instead of a second Vercel Cron entry, since
  * this is the only scheduled job in the project and rate-limit cleanup is
  * just as much "daily maintenance" as the order cleanup above.
+ *
+ * Also runs alertStaleShipments — catches an order stuck "shipped"/
+ * "out_for_delivery" well past Delhivery's normal delivery window, which in
+ * practice means the Delhivery status webhook stopped reaching the app
+ * (see lib/db/queries/orders.ts for the incident this was built from).
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -46,5 +52,12 @@ export async function GET(req: Request) {
   const releasedHolds = await releaseExpiredCheckoutHolds();
   const result = await deleteStaleUnpaidOrders(STALE_DAYS);
   const rateLimitRowsDeleted = await cleanupOldRateLimitAttempts();
-  return NextResponse.json({ ok: true, releasedHolds, rateLimitRowsDeleted, ...result });
+  const staleShipments = await alertStaleShipments();
+  return NextResponse.json({
+    ok: true,
+    releasedHolds,
+    rateLimitRowsDeleted,
+    staleShipments,
+    ...result,
+  });
 }

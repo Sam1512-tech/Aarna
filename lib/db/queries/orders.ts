@@ -788,6 +788,68 @@ export async function deleteStaleUnpaidOrders(
   };
 }
 
+/** Delhivery's own documented delivery window for standard domestic surface
+ * shipments tops out around 7 days; 5 gives a real margin before flagging,
+ * so this only fires for a shipment that's genuinely stuck, not one that's
+ * just slow. */
+const STALE_SHIPMENT_DAYS = 5;
+
+/**
+ * Catches the exact failure class found on AARNA-001023 (Jul 2026): the
+ * Delhivery status webhook silently stopped reaching the app — Delhivery's
+ * own tracking showed real "Out for delivery" and "Delivered" scans that
+ * never updated the order, with nothing in the app surfacing an error,
+ * because a webhook that's simply never called (wrong/stale URL on
+ * Delhivery's side, a token mismatch, DNS not yet cut over, etc.) produces
+ * no failed request for anything on our side to notice — same blind spot
+ * class as the Razorpay webhook secret going missing from Vercel production
+ * for a long stretch (see CLAUDE.md).
+ *
+ * Riding the existing daily cron (app/api/cron/cleanup-orders/route.ts)
+ * rather than adding a second Vercel Cron entry — same reasoning already
+ * documented there for bundling the rate-limit cleanup in.
+ *
+ * Deliberately re-alerts every day a shipment remains stuck rather than
+ * tracking "already alerted" state — an unresolved silent failure should
+ * keep surfacing until a human actually looks at it, not go quiet after
+ * the first email, and this needs no extra schema to do that.
+ */
+export async function alertStaleShipments(
+  staleDays = STALE_SHIPMENT_DAYS,
+): Promise<{ staleCount: number; orderNumbers: string[] }> {
+  const cutoff = new Date(Date.now() - staleDays * 24 * 60 * 60 * 1000);
+
+  const stale = await db
+    .select({
+      orderNumber: orders.orderNumber,
+      awbNumber: orders.awbNumber,
+      fulfillmentStatus: orders.fulfillmentStatus,
+      placedAt: orders.placedAt,
+    })
+    .from(orders)
+    .where(
+      and(
+        inArray(orders.fulfillmentStatus, ["shipped", "out_for_delivery"]),
+        lt(orders.placedAt, cutoff),
+      ),
+    );
+
+  if (stale.length === 0) {
+    return { staleCount: 0, orderNumbers: [] };
+  }
+
+  await alertAdminSuspiciousActivity({
+    event: `${stale.length} order(s) stuck mid-shipment past Delhivery's typical delivery window`,
+    detail: `Placed more than ${staleDays} day(s) ago and still showing as in-transit locally, with no further Delhivery status update since: ${stale
+      .map((o) => `${o.orderNumber} (AWB ${o.awbNumber ?? "none"}, currently "${o.fulfillmentStatus}")`)
+      .join(", ")}. This almost always means the Delhivery status webhook isn't reaching the app (check the webhook URL and DELHIVERY_WEBHOOK_TOKEN), not that the shipment is genuinely still moving — check each AWB directly on Delhivery's own tracking and correct the status by hand via /studio/orders if it's actually already delivered.`,
+  }).catch((err) => {
+    console.error("[cleanup-orders] failed to alert admin about stale shipments:", err);
+  });
+
+  return { staleCount: stale.length, orderNumbers: stale.map((o) => o.orderNumber) };
+}
+
 /**
  * Transforms a DB order into the shape the invoice PDF template expects.
  * Prices in DB are stored as paise (integer), GST-inclusive.

@@ -22,13 +22,17 @@ type FulfillmentStatus =
   | "cancelled"
   | "returned";
 
-// Mirrors FORWARD_TRANSITIONS in lib/actions/admin/orders.ts — the dropdown
-// must only ever offer moves the server will actually accept. "returned"
-// isn't reachable from here at all (it flows through the returns table).
+// Mirrors FORWARD_TRANSITIONS in lib/orders/fulfillment-transitions.ts — the
+// dropdown must only ever offer moves the server will actually accept.
+// "returned" isn't reachable from here at all (it flows through the returns
+// table). "shipped" -> "delivered" directly (skipping "out_for_delivery") is
+// included so an admin can correct a stuck order by hand — e.g. a customer
+// calls to confirm delivery but the courier's own "out for delivery" webhook
+// never reached us either — without needing dev intervention.
 const FORWARD_TRANSITIONS: Record<FulfillmentStatus, FulfillmentStatus[]> = {
   pending: ["processing", "cancelled"],
   processing: ["shipped", "cancelled"],
-  shipped: ["out_for_delivery"],
+  shipped: ["out_for_delivery", "delivered"],
   out_for_delivery: ["delivered"],
   delivered: [],
   cancelled: [],
