@@ -2,6 +2,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import {
   Document,
+  Font,
   Image,
   Page,
   StyleSheet,
@@ -9,6 +10,35 @@ import {
   View,
 } from "@react-pdf/renderer";
 import path from "path";
+
+// react-pdf's line-breaking only ever splits a line at a space, or at one of
+// the split points its hyphenation callback returns for a given "word" (a
+// run of non-space characters) — there is no separate, always-on notion of
+// a zero-width break character. softWrap() below marks the handful of safe
+// break points it inserts (after @ . _ / -) with this marker; the
+// hyphenation callback is the ONLY thing that can turn those markers into
+// real line-break opportunities, so it must split on them. Any word without
+// a marker — i.e. every real name, address, or other normal word — is
+// still returned whole, since react-pdf's default hyphenation engine breaks
+// real words mid-syllable (e.g. "Police" -> "Po-lice") when a column is
+// narrow, which looks wrong for a name or address.
+const ZERO_WIDTH_SPACE = "\u200b";
+Font.registerHyphenationCallback((word) =>
+  word.includes(ZERO_WIDTH_SPACE) ? word.split(ZERO_WIDTH_SPACE) : [word],
+);
+
+// A long single-token value — a long email address is the realistic case in
+// this data — has no space for react-pdf to wrap at, so with nowhere to
+// break it renders as one line and overflows straight into the next column
+// instead of wrapping (confirmed live: a fixed column width alone doesn't
+// fix this). Inserting this marker after natural break characters gives the
+// hyphenation callback above real split points to work with, without
+// changing the visible text (GSTINs and short codes have none of these
+// characters, so they're unaffected).
+const BREAK_AFTER = /([@._/-])/g;
+function softWrap(value: string): string {
+  return value.replace(BREAK_AFTER, `$1${ZERO_WIDTH_SPACE}`);
+}
 
 const LOGO_PATH = path.join(process.cwd(), "public", "logo-invoice.png");
 
@@ -37,6 +67,14 @@ const s = StyleSheet.create({
   totalsRow: { flexDirection: "row", borderTopWidth: 1, borderTopColor: "#4B1323", paddingVertical: 5, paddingHorizontal: 3 },
   cell: { fontSize: 7, color: "#111111", paddingRight: 6 },
   cellBold: { fontSize: 7, fontFamily: "Helvetica-Bold", color: "#111111", paddingRight: 6 },
+  // Vertical divider between columns — the invoice table doesn't have one
+  // (its columns are few and generously sized), but this report table packs
+  // in up to 15 columns at a much smaller font size, where a visible
+  // boundary between columns matters a lot more for reading a printed page.
+  // Header gets a light divider against its own dark background; body rows
+  // reuse the same muted tone as the row's own bottom border.
+  columnDividerHeader: { borderRightWidth: 0.5, borderRightColor: "#7A2F42" },
+  columnDivider: { borderRightWidth: 0.5, borderRightColor: "#E0D0C6" },
 
   footer: { position: "absolute", bottom: 18, left: 30, right: 30 },
   footerText: { fontSize: 6.5, color: "#9D948E", textAlign: "center" },
@@ -49,11 +87,21 @@ export interface ReportPdfData {
   rows: (string | number)[][];
   totalsRow?: (string | number)[];
   generatedAtLabel: string;
+  // Relative flex ratio per column, same length + order as `headers`. Part
+  // of the overlapping-text fix: every column previously shared one
+  // hardcoded `flex: 1`, so a free-text column (customer name, email) got
+  // the exact same width as a short fixed-format column (GST rate, HSN
+  // code) — the narrow columns were starved and the wide ones wasted space.
+  // (The other part of the fix is `softWrap` below, for long single-token
+  // values like an email address that have nowhere to wrap even with a
+  // generous column width.) Falls back to a uniform 1 per column if omitted.
+  columnWidths?: number[];
 }
 
 function ReportDocument({ data }: { data: ReportPdfData }) {
-  const { title, dateRangeLabel, headers, rows, totalsRow, generatedAtLabel } = data;
-  const colStyle = { flex: 1 };
+  const { title, dateRangeLabel, headers, rows, totalsRow, generatedAtLabel, columnWidths } = data;
+  const lastIndex = headers.length - 1;
+  const widthOf = (i: number) => columnWidths?.[i] ?? 1;
 
   return (
     <Document title={title} author="Aarna Label">
@@ -73,7 +121,14 @@ function ReportDocument({ data }: { data: ReportPdfData }) {
         <View style={s.table}>
           <View style={s.tableHeader} fixed>
             {headers.map((h, i) => (
-              <Text key={i} style={[s.tableHeaderText, colStyle]}>
+              <Text
+                key={i}
+                style={[
+                  s.tableHeaderText,
+                  { flex: widthOf(i) },
+                  i < lastIndex ? s.columnDividerHeader : {},
+                ]}
+              >
                 {h}
               </Text>
             ))}
@@ -86,8 +141,15 @@ function ReportDocument({ data }: { data: ReportPdfData }) {
               style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}
             >
               {row.map((cell, j) => (
-                <Text key={j} style={[s.cell, colStyle]}>
-                  {String(cell)}
+                <Text
+                  key={j}
+                  style={[
+                    s.cell,
+                    { flex: widthOf(j) },
+                    j < lastIndex ? s.columnDivider : {},
+                  ]}
+                >
+                  {softWrap(String(cell))}
                 </Text>
               ))}
             </View>
@@ -96,8 +158,15 @@ function ReportDocument({ data }: { data: ReportPdfData }) {
           {totalsRow ? (
             <View style={s.totalsRow} wrap={false}>
               {totalsRow.map((cell, j) => (
-                <Text key={j} style={[s.cellBold, colStyle]}>
-                  {String(cell)}
+                <Text
+                  key={j}
+                  style={[
+                    s.cellBold,
+                    { flex: widthOf(j) },
+                    j < lastIndex ? s.columnDivider : {},
+                  ]}
+                >
+                  {softWrap(String(cell))}
                 </Text>
               ))}
             </View>
