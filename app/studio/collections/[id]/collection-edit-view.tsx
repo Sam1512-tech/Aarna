@@ -97,8 +97,7 @@ export function CollectionEditView({
   }
 
   return (
-    <>
-      <FormShell onSubmit={handleSubmit}>
+    <FormShell onSubmit={handleSubmit}>
       <FormSection title="Basics">
         <Field label="Name" required wide>
           <TextInput value={name} onChange={(e) => setName(e.target.value)} />
@@ -151,6 +150,12 @@ export function CollectionEditView({
         />
       </FormSection>
 
+      <ProductMembershipSection
+        collectionId={collection.id}
+        members={members}
+        allProducts={allProducts}
+      />
+
       {saved ? <p className="text-xs text-cocoa">{saved}</p> : null}
       <SubmitBar
         cancelHref="/studio/collections"
@@ -159,14 +164,7 @@ export function CollectionEditView({
         error={error}
         disabled={!canSubmit}
       />
-      </FormShell>
-
-      <ProductMembershipSection
-        collectionId={collection.id}
-        members={members}
-        allProducts={allProducts}
-      />
-    </>
+    </FormShell>
   );
 }
 
@@ -217,7 +215,7 @@ function ProductMembershipSection({
   }
 
   return (
-    <div className="mt-10">
+    <div>
       <h2 className="font-display text-xl text-maroon">
         Products in this collection
       </h2>

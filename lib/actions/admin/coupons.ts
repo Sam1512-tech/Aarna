@@ -40,6 +40,58 @@ function validateValue(type: CouponType, value: number): number {
   return value;
 }
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+// "Today" for the no-past-start-date guard is defined in IST — this
+// project's operating timezone (see lib/reports/date-range.ts for the same
+// fixed-offset pattern) — not server-local time, since Vercel functions run
+// in UTC regardless of region. India has one fixed offset (+05:30, no DST),
+// so a plain offset calculation is exact — no timezone-database lookup
+// needed.
+function startOfTodayIST(): Date {
+  const now = new Date();
+  const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+  return new Date(
+    Date.UTC(
+      istNow.getUTCFullYear(),
+      istNow.getUTCMonth(),
+      istNow.getUTCDate(),
+      0,
+      0,
+      0,
+    ) - IST_OFFSET_MS,
+  );
+}
+
+/**
+ * Validates a coupon's effective start/expiry pair — the actual UI date
+ * pickers constrain their `min` to today, but that's a client-side nicety
+ * only; a direct call to createCoupon/updateCoupon (bypassing the form
+ * entirely) must be independently guarded here.
+ *
+ * `previousStartsAt` is the coupon's currently-stored start date (undefined
+ * when creating). An update that leaves startsAt exactly as it already was
+ * — including a coupon whose start date is already in the past because
+ * it's already active — is never rejected for "being in the past"; only a
+ * genuinely NEW/changed start date is held to the no-past-dates rule. This
+ * is deliberate, per the feature spec: editing a live coupon shouldn't be
+ * blocked by its own already-set start date, but setting a fresh past date
+ * should be.
+ */
+function validateDateRange(
+  startsAt: Date | null | undefined,
+  expiresAt: Date | null | undefined,
+  previousStartsAt?: Date | null,
+): void {
+  const changed = (startsAt?.getTime() ?? null) !== (previousStartsAt?.getTime() ?? null);
+  if (startsAt && changed && startsAt.getTime() < startOfTodayIST().getTime()) {
+    throw new ActionError("Start date can't be in the past");
+  }
+  if (startsAt && expiresAt && expiresAt.getTime() <= startsAt.getTime()) {
+    throw new ActionError("Expiry date must be after the start date");
+  }
+}
+
 // ── Read ─────────────────────────────────────────────────────────────────────
 
 export interface AdminCouponFilters {
@@ -101,6 +153,7 @@ export interface CreateCouponInput {
   minOrderAmount?: number;
   usageLimit?: number | null;
   perCustomerLimit?: number;
+  startsAt?: Date | null;
   expiresAt?: Date | null;
   isActive?: boolean;
 }
@@ -130,6 +183,7 @@ export async function createCoupon(input: CreateCouponInput) {
   if (input.expiresAt && input.expiresAt.getTime() <= Date.now()) {
     throw new ActionError("Expiry date must be in the future");
   }
+  validateDateRange(input.startsAt, input.expiresAt);
 
   // Code uniqueness
   const existing = await db
@@ -148,6 +202,7 @@ export async function createCoupon(input: CreateCouponInput) {
       minOrderAmount: minOrder,
       usageLimit: input.usageLimit ?? null,
       perCustomerLimit: perCustomer,
+      startsAt: input.startsAt ?? null,
       expiresAt: input.expiresAt ?? null,
       isActive: input.isActive ?? true,
     })
@@ -166,6 +221,7 @@ export interface UpdateCouponInput {
   minOrderAmount?: number;
   usageLimit?: number | null;
   perCustomerLimit?: number;
+  startsAt?: Date | null;
   expiresAt?: Date | null;
   isActive?: boolean;
 }
@@ -233,6 +289,16 @@ export async function updateCoupon(id: string, input: UpdateCouponInput) {
     patch.perCustomerLimit = input.perCustomerLimit;
   }
 
+  // Validate the EFFECTIVE start/expiry pair — whichever of the two ends up
+  // patched vs. left as the existing value — so e.g. changing only expiresAt
+  // on a coupon that already has a startsAt still gets the "expiry after
+  // start" check against that existing start date, not skipped just because
+  // this particular call didn't touch startsAt.
+  const effectiveStartsAt = input.startsAt !== undefined ? input.startsAt : existing[0].startsAt;
+  const effectiveExpiresAt = input.expiresAt !== undefined ? input.expiresAt : existing[0].expiresAt;
+  validateDateRange(effectiveStartsAt, effectiveExpiresAt, existing[0].startsAt);
+
+  if (input.startsAt !== undefined) patch.startsAt = input.startsAt;
   if (input.expiresAt !== undefined) patch.expiresAt = input.expiresAt;
   if (input.isActive !== undefined) patch.isActive = input.isActive;
 

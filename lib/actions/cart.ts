@@ -333,6 +333,9 @@ export async function applyCoupon(
   if (!c.isActive) {
     return { ok: false, message: "Coupon is not active", cart, discount: 0 };
   }
+  if (c.startsAt && new Date(c.startsAt) > new Date()) {
+    return { ok: false, message: "Coupon isn't active yet", cart, discount: 0 };
+  }
   if (c.expiresAt && new Date(c.expiresAt) < new Date()) {
     return { ok: false, message: "Coupon has expired", cart, discount: 0 };
   }
