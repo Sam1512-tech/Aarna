@@ -358,6 +358,11 @@ export const coupons = pgTable("coupons", {
   usageLimit: integer("usage_limit"),
   perCustomerLimit: integer("per_customer_limit").default(1).notNull(),
   usedCount: integer("used_count").default(0).notNull(),
+  // Nullable — a coupon with no start date is valid immediately (matching
+  // expiresAt's existing "null = no end date" convention). Added via
+  // scripts/apply-coupon-starts-at-column.ts, not db:push (see the
+  // "db:push is not safe to run blindly" gotcha in CLAUDE.md).
+  startsAt: timestamp("starts_at", { withTimezone: true }),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })

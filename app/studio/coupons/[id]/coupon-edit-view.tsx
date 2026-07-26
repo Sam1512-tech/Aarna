@@ -31,6 +31,19 @@ function toDateInputValue(d: Date | string | null): string {
   return dt.toISOString().slice(0, 10);
 }
 
+// Browser-local Y-M-D, not UTC — an admin picking "today" should mean their
+// own today. This only constrains the picker UI for a NEW selection;
+// updateCoupon independently re-validates server-side against IST (and
+// deliberately allows an already-past start date to remain untouched, since
+// the coupon may already be active — see validateDateRange).
+function todayDateInputValue(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function CouponEditView({ coupon }: { coupon: Coupon }) {
   const [code, setCode] = useState(coupon.code);
   const [type, setType] = useState<CouponType>(coupon.type);
@@ -46,19 +59,32 @@ export function CouponEditView({ coupon }: { coupon: Coupon }) {
   const [perCustomerLimit, setPerCustomerLimit] = useState(
     String(coupon.perCustomerLimit),
   );
+  const [startsAt, setStartsAt] = useState(toDateInputValue(coupon.startsAt));
   const [expiresAt, setExpiresAt] = useState(toDateInputValue(coupon.expiresAt));
   const [isActive, setIsActive] = useState(coupon.isActive);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const today = todayDateInputValue();
+  // The picker's own min stays "today" (no picking a NEW past date), but an
+  // already-past start date the coupon already has shouldn't be blocked
+  // from just being displayed/kept — only the min-selectable date going
+  // forward is constrained, never the initial value itself.
+  const startsAtMin =
+    coupon.startsAt && toDateInputValue(coupon.startsAt) < today
+      ? toDateInputValue(coupon.startsAt)
+      : today;
   const codeValid = /^[A-Z0-9_-]{3,32}$/.test(code);
   const rawValue = Number.parseFloat(value);
   const valueValid =
     Number.isFinite(rawValue) &&
     rawValue > 0 &&
     (type === "percent" ? rawValue <= 100 : true);
-  const canSubmit = codeValid && valueValid && !pending;
+  // Mirrors the server's "expiry must be after start" check — a light,
+  // immediate UX signal only; updateCoupon is the real enforcement.
+  const rangeValid = !startsAt || !expiresAt || expiresAt > startsAt;
+  const canSubmit = codeValid && valueValid && rangeValid && !pending;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -81,6 +107,7 @@ export function CouponEditView({ coupon }: { coupon: Coupon }) {
             perCustomerLimit.length > 0
               ? Number.parseInt(perCustomerLimit, 10)
               : 1,
+          startsAt: startsAt ? new Date(startsAt) : null,
           expiresAt: expiresAt ? new Date(expiresAt) : null,
           isActive,
         });
@@ -141,11 +168,24 @@ export function CouponEditView({ coupon }: { coupon: Coupon }) {
           />
         </Field>
         <Field
-          label="Expires on"
-          hint="Optional — coupon becomes invalid after this date."
+          label="Starts on"
+          hint="Optional — coupon can't be redeemed before this date."
         >
           <TextInput
             type="date"
+            min={startsAtMin}
+            value={startsAt}
+            onChange={(e) => setStartsAt(e.target.value)}
+          />
+        </Field>
+        <Field
+          label="Expires on"
+          hint="Optional — coupon becomes invalid after this date."
+          error={!rangeValid ? "Must be after the start date" : undefined}
+        >
+          <TextInput
+            type="date"
+            min={startsAt || today}
             value={expiresAt}
             onChange={(e) => setExpiresAt(e.target.value)}
           />

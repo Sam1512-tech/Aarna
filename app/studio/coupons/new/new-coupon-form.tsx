@@ -22,6 +22,18 @@ function rupeesToPaise(v: string) {
   return Math.round(num * 100);
 }
 
+// Browser-local Y-M-D, not UTC — an admin picking "today" should mean their
+// own today. This only constrains the picker UI; createCoupon independently
+// re-validates server-side against IST, since a direct action call bypasses
+// this entirely.
+function todayDateInputValue(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function NewCouponForm() {
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -30,18 +42,23 @@ export function NewCouponForm() {
   const [minOrderRupees, setMinOrderRupees] = useState("");
   const [usageLimit, setUsageLimit] = useState("");
   const [perCustomerLimit, setPerCustomerLimit] = useState("1");
+  const [startsAt, setStartsAt] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const today = todayDateInputValue();
   const codeValid = /^[A-Z0-9_-]{3,32}$/.test(code);
   const rawValue = Number.parseFloat(value);
   const valueValid =
     Number.isFinite(rawValue) &&
     rawValue > 0 &&
     (type === "percent" ? rawValue <= 100 : true);
-  const canSubmit = codeValid && valueValid && !pending;
+  // Mirrors the server's "expiry must be after start" check — a light,
+  // immediate UX signal only; createCoupon is the real enforcement.
+  const rangeValid = !startsAt || !expiresAt || expiresAt > startsAt;
+  const canSubmit = codeValid && valueValid && rangeValid && !pending;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -65,6 +82,7 @@ export function NewCouponForm() {
             perCustomerLimit.length > 0
               ? Number.parseInt(perCustomerLimit, 10)
               : 1,
+          startsAt: startsAt ? new Date(startsAt) : null,
           expiresAt: expiresAt ? new Date(expiresAt) : null,
           isActive,
         });
@@ -132,11 +150,24 @@ export function NewCouponForm() {
           />
         </Field>
         <Field
-          label="Expires on"
-          hint="Optional — coupon becomes invalid after this date."
+          label="Starts on"
+          hint="Optional — coupon can't be redeemed before this date."
         >
           <TextInput
             type="date"
+            min={today}
+            value={startsAt}
+            onChange={(e) => setStartsAt(e.target.value)}
+          />
+        </Field>
+        <Field
+          label="Expires on"
+          hint="Optional — coupon becomes invalid after this date."
+          error={!rangeValid ? "Must be after the start date" : undefined}
+        >
+          <TextInput
+            type="date"
+            min={startsAt || today}
             value={expiresAt}
             onChange={(e) => setExpiresAt(e.target.value)}
           />
