@@ -107,7 +107,7 @@ export function AccountShell({ displayName, children }: AccountShellProps) {
                 mobile (see the <header> block above). */}
             <nav
               aria-label="Account (mobile)"
-              className="flex flex-wrap gap-2 pb-2 lg:hidden"
+              className="flex flex-wrap justify-center gap-2 pb-2 lg:hidden"
             >
               {NAV.map((item) => {
                 const active = isActive(item);
