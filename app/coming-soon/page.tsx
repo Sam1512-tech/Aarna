@@ -1,7 +1,6 @@
 import Image from "next/image";
 import type { Metadata } from "next";
 import { ordersOpenAt } from "@/lib/launch-gate";
-import { ComingSoonCountdown } from "@/components/storefront/coming-soon-countdown";
 
 export const metadata: Metadata = {
   title: "Opening soon",
@@ -49,10 +48,6 @@ export default function ComingSoonPage() {
           ? `Ordering opens ${opensAt.toLocaleDateString("en-IN", DATE_FORMAT)} at ${opensAt.toLocaleTimeString("en-IN", TIME_FORMAT)}. Come back then — or check back here.`
           : "Ordering opens shortly. Come back soon."}
       </p>
-
-      {opensAt ? (
-        <ComingSoonCountdown targetIso={opensAt.toISOString()} />
-      ) : null}
     </main>
   );
 }
