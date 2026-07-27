@@ -1,6 +1,7 @@
 "use client";
 
 import { Ruler, User, X } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useModalLock } from "@/hooks/use-modal-lock";
 
 /**
@@ -35,7 +36,17 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
 
   if (!open) return null;
 
-  return (
+  // Portaled to document.body — escapes the `.paper-grain` (app/globals.css)
+  // `isolation: isolate` stacking-context trap that any inline (non-portaled)
+  // `fixed` modal falls into on this and every other paper-grain-wrapped
+  // page (PDP included), which otherwise prevents it from ever painting
+  // above the site's own fixed header regardless of z-index. This modal
+  // previously dodged the symptom on mobile only, by reserving a hardcoded
+  // ~110px of top space to avoid ever overlapping the header's known height
+  // — fragile (breaks if the header grows) and never applied on desktop.
+  // The portal fixes the actual mechanism, so that reservation is no longer
+  // needed; back to a plain dvh/vh max-height like the other modals.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -49,12 +60,9 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
         className="absolute inset-0"
       />
 
-      {/* Mobile: panel height reserves ~110px at the top for the sticky
-          site header (36px marquee + ~72px main header). Using dvh (dynamic
-          viewport height) so mobile Chrome/Safari's collapsing URL bar
-          doesn't clip the panel content. Desktop keeps the original 92vh
-          since the modal is centered and has md:p-6 breathing room. */}
-      <div className="relative z-10 flex max-h-[calc(100dvh-110px)] w-full max-w-md flex-col overflow-hidden rounded-t-[28px] bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:max-h-[92vh] md:rounded-[28px]">
+      {/* dvh (not vh) on mobile — mobile Safari/Chrome's collapsing URL bar
+          means plain vh can size this taller than what's actually visible. */}
+      <div className="relative z-10 flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[28px] bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:max-h-[92vh] md:rounded-[28px]">
         {/* Grabber (mobile only) — signals bottom-sheet affordance */}
         <div className="flex justify-center pt-3 md:hidden" aria-hidden="true">
           <span className="h-1 w-10 rounded-full bg-cocoa/22" />
@@ -199,6 +207,7 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
