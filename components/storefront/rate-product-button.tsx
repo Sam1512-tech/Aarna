@@ -2,6 +2,7 @@
 
 import { Star, X } from "lucide-react";
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { submitReview } from "@/lib/actions/reviews";
 import { actionErrorMessage } from "@/lib/action-error";
 import { useModalLock } from "@/hooks/use-modal-lock";
@@ -90,7 +91,13 @@ function ReviewModal({
     });
   }
 
-  return (
+  // Portaled to document.body — escapes the `.paper-grain` (app/globals.css)
+  // `isolation: isolate` stacking-context trap that an inline (non-portaled)
+  // fixed modal falls into on the account/orders page (also paper-grain
+  // wrapped), which otherwise prevents it from ever painting above the
+  // site's own fixed header regardless of z-index — same mechanism
+  // confirmed live on account-addresses-view.tsx's near-identical modal.
+  return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-end justify-center bg-charcoal/40 backdrop-blur-sm md:items-center"
       role="dialog"
@@ -105,31 +112,33 @@ function ReviewModal({
       />
       <form
         onSubmit={handleSubmit}
-        // Bounded + internally scrollable (dvh so mobile Chrome/Safari's
-        // collapsing URL bar doesn't clip content, matching size-guide-modal.tsx)
-        // with Cancel/Submit pinned outside the scroll area so the keyboard
-        // opening on the textarea can never push them out of reach.
-        className="relative z-10 flex max-h-[calc(100dvh-110px)] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:max-h-[92vh] md:rounded-3xl"
+        // dvh (not vh) on mobile — mobile Safari/Chrome's collapsing URL bar
+        // means plain vh can size this taller than what's actually visible.
+        // Header and footer are separate non-scrolling flex children (below);
+        // only the body between them scrolls.
+        className="relative z-10 flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:max-h-[92vh] md:rounded-3xl"
       >
-        <div className="overflow-y-auto p-6 md:p-8">
-          <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between border-b border-cocoa/10 px-6 py-5 md:px-8">
+          <div>
             <h2 id="rate-product-title" className="font-display text-3xl text-maroon">
               {existingReview ? "Edit your review" : "Rate this piece"}
             </h2>
-            <button
-              type="button"
-              onClick={onCancel}
-              aria-label="Close"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cocoa hover:bg-cocoa/10"
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
+            <p className="mt-1 truncate text-sm text-charcoal/60">
+              {productTitle}
+            </p>
           </div>
-          <p className="mt-1 truncate text-sm text-charcoal/60">
-            {productTitle}
-          </p>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Close"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-cocoa hover:bg-cocoa/10"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
 
-          <div className="mt-5 space-y-4">
+        <div className="overflow-y-auto p-6 md:p-8">
+          <div className="space-y-4">
             <label className="block">
               <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
                 Your rating
@@ -202,6 +211,7 @@ function ReviewModal({
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

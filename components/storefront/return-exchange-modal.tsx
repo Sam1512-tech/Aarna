@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, ChevronDown, RotateCcw, Repeat, X } from "lucide-react";
 import { requestReturn } from "@/lib/actions/account";
 import { getVariantsInStockForProduct } from "@/lib/actions/products";
@@ -201,7 +202,17 @@ export function ReturnExchangeModal({
 
   if (!open) return null;
 
-  return (
+  // Portaled to document.body — this modal is opened from account pages
+  // wrapped in the site-wide `.paper-grain` class (app/globals.css), which
+  // sets `isolation: isolate` and therefore traps any inline (non-portaled)
+  // `position: fixed` descendant in its own stacking context. That means a
+  // fixed modal rendered here would never be able to paint above the site
+  // header (also fixed, but outside the trap), regardless of z-index —
+  // confirmed live on the near-identical account-addresses-view.tsx modal via
+  // elementFromPoint hit-testing, and previously diagnosed once already for
+  // the PLP mobile filter sheet (see plp-view.tsx). Portaling escapes this
+  // regardless of which page renders the modal.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -335,7 +346,8 @@ export function ReturnExchangeModal({
           )}
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

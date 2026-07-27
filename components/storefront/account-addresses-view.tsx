@@ -2,6 +2,7 @@
 
 import { Check, MapPin, Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import {
   createAddress,
   deleteAddress,
@@ -272,7 +273,24 @@ function AddressEditor({
     onSave(form);
   }
 
-  return (
+  // Portaled to document.body — this modal is opened from pages wrapped in
+  // the site-wide `.paper-grain` class (app/globals.css), which sets
+  // `isolation: isolate` so its own grain-texture pseudo-element stays
+  // contained. That isolation also traps any `position: fixed` descendant
+  // rendered inline (not portaled) into a new stacking context, so its
+  // z-index is only ever compared against siblings *inside* that context —
+  // it can never paint above the site header (fixed, z-50, outside the
+  // trap), regardless of how high a z-index the modal itself uses. Confirmed
+  // live via elementFromPoint hit-testing at the close/save button's exact
+  // coordinates across 4 viewport sizes (837x478, 1280x800, 375x500,
+  // 667x320): the header always won, never the button underneath it. This
+  // is the same root cause already diagnosed once for the PLP mobile filter
+  // sheet (see the comment in plp-view.tsx) — fixed there by moving the
+  // sheet to be a JSX sibling of the .paper-grain section; a portal achieves
+  // the same escape here without depending on this component's host page
+  // structure, since AddressEditor (like the other account-area modals) is
+  // rendered from several different pages.
+  return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-end justify-center bg-charcoal/40 backdrop-blur-sm md:items-center"
       role="dialog"
@@ -286,27 +304,29 @@ function AddressEditor({
       />
       <form
         onSubmit={handleSubmit}
-        // Bounded + internally scrollable with Cancel/Save pinned outside the
-        // scroll area, so the on-screen keyboard opening on any of these 7
-        // fields can never push the Save button out of reach.
-        className="relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:rounded-3xl"
+        // dvh (not vh) on mobile — mobile Safari/Chrome's collapsing URL bar
+        // means plain vh can size this taller than what's actually visible,
+        // matching return-exchange-modal.tsx/size-guide-modal.tsx. Header and
+        // footer are separate non-scrolling flex children (below); only the
+        // body between them scrolls, so they can never be scrolled out of view.
+        className="relative z-10 flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-cream shadow-[0_-18px_60px_rgba(43,38,35,0.16)] md:max-h-[92vh] md:rounded-3xl"
       >
-        <div className="overflow-y-auto p-6 md:p-8">
-          <div className="flex items-start justify-between">
-            <h2 className="font-display text-3xl text-maroon">
-              {initial ? "Edit address" : "Add address"}
-            </h2>
-            <button
-              type="button"
-              onClick={onCancel}
-              aria-label="Close"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cocoa hover:bg-cocoa/10"
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
+        <div className="flex items-start justify-between border-b border-cocoa/10 px-6 py-5 md:px-8">
+          <h2 className="font-display text-3xl text-maroon">
+            {initial ? "Edit address" : "Add address"}
+          </h2>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Close"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cocoa hover:bg-cocoa/10"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
 
-          <div className="mt-5 space-y-3">
+        <div className="overflow-y-auto p-6 md:p-8">
+          <div className="space-y-3">
             <TextField
               label="Full name"
               value={form.fullName}
@@ -405,7 +425,8 @@ function AddressEditor({
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
