@@ -23,9 +23,16 @@ Fixed price: ₹1,30,000 (+₹18,000 hang-tag change request → ₹1,53,000 rev
 
 ---
 
-## 🚨 CURRENT STATUS — July 24, 2026 (two-phase launch: public Mon Jul 27, ordering opens Wed Jul 29 11:00 AM IST)
+## 🚨 CURRENT STATUS — July 28, 2026 (FULLY LIVE — two-phase plan superseded, launched same-day)
 
-**THE APP IS DEPLOYED: https://aarna-gamma.vercel.app** (Vercel, Sam's account `sam1512-tech`, project `aarna`, Hobby plan). Auto-deploys on every merge to `main`. **Full-scope audit completed Jul 4** (27 checks); **admin CRUD + reviews closed out Jul 7**; **coupon bug, Razorpay key rotation, tag printing shipped Jul 8**; **deployed + 12-PR Vismaya batch merged + all 4 WhatsApp templates approved Jul 8–10**; **second full code audit Jul 11** (see below); **Vismaya's 5-branch polish batch + cart-badge follow-ups merged Jul 15**; **cart bug-fix batch + PDP fixes Jul 16**; **round-2 full audit (77 findings) + all 3 critical + all 17 high-severity fixes merged Jul 22–23**; **round-3 batch — 22 PRs covering the medium-severity backlog, the pre-launch coming-soon gate, and a critical Google OAuth bug — merged Jul 23–24** (see below). State of the world:
+**THE APP IS DEPLOYED AND FULLY LIVE: https://shopaarna.in** (Vercel, Sam's account `sam1512-tech`, project `aarna`, Hobby plan). Auto-deploys on every merge to `main`. **Full-scope audit completed Jul 4** (27 checks); **admin CRUD + reviews closed out Jul 7**; **coupon bug, Razorpay key rotation, tag printing shipped Jul 8**; **deployed + 12-PR Vismaya batch merged + all 4 WhatsApp templates approved Jul 8–10**; **second full code audit Jul 11** (see below); **Vismaya's 5-branch polish batch + cart-badge follow-ups merged Jul 15**; **cart bug-fix batch + PDP fixes Jul 16**; **round-2 full audit (77 findings) + all 3 critical + all 17 high-severity fixes merged Jul 22–23**; **round-3 batch — 22 PRs covering the medium-severity backlog, the pre-launch coming-soon gate, and a critical Google OAuth bug — merged Jul 23–24** (see below). State of the world:
+
+### Two-phase launch plan abandoned — went fully live today instead (Jul 28)
+The "public Mon Jul 27, ordering opens Wed Jul 29 11:00 AM IST" plan (see "Two-phase launch plan" below) never made it to its Jul 29 target — **client decided to open ordering today instead**, one day ahead of schedule. Before flipping anything, live (not test) Razorpay keys were confirmed active in production — opening ordering means real payments start the moment the gate lifts, so this was checked first rather than assumed.
+
+- **`ORDERING_OPENS_AT` and `PREVIEW_ACCESS_SECRET` removed from Vercel production**, then redeployed. `lib/launch-gate.ts`'s `isGateActive()` was already built to fail open when `ORDERING_OPENS_AT` is unset ("a missing env var must never accidentally lock out the live site") — so this needed no code change to take effect, just the two env vars gone + a redeploy. Verified live: `shopaarna.in` now serves the real homepage directly, `/shop`, `/collections`, `/cart` all 200.
+- **The gate code itself has since been fully removed** (not just left dormant) — `lib/launch-gate.ts` and `app/coming-soon/page.tsx` deleted, `proxy.ts` stripped back down to just its underlying `updateSession()` call (Supabase session refresh — the only part still needed). The `ORDERING_OPENS_AT`/`PREVIEW_ACCESS_SECRET` block removed from `.env.example` too. Verified with a full `npm run build` (no `/coming-soon` route in the output, `Proxy (Middleware)` compiles) and live: `/account` while signed out still correctly redirects to `/login` (confirms `updateSession`'s own auth-redirect logic is untouched), `/shop` loads normally.
+- Every "still needs to activate the gate" / "gate is inert until..." note elsewhere in this file is now stale — the gate no longer exists in any form, active or dormant.
 
 ### Frontend polish + Delhivery fulfillment fixes (Jul 25, PRs #265, #267, #269)
 - **`#265`** — brand favicon with light/dark-mode variants (`prefers-color-scheme` media-query `<link>` tags, existing brand assets, no new artwork); every "Xprinter"/"XP-365B" mention in code/docs/CLAUDE.md replaced with generic "a compatible label printer" wording (the client actually uses a Helett H30CPro, documented correctly elsewhere — the old references were stale); new `hooks/use-modal-lock.ts` consolidating Escape-to-close + body-scroll-lock, applied to all 7 dialog implementations + the nav drawer (previously each had copied only half the behavior, or neither).
@@ -50,12 +57,10 @@ Continuation of the round-2 audit's 36 medium-severity findings. Per Sam's expli
 - **PR #160** (Vismaya's mobile-PDP-gallery-arrow fix, open since Jul 19) closed as obsolete — the whole `GalleryArrow`/`ImageLightbox` system it patched no longer exists on `main`, superseded by a swipe-only mobile gallery redesign in an unrelated change.
 - **Still open from the original 77-finding audit:** 21 low-severity findings, not yet started.
 
-### Pre-launch coming-soon gate (Jul 24, PRs #237, #238)
-Built to bridge the "public Monday, ordering Wednesday" gap. New `lib/launch-gate.ts`: every storefront route rewrites to `/coming-soon` (a live countdown to `ORDERING_OPENS_AT`) until that instant passes; `/studio` and `/api` are never gated. `/?preview=<PREVIEW_ACCESS_SECRET>` sets a 30-day bypass cookie for Sam/Arpitha to see the real site throughout.
-- **A real lockout bug was caught live before shipping**: the first version didn't exempt `/login`, but `/studio`'s own unauthenticated-redirect goes through `/login` — meaning the gate would have silently locked admin out of the whole panel for the entire gated window. Caught specifically because a real browser (which follows redirects) was used to verify, not `curl` without `-L` (which doesn't, and looked like a pass).
-- **Both new env vars are deliberately NOT `NEXT_PUBLIC_`** — that class gets inlined into the JS bundle at build time, so changing the launch date would otherwise need a full rebuild instead of just a Vercel env-var edit + redeploy. The coming-soon page (a server component) reads the var and passes it to the client countdown as a prop, so the client never needs to read it directly. Verified live: the same build responds correctly to the env var changing with no rebuild.
-- Fails open on both missing config and an already-past date — never an accidental lockout of the real launch.
-- **Still needs Sam to activate**: set `ORDERING_OPENS_AT=2026-07-29T11:00:00+05:30` and `PREVIEW_ACCESS_SECRET=<random>` in Vercel production, then redeploy. Code is merged but inert without this.
+### Pre-launch coming-soon gate — built Jul 24 (PRs #237, #238), activated + fully removed Jul 28
+Built to bridge the "public Monday, ordering Wednesday" gap: `lib/launch-gate.ts` rewrote every storefront route to `/coming-soon` (a live countdown to `ORDERING_OPENS_AT`) until that instant passed; `/studio` and `/api` were never gated; `/?preview=<PREVIEW_ACCESS_SECRET>` set a 30-day bypass cookie for Sam/Arpitha. **Superseded Jul 28** — client moved the launch up to same-day instead of waiting for Jul 29, so the gate was activated and immediately turned off again, then the code itself (`lib/launch-gate.ts`, `app/coming-soon/page.tsx`, the gate branch in `proxy.ts`) was deleted entirely rather than left dormant. See "Two-phase launch plan abandoned" at the top of Current Status for the full removal writeup.
+- **A real lockout bug was caught live before shipping** (Jul 24): the first version didn't exempt `/login`, but `/studio`'s own unauthenticated-redirect goes through `/login` — meaning the gate would have silently locked admin out of the whole panel for the entire gated window. Caught specifically because a real browser (which follows redirects) was used to verify, not `curl` without `-L` (which doesn't, and looked like a pass).
+- Fails open on both missing config and an already-past date — never an accidental lockout of the real launch. This fail-open design is exactly what let the Jul 28 removal be a pure env-var deletion with zero code change: unset `ORDERING_OPENS_AT` and the gate was already built to behave as if it never existed.
 
 ### Google sign-in was broken for every real customer — found + fixed Jul 24
 Reported as "goes to Google, picks an account, comes back to the site, not signed in" — for every Google account except `aarnabyarpithabhishek@gmail.com`. Two stacked, unrelated bugs, found in sequence:
@@ -264,7 +269,7 @@ Customers can submit a review from `/account/orders` (delivered items only, one 
   1. Wait for `delivered`/`return_received`/`refund_processed` to clear Meta review (check Interakt → Templates → Active).
   2. `WHATSAPP_WEBHOOK_SECRET` (optional but recommended) — if Interakt issues a signing secret for delivery/read-receipt webhooks. The webhook URL to give Interakt is `https://<deployed-domain>/api/webhooks/whatsapp` (route already built) — needs the real deployed URL, so it's a post-deploy step.
   3. `WHATSAPP_API_BASE_URL` — only needed if Interakt's base URL differs from the code's default (`https://api.interakt.ai/v1/public`); otherwise leave unset.
-- **shopaarna.in is LIVE with a placeholder mini-site** (coming-soon + shop preview + about/contact + all policy pages w/ GSTIN) — repo `aarna-coming-soon` under Arpitha's GitHub (`aarnabyarpithabhishek-collab`, also repo collaborator), deployed on **her** Vercel (Hobby). Built to pass Razorpay/Meta/Delhivery site checks (it did).
+- ~~shopaarna.in is LIVE with a placeholder mini-site~~ — **superseded by the real DNS cutover (see Current Status); shopaarna.in now resolves directly to the real app on Sam's Vercel, not the placeholder.** The placeholder (repo `aarna-coming-soon` under Arpitha's GitHub `aarnabyarpithabhishek-collab`, deployed on her Vercel) served its purpose pre-launch — passing Razorpay/Meta/Delhivery site checks — and is no longer in the traffic path, kept only as historical record.
 - **Supabase Send-Email hook configured** (secret in env, hook enabled, placeholder URL) — re-point URL to real app at deploy.
 - Delhivery fully configured (`Aarna Godown`/560085, prod base, webhook token). `DELHIVERY_CLIENT_NAME`/`DELHIVERY_MODE` env vars are unused leftovers — ignore.
 
@@ -494,15 +499,15 @@ to prevent.
 
 ---
 
-## Immediate Next Steps (as of Jul 24 — see 🚨 CURRENT STATUS for full detail)
+## Immediate Next Steps (as of Jul 28 — see 🚨 CURRENT STATUS for full detail)
 
-Deployment, admin CRUD, content entry, and Interakt are all long done — this list is now specifically the two-phase launch's remaining items, all external-dashboard work only Sam can do:
+Deployment, admin CRUD, content entry, Interakt, the launch gate, live Razorpay, and DNS cutover are all done — remaining items:
 
-1. **Activate the coming-soon gate**: set `ORDERING_OPENS_AT=2026-07-29T11:00:00+05:30` + `PREVIEW_ACCESS_SECRET=<random>` in Vercel production, redeploy. Code (PRs #237/238) is merged but inert without this.
-2. **Flip Razorpay to live keys + create the live webhook** — live keys already sit in `.env.local`, production deliberately still on test keys pending this. Real money — do deliberately, with buffer to re-test before the 29th.
-3. **DNS cutover**: shopaarna.in still points at Arpitha's placeholder mini-site. Re-point DNS → `NEXT_PUBLIC_APP_URL=https://shopaarna.in` + redeploy → re-point every webhook URL (Razorpay, Supabase auth, Google OAuth origins, Delhivery, Interakt) at the final domain, all in one sitting.
+1. ~~Activate the coming-soon gate~~ — **moot.** The gate (and all its code) is gone; the site is fully live at shopaarna.in.
+2. ~~Flip Razorpay to live keys~~ — **confirmed done**, live keys active in production.
+3. ~~DNS cutover~~ — **done**, shopaarna.in resolves to the real app directly.
 4. **Decide: new prod Supabase project, or ship on the current dev DB?** No prod project exists yet. A new one needs `npm run db:rls` re-run (only applied to dev currently).
-5. **Vercel project transfer to the client's account — deliberately deferred** (Sam's call, Jul 24): still needs dashboard access for items 1–3 above, transferring now risked losing that mid-sprint. Revisit once those are done and stable.
+5. **Vercel project transfer to the client's account** — was deliberately deferred pending items 1–3 above; those are now done, worth revisiting.
 6. Handover documentation + Loom walkthrough videos, and an admin training session for Arpitha — still not started.
 
 ---
@@ -595,11 +600,10 @@ Garment labels must show MRP, manufacturer details, fabric composition, size, an
 
 ---
 
-## Risks to Watch (two-phase launch: public Mon Jul 27, ordering Wed Jul 29 11 AM IST)
+## Risks to Watch (fully live as of Jul 28 — see Current Status)
 
-- ~~Product photography~~ **RECEIVED Jul 8, uploaded + entered.** ~~Meta template approval~~ **All 4 Approved as of Jul 24.** ~~Interakt API-key access~~ **Cleared Jul 8.** ~~Deploy to Vercel~~ **Done Jul 8.** ~~Product catalog~~ **11 products finalized Jul 24 (client decision).**
-- **Coming-soon gate is merged but inert until Sam sets the two env vars in Vercel and redeploys** (see Immediate Next Steps #1) — without this, "public Monday, ordering Wednesday" has no actual mechanism behind it.
-- Razorpay live webhook secret + live keys still need flipping on before the 29th — this is now the single highest-stakes remaining step. Never run casual checkout tests once live keys are active — real money moves.
+- ~~Product photography~~ **RECEIVED Jul 8, uploaded + entered.** ~~Meta template approval~~ **All 4 Approved as of Jul 24.** ~~Interakt API-key access~~ **Cleared Jul 8.** ~~Deploy to Vercel~~ **Done Jul 8.** ~~Product catalog~~ **11 products finalized Jul 24 (client decision).** ~~Coming-soon gate~~ **superseded Jul 28 — gate activated then fully removed same-day, see Current Status.** ~~Razorpay live keys~~ **confirmed active in production Jul 28.** ~~DNS cutover~~ **done, shopaarna.in live.**
 - **Don't trust a prior "verified working" claim in this file about Google OAuth without re-checking live** — it was wrong for weeks (see the Jul 24 entry above): the handshake reaching Google was mistaken for the whole flow working, when a `customers` row was silently never being created for real customers. Now actually fixed and verified, but this is the second time an auth integration "looked done" and wasn't — treat auth-flow claims in this doc as needing a fresh live check, not just a code read, before relying on them.
-- **No bot filtering, IP allowlisting, or CAPTCHA in front of `/studio` (admin panel) or the storefront's login/signup.** Application-level rate limiting exists (login/OTP/signup/coupon-apply) and closes the "unlimited attempts" part of this, but there's still no edge/WAF layer — no Cloudflare yet — and no CAPTCHA. Both blocked on creating a Cloudflare/Turnstile account, not a code change. Revisit once DNS moves (Cloudflare Access is the planned fix, would also handle the DNS cutover need above).
-- Vercel project transfer to the client is deliberately on hold (Sam's call, Jul 24) until the live-Razorpay/DNS work is done — don't transfer early without confirming Sam gets re-added as a collaborator, or he loses dashboard access mid-sprint.
+- **No bot filtering, IP allowlisting, or CAPTCHA in front of `/studio` (admin panel) or the storefront's login/signup.** Application-level rate limiting exists (login/OTP/signup/coupon-apply) and closes the "unlimited attempts" part of this, but there's still no edge/WAF layer — no Cloudflare yet — and no CAPTCHA. Both blocked on creating a Cloudflare/Turnstile account, not a code change. Revisit once DNS moves to Cloudflare (Cloudflare Access is the planned fix).
+- **Real customers can now place real orders with real payment — the site is live.** Never run casual checkout tests against production anymore; use test data/accounts deliberately and clean up after, same discipline as everywhere else in this file.
+- Vercel project transfer to the client was deliberately on hold pending live-Razorpay/DNS work — both are now done, worth revisiting (see Immediate Next Steps #5). Don't transfer without confirming Sam gets re-added as a collaborator, or he loses dashboard access.
