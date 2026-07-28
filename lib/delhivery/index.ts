@@ -288,11 +288,24 @@ export function mapDelhiveryStatus(
   statusType?: string,
 ): FulfillmentStatus | null {
   const s = status.toLowerCase();
+  // RTO/returned-to-origin must be checked BEFORE the generic "delivered"
+  // check. A completed RTO's own status text can legitimately contain the
+  // word "delivered" (couriers commonly phrase it "Delivered to Consignor"
+  // — the parcel was delivered, just back to the warehouse, not the
+  // customer) — checking "delivered" first would misclassify that as a
+  // customer delivery: the 3-day return window would start on a parcel the
+  // customer never received, they'd get a false "your order arrived"
+  // WhatsApp, and the RTO-inspection admin alert below would never fire.
+  if (
+    statusType === "RT" ||
+    s.includes("rto") ||
+    s.includes("returned") ||
+    s.includes("consignor")
+  )
+    return "returned";
   if (statusType === "DL" || s.includes("delivered")) return "delivered";
   if (s.includes("out for delivery") || s.includes("dispatched"))
     return "out_for_delivery";
-  if (statusType === "RT" || s.includes("rto") || s.includes("returned"))
-    return "returned";
   if (s.includes("cancel")) return "cancelled";
   if (
     statusType === "UD" ||
