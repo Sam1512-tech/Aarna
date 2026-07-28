@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
@@ -209,6 +209,13 @@ async function insertVariantRetryingSku(
   } else {
     sku = await generateUniqueSku(styleCode, input.color, input.size);
   }
+
+  await assertConsistentColorTagging(
+    productId,
+    null,
+    input.color?.trim() || null,
+    true,
+  );
 
   const maxAttempts = isGenerated ? MAX_UNIQUE_RETRY_ATTEMPTS : 1;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -510,6 +517,52 @@ export async function deleteProduct(id: string): Promise<{ ok: true }> {
 
 // ── Variant CRUD ─────────────────────────────────────────────────────────────
 
+/**
+ * A product's active variants must be uniformly tagged with a colour or
+ * uniformly untagged — never a mix. The storefront PDP pre-selects a default
+ * colour from whichever variant loads first, then filters every size
+ * against that selection; one stray non-null colour on an otherwise
+ * colourless product silently makes every other size look sold out despite
+ * having stock (this exact bug shipped on Floral Corset Dress — a single
+ * variant's colour field held "1" while its siblings were all null). Called
+ * before any write that could change a variant's colour or active state,
+ * with the state that write would leave the product looking like.
+ */
+async function assertConsistentColorTagging(
+  productId: string,
+  excludeVariantId: string | null,
+  resultingColor: string | null,
+  resultingIsActive: boolean,
+): Promise<void> {
+  if (!resultingIsActive) return; // inactive variants never render, don't count
+
+  const siblings = await db
+    .select({ color: productVariants.color })
+    .from(productVariants)
+    .where(
+      excludeVariantId
+        ? and(
+            eq(productVariants.productId, productId),
+            eq(productVariants.isActive, true),
+            ne(productVariants.id, excludeVariantId),
+          )
+        : and(
+            eq(productVariants.productId, productId),
+            eq(productVariants.isActive, true),
+          ),
+    );
+
+  const colors = [resultingColor, ...siblings.map((s) => s.color)];
+  const hasTagged = colors.some((c) => c !== null);
+  const hasUntagged = colors.some((c) => c === null);
+
+  if (hasTagged && hasUntagged) {
+    throw new ActionError(
+      "This product would mix tagged and untagged variants — some active sizes have a colour tag, others don't. A single mismatched tag silently hides every other size from customers on the storefront. Add a colour tag to every active size, or remove tags from all of them, so they're consistent.",
+    );
+  }
+}
+
 export interface CreateVariantInput {
   size?: string;
   color?: string;
@@ -584,7 +637,12 @@ export async function updateVariant(
 
   const patch: Partial<typeof productVariants.$inferInsert> = {};
   if (input.size !== undefined) patch.size = input.size;
-  if (input.color !== undefined) patch.color = input.color;
+  // Normalize the same way createVariant does — an empty/whitespace string
+  // must land as null, not "", or it'd read as "tagged" to the consistency
+  // check below (and to the storefront) despite looking blank in the UI.
+  if (input.color !== undefined) {
+    patch.color = input.color === null ? null : input.color.trim() || null;
+  }
   if (input.sku !== undefined) {
     const sku = input.sku.trim();
     if (!sku) throw new ActionError("SKU cannot be empty");
@@ -602,6 +660,19 @@ export async function updateVariant(
   if (input.stock !== undefined) patch.stock = Math.max(0, input.stock);
   if (input.weightGrams !== undefined) patch.weightGrams = input.weightGrams;
   if (input.isActive !== undefined) patch.isActive = input.isActive;
+
+  if (input.color !== undefined || input.isActive !== undefined) {
+    const resultingColor =
+      input.color !== undefined ? patch.color! : existing[0].color;
+    const resultingIsActive =
+      input.isActive !== undefined ? input.isActive : existing[0].isActive;
+    await assertConsistentColorTagging(
+      existing[0].productId,
+      variantId,
+      resultingColor,
+      resultingIsActive,
+    );
+  }
 
   let updated: typeof productVariants.$inferSelect;
   try {
