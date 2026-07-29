@@ -37,7 +37,15 @@ export const RATE_LIMITS = {
   // can be requested.
   otpVerifyByEmail: { maxAttempts: 10, windowSeconds: 15 * 60, alertLabel: "Repeated OTP verification failures for one account" },
   otpVerifyByIp: { maxAttempts: 20, windowSeconds: 15 * 60, alertLabel: "Repeated OTP verification attempts from one connection" },
-  signupByIp: { maxAttempts: 5, windowSeconds: 60 * 60 },
+  // Raised 5 → 30 (2026-07-29): 5/hour genuinely blocked real customers —
+  // Indian mobile carriers commonly put many distinct subscribers behind one
+  // shared/CGNAT public IP, so "5 signups from one IP in an hour" is a normal
+  // traffic pattern here, not abuse. Confirmed live: one IP legitimately hit
+  // 54 signup attempts in ~15 minutes during a real customer-reported outage
+  // (compounded by a separate, since-fixed Supabase email-quota issue that
+  // was causing repeated retries) — 5 was never going to hold under real
+  // demand from a shared connection.
+  signupByIp: { maxAttempts: 30, windowSeconds: 60 * 60 },
   // Password-reset requests and confirmation-email resends both trigger a
   // real outbound email, so they get the same numbers as otpByEmail/otpByIp
   // (the other "make the server send an email" actions). No alertLabel —
