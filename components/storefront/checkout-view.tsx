@@ -310,7 +310,19 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
   }, [watch]);
 
   // Pincode serviceability — debounced check on change.
-  const pincode = watch("pincode");
+  //
+  // Trimmed here to match shippingSchema's own `pincode: z.string().trim()...`
+  // — without this, a value with stray leading/trailing whitespace (common
+  // from mobile autofill/keyboard-suggestion artifacts on a numeric field)
+  // passes the trimmed schema fine (isValid can be true) but fails this
+  // effect's own regex test on the RAW value, silently leaving
+  // pincodeStatus stuck at null forever: the serviceability check below
+  // never runs, the submit button stays disabled (`!pincodeStatus` in its
+  // disabled condition), and — since the "why is this disabled" message
+  // block only renders when pincodeStatus is non-null — the customer sees
+  // no error at all. Just an inexplicably dead "Continue to secure
+  // payment" button.
+  const pincode = watch("pincode")?.trim() ?? "";
   const lastPin = useRef<string>("");
   useEffect(() => {
     if (!/^[1-9]\d{5}$/.test(pincode)) {
