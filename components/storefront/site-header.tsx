@@ -20,10 +20,11 @@ interface SiteHeaderProps {
 
 // /shop/new-arrivals still isn't a real route (no dedicated "new arrivals"
 // filter exists yet) — only add links here once they resolve to something
-// real. /collections shipped, so it's back.
-const primaryLinks: { href: string; label: string }[] = [
-  { href: "/collections", label: "Collections" },
-];
+// real. Collections intentionally hidden from nav (client decision, 0
+// collections exist at launch — nothing to browse to yet) — /collections
+// itself is still fully live, just not linked here. Re-add once there's
+// real content to point to.
+const primaryLinks: { href: string; label: string }[] = [];
 
 export function SiteHeader({ categories }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
