@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Karla } from "next/font/google";
+import { defaultMetadata } from "@/lib/seo/metadata";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -15,12 +16,15 @@ const karla = Karla({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Aarna - made to live in",
-    template: "%s - Aarna",
-  },
-  description:
-    "Aarna by Arpitha Abhishek is a slow-made women's clothing line for soft everyday rituals, intimate gatherings, travel, and thoughtful styling.",
+  // title/description/openGraph/twitter/metadataBase come from defaultMetadata
+  // (lib/seo/metadata.ts) — the single source of truth for both the <title>
+  // tag and the OG/Twitter share preview, so they can't drift into two
+  // different pieces of copy. Previously this object only set title/
+  // description inline and had no metadataBase/openGraph/twitter at all —
+  // every page without its own generateMetadata (homepage, /search, all 7
+  // legal pages) shared no preview image/title/description when linked, e.g.
+  // over WhatsApp, the brand's primary customer channel.
+  ...defaultMetadata,
   // Light-mode icons are the brand maroon mark; the media-scoped entries
   // below swap in a gold version for dark browser/OS themes — same
   // "gold on dark, maroon on light" convention already used for the email

@@ -12,6 +12,7 @@ import {
 } from "@/lib/actions/products";
 import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
 import { isVideoUrl, videoPosterUrl } from "@/lib/media";
+import { buildOrganizationLd, buildWebSiteLd, safeJsonLd } from "@/lib/seo/schemas";
 import type { Product } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
@@ -120,8 +121,20 @@ export default async function HomePage() {
   // not part of the banners rotation.
   const photoBanners = carouselBanners.filter((b) => !isVideoUrl(b.imageUrl));
 
+  const organizationLd = buildOrganizationLd();
+  const webSiteLd = buildWebSiteLd();
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(organizationLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(webSiteLd) }}
+      />
+
       <div className="md:hidden">
         <section className="paper-grain bg-cream pt-[128px]">
           <HomepageCarousel
@@ -279,9 +292,16 @@ export default async function HomePage() {
           inlineClassName="aspect-[12/5]"
         />
         <div className="mx-auto max-w-3xl px-6 pb-20 pt-16 text-center">
-          <h1 className="font-display text-[64px] leading-[1.02] text-maroon md:text-[80px]">
+          {/* Not an <h1> — the mobile block above already renders the real
+              one with identical text. Tailwind's md:hidden/hidden:md:block
+              is CSS-only, so both blocks land in the DOM regardless of
+              viewport; a second <h1> here would be a real duplicate heading
+              a crawler sees (and Google indexes mobile-first, so the mobile
+              block is the one that should own it). Same text, same classes
+              — visually identical to before, just not a second h1. */}
+          <p className="font-display text-[64px] leading-[1.02] text-maroon md:text-[80px]">
             Clothing made to live softly
-          </h1>
+          </p>
           <Link
             href="/shop"
             className="mt-10 inline-flex items-center justify-center border border-cocoa/24 bg-cream px-8 py-4 text-[11px] font-bold tracking-[0.24em] text-cocoa shadow-[0_14px_34px_rgba(140,106,90,0.14)] transition duration-1000 hover:bg-cocoa/12"

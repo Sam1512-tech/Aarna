@@ -6,8 +6,16 @@ import { ProductDetailView } from "@/components/storefront/product-detail-view";
 import { ProductReviews } from "@/components/storefront/product-reviews";
 import { getProductBySlug, getRelatedProducts } from "@/lib/actions/products";
 import { getApprovedReviews } from "@/lib/actions/reviews";
+import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
 import { productMetadata } from "@/lib/seo/metadata";
 import { buildBreadcrumbLd, buildProductLd, safeJsonLd } from "@/lib/seo/schemas";
+import type { ProductWithVariants } from "@/lib/types";
+
+// Distinguishes "the product genuinely doesn't exist" (null — a real 404)
+// from "the DB read timed out" (this sentinel — must NOT become a 404, or a
+// transient Supabase pooler hang would tell crawlers a real, live product
+// page permanently doesn't exist).
+const TIMED_OUT = Symbol("product-lookup-timed-out");
 
 export async function generateMetadata({
   params,
@@ -16,7 +24,21 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const product = await getProductBySlug(slug);
+    const product = await safeDbRead<ProductWithVariants | null | typeof TIMED_OUT>(
+      getProductBySlug(slug),
+      {
+        timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+        fallback: TIMED_OUT,
+        label: `PDP metadata lookup (${slug})`,
+      },
+    );
+    // Deliberately distinct from the "genuinely doesn't exist" case below —
+    // live-observed: a timeout here doesn't mean the product is gone, the
+    // page component's own (separate, unmemoized) lookup right after this
+    // one can still succeed and render the real product a moment later. A
+    // "Product not found" title on a page that actually renders fine would
+    // be a real, confusing regression, not just an unlikely edge case.
+    if (product === TIMED_OUT) return { title: "Product" };
     if (!product) return { title: "Product not found" };
     return productMetadata(product);
   } catch {
@@ -30,16 +52,32 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const product = await safeDbRead<ProductWithVariants | null | typeof TIMED_OUT>(
+    getProductBySlug(slug),
+    {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: TIMED_OUT,
+      label: `PDP product lookup (${slug})`,
+    },
+  );
+  if (product === TIMED_OUT) {
+    // A real, bounded error (renders the app's error boundary, HTTP 500) —
+    // not notFound(), which would falsely tell a crawler this page is gone.
+    throw new Error(`Product lookup timed out for slug "${slug}"`);
+  }
   if (!product) notFound();
 
   const [related, reviewSummary] = await Promise.all([
-    getRelatedProducts(product.id, 4),
-    getApprovedReviews(product.id).catch(() => ({
-      average: 0,
-      count: 0,
-      reviews: [],
-    })),
+    safeDbRead(getRelatedProducts(product.id, 4), {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: [],
+      label: `PDP related products (${slug})`,
+    }),
+    safeDbRead(getApprovedReviews(product.id), {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: { average: 0, count: 0, reviews: [] },
+      label: `PDP reviews (${slug})`,
+    }),
   ]);
   const productLd = buildProductLd(product, reviewSummary);
   const breadcrumbLd = buildBreadcrumbLd([
