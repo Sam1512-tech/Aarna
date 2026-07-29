@@ -6,6 +6,7 @@ import {
   getDefaultVariantsForProducts,
   getProducts,
 } from "@/lib/actions/products";
+import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
 
 export const metadata: Metadata = {
   title: "Shop",
@@ -44,17 +45,33 @@ export default async function ShopPage({
   const maxPrice = params.max ? Number.parseInt(params.max, 10) : undefined;
 
   const [categories, list] = await Promise.all([
-    getCategories(),
-    getProducts({
-      page,
-      pageSize: PAGE_SIZE,
-      sort,
-      minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
-      maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
+    safeDbRead(getCategories(), {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: [],
+      label: "shop page categories",
     }),
+    safeDbRead(
+      getProducts({
+        page,
+        pageSize: PAGE_SIZE,
+        sort,
+        minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
+        maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
+      }),
+      {
+        timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+        fallback: { items: [], total: 0, page, pageSize: PAGE_SIZE },
+        label: "shop page products",
+      },
+    ),
   ]);
-  const defaultVariants = await getDefaultVariantsForProducts(
-    list.items.map((p) => p.id),
+  const defaultVariants = await safeDbRead(
+    getDefaultVariantsForProducts(list.items.map((p) => p.id)),
+    {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: new Map(),
+      label: "shop page default variants",
+    },
   );
 
   return (

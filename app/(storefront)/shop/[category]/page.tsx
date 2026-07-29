@@ -7,7 +7,14 @@ import {
   getDefaultVariantsForProducts,
   getProducts,
 } from "@/lib/actions/products";
+import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
 import { categoryMetadata } from "@/lib/seo/metadata";
+import type { Category } from "@/lib/types";
+
+// See the identical sentinel in product/[slug]/page.tsx — a timed-out
+// category lookup must not be treated as "category doesn't exist" (notFound),
+// or a transient DB hang would falsely 404 a real, live category page.
+const TIMED_OUT = Symbol("category-lookup-timed-out");
 
 const PAGE_SIZE = 24;
 const VALID_SORTS: SortOption[] = ["newest", "price_asc", "price_desc"];
@@ -30,7 +37,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { category: slug } = await params;
   try {
-    const categories = await getCategories();
+    const categories = await safeDbRead<Category[] | typeof TIMED_OUT>(
+      getCategories(),
+      {
+        timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+        fallback: TIMED_OUT,
+        label: `category metadata lookup (${slug})`,
+      },
+    );
+    if (categories === TIMED_OUT) return { title: "Shop" };
     const cat = categories.find((c) => c.slug === slug);
     if (!cat) return { title: "Category not found" };
     return categoryMetadata(cat);
@@ -57,20 +72,44 @@ export default async function ShopCategoryPage({
   const minPrice = sp.min ? Number.parseInt(sp.min, 10) : undefined;
   const maxPrice = sp.max ? Number.parseInt(sp.max, 10) : undefined;
 
-  const categories = await getCategories();
+  const categories = await safeDbRead<Category[] | typeof TIMED_OUT>(
+    getCategories(),
+    {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: TIMED_OUT,
+      label: `category page lookup (${slug})`,
+    },
+  );
+  if (categories === TIMED_OUT) {
+    // Bounded real error (renders the error boundary, HTTP 500) — not
+    // notFound(), which would falsely tell a crawler this category is gone.
+    throw new Error(`Category lookup timed out for slug "${slug}"`);
+  }
   const category = categories.find((c) => c.slug === slug);
   if (!category) notFound();
 
-  const list = await getProducts({
-    category: slug,
-    page,
-    pageSize: PAGE_SIZE,
-    sort,
-    minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
-    maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
-  });
-  const defaultVariants = await getDefaultVariantsForProducts(
-    list.items.map((p) => p.id),
+  const list = await safeDbRead(
+    getProducts({
+      category: slug,
+      page,
+      pageSize: PAGE_SIZE,
+      sort,
+      minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
+      maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
+    }),
+    {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: { items: [], total: 0, page, pageSize: PAGE_SIZE },
+      label: `category products (${slug})`,
+    },
+  );
+  const defaultVariants = await safeDbRead(
+    getDefaultVariantsForProducts(list.items.map((p) => p.id)),
+    {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: new Map(),
+      label: `category default variants (${slug})`,
+    },
   );
 
   return (

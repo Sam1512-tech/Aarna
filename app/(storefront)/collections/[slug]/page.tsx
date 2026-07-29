@@ -8,7 +8,14 @@ import {
   getDefaultVariantsForProducts,
   getProducts,
 } from "@/lib/actions/products";
+import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
 import { collectionMetadata } from "@/lib/seo/metadata";
+import type { Collection } from "@/lib/types";
+
+// See the identical sentinel in product/[slug]/page.tsx — a timed-out
+// collection lookup must not be treated as "collection doesn't exist"
+// (notFound), or a transient DB hang would falsely 404 a real, live page.
+const TIMED_OUT = Symbol("collection-lookup-timed-out");
 
 const PAGE_SIZE = 24;
 const VALID_SORTS: SortOption[] = ["newest", "price_asc", "price_desc"];
@@ -31,7 +38,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const collection = await getCollectionBySlug(slug);
+    const collection = await safeDbRead<Collection | null | typeof TIMED_OUT>(
+      getCollectionBySlug(slug),
+      {
+        timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+        fallback: TIMED_OUT,
+        label: `collection metadata lookup (${slug})`,
+      },
+    );
+    if (collection === TIMED_OUT) return { title: "Collections" };
     if (!collection) return { title: "Collection not found" };
     return collectionMetadata(collection);
   } catch {
@@ -58,21 +73,49 @@ export default async function CollectionPage({
   const maxPrice = sp.max ? Number.parseInt(sp.max, 10) : undefined;
 
   const [collection, categories] = await Promise.all([
-    getCollectionBySlug(slug),
-    getCategories(),
+    safeDbRead<Collection | null | typeof TIMED_OUT>(
+      getCollectionBySlug(slug),
+      {
+        timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+        fallback: TIMED_OUT,
+        label: `collection page lookup (${slug})`,
+      },
+    ),
+    safeDbRead(getCategories(), {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: [],
+      label: `collection page categories (${slug})`,
+    }),
   ]);
+  if (collection === TIMED_OUT) {
+    // Bounded real error (renders the error boundary, HTTP 500) — not
+    // notFound(), which would falsely tell a crawler this collection is gone.
+    throw new Error(`Collection lookup timed out for slug "${slug}"`);
+  }
   if (!collection) notFound();
 
-  const list = await getProducts({
-    collection: slug,
-    page,
-    pageSize: PAGE_SIZE,
-    sort,
-    minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
-    maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
-  });
-  const defaultVariants = await getDefaultVariantsForProducts(
-    list.items.map((p) => p.id),
+  const list = await safeDbRead(
+    getProducts({
+      collection: slug,
+      page,
+      pageSize: PAGE_SIZE,
+      sort,
+      minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
+      maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
+    }),
+    {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: { items: [], total: 0, page, pageSize: PAGE_SIZE },
+      label: `collection products (${slug})`,
+    },
+  );
+  const defaultVariants = await safeDbRead(
+    getDefaultVariantsForProducts(list.items.map((p) => p.id)),
+    {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: new Map(),
+      label: `collection default variants (${slug})`,
+    },
   );
 
   return (

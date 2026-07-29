@@ -285,10 +285,15 @@ export async function getProducts(
 export async function getProductBySlug(
   slug: string,
 ): Promise<ProductWithVariants | null> {
+  // "active" only — matches every other product query in this file. Without
+  // this, a draft product is a fully live, indexable PDP the moment it has a
+  // slug, and an archived/discontinued one keeps serving its stale page
+  // forever (the sitemap stops listing it, but nothing here 404s or
+  // noindexes it).
   const product = await db
     .select()
     .from(products)
-    .where(eq(products.slug, slug))
+    .where(and(eq(products.slug, slug), eq(products.status, "active")))
     .limit(1)
     .then((rows) => rows[0] ?? null);
 
