@@ -794,27 +794,30 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
               {/* Stopgap safety net, not the fix itself — the actual bug (a
                   saved default address's validation never running until this
                   effect was added) is already fixed above (see the trigger()
-                  effect near selectAddress). This banner is deliberately NOT
-                  conditioned on `errors` being non-empty: the whole point is
-                  to catch any future case where isValid is false but, for
-                  some reason we haven't anticipated, no per-field error
-                  happens to be populated — a customer should never be left
-                  looking at a plain disabled button with nothing else on the
-                  page explaining why. Deferred behind pincode's own
-                  (already-clear) messaging via the verified/serviceable
-                  check, so the two don't talk over each other. */}
+                  effect near selectAddress). Every field with a problem
+                  already shows its own specific message directly under its
+                  own box (see the `error={errors.X?.message}` prop on each
+                  Field below) — that's where the actual detail belongs, not
+                  here. This banner is deliberately brief: just a "look up"
+                  cue, since a customer whose eyes are on the disabled button
+                  might not notice a small red line further up the page. It's
+                  also deliberately NOT conditioned on `errors` being
+                  non-empty — the point is to catch any future case where
+                  isValid is false but, for some reason not yet anticipated,
+                  no per-field error happens to be populated. Deferred behind
+                  pincode's own (already-clear) messaging via the
+                  verified/serviceable check, so the two don't talk over each
+                  other. */}
               {!submitting &&
               !isValid &&
               pincodeStatus?.verified &&
               pincodeStatus?.serviceable ? (
                 <p className="rounded-xl bg-burnt-red/8 px-4 py-3 text-xs leading-6 text-burnt-red">
-                  Please review your address details above — some required
-                  information may be missing or invalid.
+                  Please fix the highlighted fields above.
                   {selectedAddressId !== null ? (
                     <>
                       {" "}
-                      If this saved address needs updating, you can edit the
-                      fields above, or{" "}
+                      Or{" "}
                       <button
                         type="button"
                         onClick={() => selectAddress(null)}
