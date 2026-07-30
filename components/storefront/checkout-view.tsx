@@ -296,6 +296,31 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trigger]);
 
+  // mode: "onBlur" (above) means a field's FIRST error only shows once it's
+  // blurred — correct, so the customer isn't shown errors while still
+  // mid-typing on a first pass. reValidateMode defaults to "onChange", which
+  // is supposed to mean "once a field already has an error, re-validate on
+  // every keystroke" — but confirmed live this doesn't reliably happen with
+  // zodResolver's whole-schema (not per-field) validation: correcting an
+  // already-erroring field to an objectively valid value left the old error
+  // message showing indefinitely, only clearing once the field was blurred.
+  // Rather than depend on that implicit behavior working, explicitly
+  // re-trigger validation for a field on every change whenever it already
+  // has an active error (read from the CURRENT render's `errors`, so this
+  // only kicks in once an error is already visible, not on a first pass) —
+  // deterministic regardless of the underlying RHF/resolver interaction.
+  function liveRevalidate(name: keyof ShippingForm) {
+    const field = register(name);
+    const hadError = Boolean(errors[name]);
+    return {
+      ...field,
+      onChange: async (e: React.ChangeEvent<HTMLInputElement>) => {
+        await field.onChange(e);
+        if (hadError) void trigger(name);
+      },
+    };
+  }
+
   // Restore saved draft on mount (auto-save / restore per brief).
   useEffect(() => {
     try {
@@ -631,7 +656,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                 label="Phone number"
                 hint="10-digit Indian mobile"
                 error={errors.phone?.message}
-                {...register("phone")}
+                {...liveRevalidate("phone")}
                 type="tel"
                 inputMode="numeric"
                 autoComplete="tel"
@@ -650,7 +675,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                 label="GST number"
                 hint="Optional — add this for a business GST invoice"
                 error={errors.gstNumber?.message}
-                {...register("gstNumber")}
+                {...liveRevalidate("gstNumber")}
                 placeholder="22AAAAA0000A1Z5"
                 maxLength={15}
                 autoComplete="off"
@@ -700,33 +725,33 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
               <Field
                 label="Full name"
                 error={errors.fullName?.message}
-                {...register("fullName")}
+                {...liveRevalidate("fullName")}
                 autoComplete="name"
               />
               <Field
                 label="Address line 1"
                 error={errors.line1?.message}
-                {...register("line1")}
+                {...liveRevalidate("line1")}
                 autoComplete="address-line1"
               />
               <Field
                 label="Address line 2"
                 hint="Apartment, suite, landmark (optional)"
                 error={errors.line2?.message}
-                {...register("line2")}
+                {...liveRevalidate("line2")}
                 autoComplete="address-line2"
               />
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field
                   label="City"
                   error={errors.city?.message}
-                  {...register("city")}
+                  {...liveRevalidate("city")}
                   autoComplete="address-level2"
                 />
                 <Field
                   label="State"
                   error={errors.state?.message}
-                  {...register("state")}
+                  {...liveRevalidate("state")}
                   autoComplete="address-level1"
                 />
               </div>
@@ -734,7 +759,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                 <Field
                   label="PIN code"
                   error={errors.pincode?.message}
-                  {...register("pincode")}
+                  {...liveRevalidate("pincode")}
                   inputMode="numeric"
                   autoComplete="postal-code"
                   maxLength={6}
