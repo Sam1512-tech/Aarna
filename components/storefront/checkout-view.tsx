@@ -211,6 +211,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
     handleSubmit,
     watch,
     setValue,
+    trigger,
     formState: { errors, isValid },
   } = useForm<ShippingForm>({
     resolver: zodResolver(shippingSchema),
@@ -274,6 +275,26 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
       setValue(field, value, { shouldValidate: true, shouldDirty: true });
     }
   }
+
+  // The address pre-selected on mount (initialAddress, above) reaches the
+  // form via useForm's defaultValues — it never runs through selectAddress's
+  // own setValue(..., { shouldValidate: true }) loop, since that only fires
+  // on an explicit click. Confirmed live: explicitly clicking a saved
+  // address correctly shows a red "Please enter first and last name" (etc.)
+  // under the offending field when one exists, because shouldValidate:true
+  // populates both isValid AND the per-field error. defaultValues skips that
+  // entirely, so a saved address that predates checkout's stricter
+  // shippingSchema (e.g. a single-word name — saved addresses have no
+  // equivalent validation, see account-addresses-view.tsx's much looser
+  // canSave check) left the submit button disabled with isValid correctly
+  // false, but formState.errors empty — no red text anywhere, no visible
+  // reason at all. This runs once on mount to close exactly that gap,
+  // without changing anything about the explicit-selection path, which
+  // already worked.
+  useEffect(() => {
+    if (initialAddress) trigger();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trigger]);
 
   // Restore saved draft on mount (auto-save / restore per brief).
   useEffect(() => {
