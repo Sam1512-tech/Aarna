@@ -21,7 +21,6 @@ import { useCartCount } from "@/store/cart-count";
 import type { CartLine, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
-const SHIPPING_NOTE = "Calculated at checkout";
 const TAX_NOTE = "Inclusive of taxes";
 const EXIT_MS = 320;
 
@@ -341,7 +340,7 @@ export function CartView({ initialCart }: CartViewProps) {
                     accent
                   />
                 ) : null}
-                <SummaryRow label="Shipping" note={SHIPPING_NOTE} />
+                <SummaryRow label="Shipping" value="Free" />
                 <SummaryRow label="Taxes" note={TAX_NOTE} />
               </dl>
 

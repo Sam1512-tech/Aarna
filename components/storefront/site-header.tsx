@@ -8,6 +8,7 @@ import { getCart } from "@/lib/actions/cart";
 import { useCartCount } from "@/store/cart-count";
 import { useModalLock } from "@/hooks/use-modal-lock";
 import { useScrollDirection } from "@/hooks/use-scroll-direction";
+import { FREE_SHIPPING_MESSAGE } from "@/lib/shipping";
 
 interface CategoryLink {
   name: string;
@@ -126,6 +127,7 @@ export function SiteHeader({ categories }: SiteHeaderProps) {
               <span>Slow-made pieces for everyday rituals</span>
               <span>Handcrafted in small batches</span>
               <span>Made to live in slowly</span>
+              <span>{FREE_SHIPPING_MESSAGE}</span>
             </div>
           ))}
         </div>

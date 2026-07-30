@@ -14,9 +14,6 @@ import { shippingAddressSchema } from "@/lib/checkout/address-schema";
 
 const { customers, orders, orderItems, productVariants, inventoryMovements } = schema;
 
-const FREE_SHIPPING_THRESHOLD = 299900; // ₹2999 in paise
-const FLAT_SHIPPING_FEE = 9900; // ₹99 in paise
-
 export interface CheckoutInitInput {
   email: string;
   shippingAddress: AddressInput;
@@ -43,10 +40,6 @@ async function nextOrderNumber(): Promise<string> {
   const result = await db.execute(sql`SELECT nextval('order_seq')::int AS seq`);
   const rows = result as unknown as { seq: number }[];
   return `AARNA-${String(rows[0].seq).padStart(6, "0")}`;
-}
-
-function calculateShipping(taxableAfterDiscount: number): number {
-  return taxableAfterDiscount >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_FEE;
 }
 
 /**
@@ -119,9 +112,13 @@ export async function initCheckout(
     throw new ActionError("That GST number doesn't look valid — check and try again");
   }
 
-  // 3. Calculate totals (all in paise)
+  // 3. Calculate totals (all in paise). Shipping is free site-wide (client
+  // decision) — shippingFee is always 0 for new orders. The column itself
+  // stays on the order row (still read by historical invoices/reports for
+  // orders placed before this change, which had a real ₹0–₹99 charge) —
+  // this only changes what gets written into NEW rows going forward.
   const subtotal = cart.subtotal;
-  const shippingFee = calculateShipping(subtotal - discount);
+  const shippingFee = 0;
   const total = subtotal - discount + shippingFee;
 
   if (total <= 0) throw new ActionError("Invalid order total");
