@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Lock, MapPin, Plus, ShieldCheck, Truck } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   checkPincodeServiceability,
   initCheckout,
@@ -17,66 +15,31 @@ import { clearStoredCoupon, getStoredCoupon } from "@/lib/cart/coupon-storage";
 import type { AddressRow, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/action-error";
-import { GSTIN_PATTERN } from "@/lib/gst";
 
 const FREE_SHIPPING_THRESHOLD = 299900; // ₹2,999 (matches backend)
 const FORM_DRAFT_KEY = "aarna-checkout-draft";
 
-// Strong validators — block gibberish before it hits the DB. Every rule here
-// exists because a real customer's typo shouldn't slip through, but a bot or
-// mash-of-keys should.
-const shippingSchema = z.object({
-  fullName: z
-    .string()
-    .trim()
-    .min(3, "Please enter your full name")
-    .max(100)
-    .regex(/^[a-zA-Z][a-zA-Z\s.'\-]*$/, "Letters only, please")
-    .refine((v) => /\s/.test(v.trim()), "Please enter first and last name")
-    .refine(
-      (v) => !/^(.)\1+$/.test(v.trim().replace(/\s/g, "")),
-      "Please enter a real name",
-    ),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^[6-9]\d{9}$/, "10-digit Indian mobile (starts 6-9)"),
-  email: z.string().trim().email("Valid email address required"),
-  line1: z
-    .string()
-    .trim()
-    .min(5, "Please add more detail")
-    .max(200)
-    .refine(
-      (v) => (v.match(/[a-zA-Z]/g) || []).length >= 3,
-      "Include street or area name",
-    ),
-  line2: z.string().trim().max(200).optional().or(z.literal("")),
-  city: z
-    .string()
-    .trim()
-    .min(2, "City required")
-    .max(100)
-    .regex(/^[a-zA-Z][a-zA-Z\s.\-]*$/, "Letters only"),
-  state: z.string().trim().min(2, "State required").max(60),
-  pincode: z
-    .string()
-    .trim()
-    .regex(/^[1-9]\d{5}$/, "6-digit PIN code"),
-  whatsappOptIn: z.boolean(),
-  saveAddress: z.boolean(),
-  // Optional — only business buyers who want a GST invoice fill this in, but
-  // if they do, it must be a real GSTIN. Uppercased so a copy-pasted
-  // lowercase GSTIN still validates.
-  gstNumber: z
-    .string()
-    .trim()
-    .transform((v) => v.toUpperCase())
-    .refine(
-      (v) => v.length === 0 || GSTIN_PATTERN.test(v),
-      "Enter a valid 15-character GSTIN",
-    ),
-});
+// Client-side format/typo validation (letters-only names, phone prefix,
+// GSTIN pattern, etc.) was deliberately removed — this form now only checks
+// that required fields have something in them, not whether it's correctly
+// formatted. That's an intentional simplification, not an oversight: the
+// server-side re-check this relies on for correctness lives in
+// lib/checkout/address-schema.ts (shippingAddressSchema, run inside
+// initCheckout) and independently for GSTIN inside initCheckout itself
+// (normalizeGstin/isValidGstin) — both already existed before this change,
+// both already throw a clear ActionError caught below in onSubmit's catch
+// block and shown via submitError. Never remove those; they're what stands
+// between a malformed address and the exact invoice-generation crash this
+// project already got bitten by once (see the comment in
+// lib/checkout/address-schema.ts).
+const REQUIRED_FIELDS = [
+  "fullName",
+  "phone",
+  "line1",
+  "city",
+  "state",
+  "pincode",
+] as const;
 
 // ── India Post postal DB lookup ───────────────────────────────────────────────
 // Free, public, no auth — and known to be flaky (timeouts/5xx/429, or blocked
@@ -118,7 +81,19 @@ async function fetchIndiaPostal(pincode: string): Promise<PostalLookup> {
   }
 }
 
-type ShippingForm = z.infer<typeof shippingSchema>;
+interface ShippingForm {
+  fullName: string;
+  phone: string;
+  email: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  whatsappOptIn: boolean;
+  saveAddress: boolean;
+  gstNumber: string;
+}
 
 // Minimal Razorpay checkout option shape — keeps us off @types/razorpay.
 interface RazorpayHandlerArgs {
@@ -211,11 +186,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
     handleSubmit,
     watch,
     setValue,
-    trigger,
-    formState: { errors, isValid },
   } = useForm<ShippingForm>({
-    resolver: zodResolver(shippingSchema),
-    mode: "onBlur",
     defaultValues: {
       // The account's own name/phone are the fallback when there's no saved
       // address to pick from; a selected address's own recipient name/phone
@@ -238,11 +209,9 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
   // Fill the (single, shared) form from a saved address — or clear the
   // address fields for a fresh manual entry when `row` is null. This is the
   // only place a saved address's data ever reaches the form: from here on
-  // it's just normal form state, so the existing pincode-serviceability
-  // effect (keyed off watch("pincode")) and the server-side
-  // shippingAddressSchema re-validation in initCheckout both apply exactly
-  // as they do to a fully hand-typed address — nothing about this path
-  // skips either check.
+  // it's just normal form state, so the same required-fields-filled check
+  // and the server-side shippingAddressSchema re-validation in initCheckout
+  // both apply exactly as they do to a fully hand-typed address.
   //
   // Assumption (stated per the fix protocol, no existing pattern to follow
   // here): editing a pre-filled saved address changes what's submitted for
@@ -272,53 +241,8 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
           ["pincode", ""],
         ];
     for (const [field, value] of fields) {
-      setValue(field, value, { shouldValidate: true, shouldDirty: true });
+      setValue(field, value, { shouldDirty: true });
     }
-  }
-
-  // The address pre-selected on mount (initialAddress, above) reaches the
-  // form via useForm's defaultValues — it never runs through selectAddress's
-  // own setValue(..., { shouldValidate: true }) loop, since that only fires
-  // on an explicit click. Confirmed live: explicitly clicking a saved
-  // address correctly shows a red "Please enter first and last name" (etc.)
-  // under the offending field when one exists, because shouldValidate:true
-  // populates both isValid AND the per-field error. defaultValues skips that
-  // entirely, so a saved address that predates checkout's stricter
-  // shippingSchema (e.g. a single-word name — saved addresses have no
-  // equivalent validation, see account-addresses-view.tsx's much looser
-  // canSave check) left the submit button disabled with isValid correctly
-  // false, but formState.errors empty — no red text anywhere, no visible
-  // reason at all. This runs once on mount to close exactly that gap,
-  // without changing anything about the explicit-selection path, which
-  // already worked.
-  useEffect(() => {
-    if (initialAddress) trigger();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trigger]);
-
-  // mode: "onBlur" (above) means a field's FIRST error only shows once it's
-  // blurred — correct, so the customer isn't shown errors while still
-  // mid-typing on a first pass. reValidateMode defaults to "onChange", which
-  // is supposed to mean "once a field already has an error, re-validate on
-  // every keystroke" — but confirmed live this doesn't reliably happen with
-  // zodResolver's whole-schema (not per-field) validation: correcting an
-  // already-erroring field to an objectively valid value left the old error
-  // message showing indefinitely, only clearing once the field was blurred.
-  // Rather than depend on that implicit behavior working, explicitly
-  // re-trigger validation for a field on every change whenever it already
-  // has an active error (read from the CURRENT render's `errors`, so this
-  // only kicks in once an error is already visible, not on a first pass) —
-  // deterministic regardless of the underlying RHF/resolver interaction.
-  function liveRevalidate(name: keyof ShippingForm) {
-    const field = register(name);
-    const hadError = Boolean(errors[name]);
-    return {
-      ...field,
-      onChange: async (e: React.ChangeEvent<HTMLInputElement>) => {
-        await field.onChange(e);
-        if (hadError) void trigger(name);
-      },
-    };
   }
 
   // Restore saved draft on mount (auto-save / restore per brief).
@@ -357,17 +281,15 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
 
   // Pincode serviceability — debounced check on change.
   //
-  // Trimmed here to match shippingSchema's own `pincode: z.string().trim()...`
-  // — without this, a value with stray leading/trailing whitespace (common
-  // from mobile autofill/keyboard-suggestion artifacts on a numeric field)
-  // passes the trimmed schema fine (isValid can be true) but fails this
-  // effect's own regex test on the RAW value, silently leaving
-  // pincodeStatus stuck at null forever: the serviceability check below
-  // never runs, the submit button stays disabled (`!pincodeStatus` in its
-  // disabled condition), and — since the "why is this disabled" message
-  // block only renders when pincodeStatus is non-null — the customer sees
-  // no error at all. Just an inexplicably dead "Continue to secure
-  // payment" button.
+  // Trimmed here — without this, a value with stray leading/trailing
+  // whitespace (common from mobile autofill/keyboard-suggestion artifacts on
+  // a numeric field) fails this effect's own regex test on the raw value,
+  // silently leaving pincodeStatus stuck at null forever: the serviceability
+  // check below never runs, and the submit button stays disabled
+  // (`!pincodeStatus` in its disabled condition) with no explanation. Same
+  // whitespace class of bug already fixed once for this exact effect;
+  // trimming here (rather than relying on schema validation, which no
+  // longer exists client-side) is what actually prevents it now.
   const pincode = watch("pincode")?.trim() ?? "";
   const lastPin = useRef<string>("");
   useEffect(() => {
@@ -469,6 +391,16 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
     };
   }, [pincode, setValue, watch]);
 
+  // Simple "has something been typed" check — deliberately not format
+  // validation (see REQUIRED_FIELDS' comment at the top of the file). The
+  // pincode's own serviceability — a real "can we deliver here" check, not a
+  // format check — still separately gates the button below via
+  // pincodeStatus; this only covers "did the customer fill in the box."
+  const watchedRequiredFields = watch(REQUIRED_FIELDS);
+  const allRequiredFieldsFilled = watchedRequiredFields.every(
+    (v) => typeof v === "string" && v.trim().length > 0,
+  );
+
   // Estimated shipping fee for the summary preview. Backend re-computes the
   // authoritative number when initCheckout runs.
   const discountedSubtotal = Math.max(0, cart.subtotal - discount);
@@ -543,14 +475,24 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
   async function onSubmit(data: ShippingForm) {
     setSubmitError(null);
     setSubmitting(true);
+    // Trimmed explicitly — not a format check (nothing here gets rejected
+    // for being untrimmed), just avoiding a repeat of the exact whitespace
+    // bug already fixed once for the debounced pincode check above (see the
+    // `pincode` const's own comment): without the removed client schema's
+    // .trim(), a stray trailing space from mobile autofill would otherwise
+    // reach the postal/Delhivery API calls below untouched. The server's own
+    // shippingAddressSchema (lib/checkout/address-schema.ts) already trims
+    // every field before validating, so this is only needed for the two
+    // direct API calls happening client-side, right here, before that.
+    const trimmedPincode = data.pincode.trim();
     try {
       // Belt-and-braces: at submit time, re-verify the pincode is REAL AND
       // serviceable in case the debounced check hasn't landed or the user
       // bypassed the disabled state. We never trust client gating for
       // something that would let a gibberish/unfulfillable order through.
       const [postal, gate] = await Promise.all([
-        fetchIndiaPostal(data.pincode),
-        checkPincodeServiceability(data.pincode),
+        fetchIndiaPostal(trimmedPincode),
+        checkPincodeServiceability(trimmedPincode),
       ]);
       if (postal.status === "not_found") {
         setPincodeStatus({
@@ -587,7 +529,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
         line2: data.line2 || undefined,
         city: data.city,
         state: data.state,
-        pincode: data.pincode,
+        pincode: trimmedPincode,
       };
 
       // Save to the address book if asked — best-effort, fire-and-forget.
@@ -646,7 +588,6 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
               <Field
                 label="Email address"
                 hint="Your order is tied to this account email"
-                error={errors.email?.message}
                 {...register("email")}
                 type="email"
                 autoComplete="email"
@@ -655,8 +596,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
               <Field
                 label="Phone number"
                 hint="10-digit Indian mobile"
-                error={errors.phone?.message}
-                {...liveRevalidate("phone")}
+                {...register("phone")}
                 type="tel"
                 inputMode="numeric"
                 autoComplete="tel"
@@ -674,8 +614,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
               <Field
                 label="GST number"
                 hint="Optional — add this for a business GST invoice"
-                error={errors.gstNumber?.message}
-                {...liveRevalidate("gstNumber")}
+                {...register("gstNumber")}
                 placeholder="22AAAAA0000A1Z5"
                 maxLength={15}
                 autoComplete="off"
@@ -724,42 +663,36 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
 
               <Field
                 label="Full name"
-                error={errors.fullName?.message}
-                {...liveRevalidate("fullName")}
+                {...register("fullName")}
                 autoComplete="name"
               />
               <Field
                 label="Address line 1"
-                error={errors.line1?.message}
-                {...liveRevalidate("line1")}
+                {...register("line1")}
                 autoComplete="address-line1"
               />
               <Field
                 label="Address line 2"
                 hint="Apartment, suite, landmark (optional)"
-                error={errors.line2?.message}
-                {...liveRevalidate("line2")}
+                {...register("line2")}
                 autoComplete="address-line2"
               />
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field
                   label="City"
-                  error={errors.city?.message}
-                  {...liveRevalidate("city")}
+                  {...register("city")}
                   autoComplete="address-level2"
                 />
                 <Field
                   label="State"
-                  error={errors.state?.message}
-                  {...liveRevalidate("state")}
+                  {...register("state")}
                   autoComplete="address-level1"
                 />
               </div>
               <div>
                 <Field
                   label="PIN code"
-                  error={errors.pincode?.message}
-                  {...liveRevalidate("pincode")}
+                  {...register("pincode")}
                   inputMode="numeric"
                   autoComplete="postal-code"
                   maxLength={6}
@@ -816,50 +749,11 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
             <TrustStrip />
 
             <div className="space-y-4">
-              {/* Stopgap safety net, not the fix itself — the actual bug (a
-                  saved default address's validation never running until this
-                  effect was added) is already fixed above (see the trigger()
-                  effect near selectAddress). Every field with a problem
-                  already shows its own specific message directly under its
-                  own box (see the `error={errors.X?.message}` prop on each
-                  Field below) — that's where the actual detail belongs, not
-                  here. This banner is deliberately brief: just a "look up"
-                  cue, since a customer whose eyes are on the disabled button
-                  might not notice a small red line further up the page. It's
-                  also deliberately NOT conditioned on `errors` being
-                  non-empty — the point is to catch any future case where
-                  isValid is false but, for some reason not yet anticipated,
-                  no per-field error happens to be populated. Deferred behind
-                  pincode's own (already-clear) messaging via the
-                  verified/serviceable check, so the two don't talk over each
-                  other. */}
-              {!submitting &&
-              !isValid &&
-              pincodeStatus?.verified &&
-              pincodeStatus?.serviceable ? (
-                <p className="rounded-xl bg-burnt-red/8 px-4 py-3 text-xs leading-6 text-burnt-red">
-                  Please fix the highlighted fields above.
-                  {selectedAddressId !== null ? (
-                    <>
-                      {" "}
-                      Or{" "}
-                      <button
-                        type="button"
-                        onClick={() => selectAddress(null)}
-                        className="font-medium underline underline-offset-2"
-                      >
-                        start with a new address
-                      </button>{" "}
-                      instead.
-                    </>
-                  ) : null}
-                </p>
-              ) : null}
               <button
                 type="submit"
                 disabled={
                   submitting ||
-                  !isValid ||
+                  !allRequiredFieldsFilled ||
                   !pincodeStatus ||
                   pincodeStatus.checking ||
                   !pincodeStatus.verified ||
@@ -1054,10 +948,9 @@ function Legend({ children }: { children: React.ReactNode }) {
 interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   hint?: string;
-  error?: string;
 }
 const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
-  { label, hint, error, ...rest },
+  { label, hint, ...rest },
   ref,
 ) {
   return (
@@ -1068,18 +961,11 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
       <input
         ref={ref}
         {...rest}
-        className={`mt-2 block w-full rounded-xl border bg-cream px-4 py-3 text-base text-charcoal outline-none transition duration-500 placeholder:text-charcoal/35 focus:border-cocoa ${
-          error ? "border-burnt-red/60" : "border-cocoa/18"
-        }`}
+        className="mt-2 block w-full rounded-xl border border-cocoa/18 bg-cream px-4 py-3 text-base text-charcoal outline-none transition duration-500 placeholder:text-charcoal/35 focus:border-cocoa"
       />
-      {hint && !error ? (
+      {hint ? (
         <span className="mt-1.5 block text-xs text-charcoal/50">
           {hint}
-        </span>
-      ) : null}
-      {error ? (
-        <span className="mt-1.5 block text-xs text-burnt-red">
-          {error}
         </span>
       ) : null}
     </label>
