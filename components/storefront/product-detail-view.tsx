@@ -22,6 +22,7 @@ import {
 } from "@/lib/actions/account";
 import { getVariantsInStockForProduct } from "@/lib/actions/products";
 import { actionErrorMessage } from "@/lib/action-error";
+import { FREE_SHIPPING_MESSAGE } from "@/lib/shipping";
 import { SizeGuideModal } from "@/components/storefront/size-guide-modal";
 import { useCartCount } from "@/store/cart-count";
 import type {
@@ -530,7 +531,7 @@ export function ProductDetailView({
             <div className="mt-8 grid grid-cols-1 gap-3 rounded-2xl border border-cocoa/12 bg-cream/60 px-5 py-4 text-[11px] uppercase tracking-[0.16em] text-charcoal/65 sm:grid-cols-2">
               <div className="flex items-center gap-2">
                 <Truck className="h-4 w-4 text-cocoa" aria-hidden="true" />
-                <span>Free shipping above ₹2999</span>
+                <span>{FREE_SHIPPING_MESSAGE}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Lock className="h-4 w-4 text-cocoa" aria-hidden="true" />

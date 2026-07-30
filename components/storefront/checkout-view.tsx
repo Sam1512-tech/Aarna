@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Lock, MapPin, Plus, ShieldCheck, Truck } from "lucide-react";
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   checkPincodeServiceability,
@@ -16,7 +16,6 @@ import type { AddressRow, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/action-error";
 
-const FREE_SHIPPING_THRESHOLD = 299900; // ₹2,999 (matches backend)
 const FORM_DRAFT_KEY = "aarna-checkout-draft";
 
 // Client-side format/typo validation (letters-only names, phone prefix,
@@ -401,18 +400,11 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
     (v) => typeof v === "string" && v.trim().length > 0,
   );
 
-  // Estimated shipping fee for the summary preview. Backend re-computes the
-  // authoritative number when initCheckout runs.
+  // Shipping is free site-wide (client decision) — lib/actions/checkout.ts
+  // always computes shippingFee as 0 server-side, so the preview total here
+  // is just the discounted subtotal, no shipping estimate needed.
   const discountedSubtotal = Math.max(0, cart.subtotal - discount);
-  const estimatedShipping = useMemo(
-    () => (discountedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 9900),
-    [discountedSubtotal],
-  );
-  const previewTotal = discountedSubtotal + estimatedShipping;
-  const remainingForFreeShipping = Math.max(
-    0,
-    FREE_SHIPPING_THRESHOLD - discountedSubtotal,
-  );
+  const previewTotal = discountedSubtotal;
 
   const openRazorpay = useCallback(
     (
@@ -853,25 +845,8 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                     value={`−${formatINR(discount)}`}
                   />
                 ) : null}
-                <Row
-                  label="Shipping"
-                  value={
-                    estimatedShipping === 0
-                      ? "Free"
-                      : formatINR(estimatedShipping)
-                  }
-                />
+                <Row label="Shipping" value="Free" />
                 <Row label="Taxes" value="Inclusive" muted />
-                {remainingForFreeShipping > 0 ? (
-                  <p className="pt-1 text-xs leading-5 text-cocoa/85">
-                    Add {formatINR(remainingForFreeShipping)} more for free
-                    shipping
-                  </p>
-                ) : (
-                  <p className="pt-1 text-xs leading-5 text-cocoa">
-                    You&rsquo;ve qualified for free shipping
-                  </p>
-                )}
               </dl>
 
               <div className="mt-5 flex items-baseline justify-between border-t border-maroon/10 pt-5">

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalList, LegalPage } from "@/components/storefront/legal-page";
+import { FREE_SHIPPING_MESSAGE } from "@/lib/shipping";
 
 export const metadata: Metadata = {
   title: "Shipping policy",
@@ -16,6 +17,7 @@ export default function ShippingPolicyPage() {
     >
       <LegalList
         items={[
+          `${FREE_SHIPPING_MESSAGE} — no minimum order value.`,
           "Orders are processed within 1–2 business days.",
           "Once shipped, delivery timelines may vary based on the customer’s location.",
           "Customers will receive tracking details via email/SMS once the order is dispatched.",

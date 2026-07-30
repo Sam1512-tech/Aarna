@@ -9,6 +9,10 @@ import type { CartLine, CartState } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/security/rate-limit";
 
+// Razorpay's documented minimum chargeable amount for INR orders is ₹1.
+// Used to cap coupon discounts — see applyCoupon.
+const MIN_PAYABLE_AMOUNT_PAISE = 100;
+
 const {
   carts,
   cartItems,
@@ -396,10 +400,24 @@ export async function applyCoupon(
     };
   }
 
-  const discount =
+  const rawDiscount =
     c.type === "flat"
       ? Math.min(c.value, cart.subtotal)
       : Math.round((cart.subtotal * c.value) / 100);
+
+  // Cap the discount so at least MIN_PAYABLE_AMOUNT_PAISE remains payable.
+  // Before shipping became free site-wide, a flat shipping fee always kept
+  // the checkout total at ₹99+ even under a 100%-off coupon (or a flat
+  // coupon >= subtotal, both allowed by the admin coupon form — percent
+  // caps at 100, flat has no upper bound). Now that shipping is ₹0, that
+  // fee no longer pads the total, so a fully-offsetting coupon would zero
+  // it out exactly — which initCheckout's own "total <= 0" guard then
+  // rejects outright, hard-blocking checkout with no way to pay (this app
+  // has no zero-payment order path; Razorpay itself has a real minimum
+  // chargeable amount). Capping here, in the one function both the cart
+  // preview and initCheckout's server-side total both call, keeps a
+  // maximal coupon from making an order impossible to actually pay for.
+  const discount = Math.max(0, Math.min(rawDiscount, cart.subtotal - MIN_PAYABLE_AMOUNT_PAISE));
 
   return { ok: true, message: "Coupon applied", cart, discount };
 }
