@@ -3,7 +3,6 @@ import {
   alertStaleShipments,
   deleteStaleUnpaidOrders,
   releaseExpiredCheckoutHolds,
-  syncInFlightShipmentStatuses,
 } from "@/lib/db/queries/orders";
 import { cleanupOldRateLimitAttempts } from "@/lib/security/rate-limit";
 
@@ -31,20 +30,18 @@ const STALE_DAYS = 7;
  * this is the only scheduled job in the project and rate-limit cleanup is
  * just as much "daily maintenance" as the order cleanup above.
  *
- * Also runs syncInFlightShipmentStatuses — for every order still "shipped"/
- * "out_for_delivery", checks Delhivery's own tracking API and applies any
- * real status change (including "delivered") the same way the real-time
- * webhook would. This is the actual auto-heal for the exact failure class
- * alertStaleShipments (below) only detects and emails a human about: if the
- * webhook silently stops reaching the app, this closes the loop itself,
- * same-day, instead of waiting days for a stale-shipment alert.
- *
  * Also runs alertStaleShipments — catches an order stuck "shipped"/
  * "out_for_delivery" well past Delhivery's normal delivery window, which in
- * practice means the Delhivery status webhook stopped reaching the app
- * (see lib/db/queries/orders.ts for the incident this was built from). Runs
- * after syncInFlightShipmentStatuses so it only ever alerts on what that
- * sweep genuinely couldn't resolve itself.
+ * practice means the Delhivery status webhook stopped reaching the app (see
+ * lib/db/queries/orders.ts for the incident this was built from). Runs after
+ * the sync-delivery-status cron (app/api/cron/sync-delivery-status —
+ * separate route, runs every few minutes on the Pro plan's finer cron
+ * granularity) has had its own daily-in-aggregate chance to resolve things,
+ * so this only ever alerts on what that sweep genuinely couldn't fix itself.
+ * Deliberately its own once-a-day cadence, not folded into that frequent
+ * cron — it re-alerts every day a shipment stays stuck rather than tracking
+ * "already alerted" state (see its own comment), which would turn into
+ * inbox spam if it ran every few minutes instead.
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -63,13 +60,11 @@ export async function GET(req: Request) {
   const releasedHolds = await releaseExpiredCheckoutHolds();
   const result = await deleteStaleUnpaidOrders(STALE_DAYS);
   const rateLimitRowsDeleted = await cleanupOldRateLimitAttempts();
-  const shipmentSync = await syncInFlightShipmentStatuses();
   const staleShipments = await alertStaleShipments();
   return NextResponse.json({
     ok: true,
     releasedHolds,
     rateLimitRowsDeleted,
-    shipmentSync,
     staleShipments,
     ...result,
   });
