@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/cleanup-orders",
       "schedule": "30 21 * * *"
+    },
+    {
+      "path": "/api/cron/sync-delivery-status",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

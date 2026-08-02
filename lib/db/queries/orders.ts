@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { InvoiceData } from "@/lib/invoice/generate";
 import {
@@ -10,6 +10,9 @@ import {
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { fetchRazorpayOrderStatus } from "@/lib/razorpay";
 import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
+import { mapDelhiveryStatus, trackShipment } from "@/lib/delhivery";
+import { canTransitionFulfillment } from "@/lib/orders/fulfillment-transitions";
+import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
 
 const { orders, orderItems, returns, carts, cartItems, messageLog, coupons, orderRefundEvents } =
   schema;
@@ -848,6 +851,167 @@ export async function alertStaleShipments(
   });
 
   return { staleCount: stale.length, orderNumbers: stale.map((o) => o.orderNumber) };
+}
+
+export interface DelhiveryStatusSyncResult {
+  /** False if this AWB doesn't map to a known order, or the status label
+   *  doesn't map to anything mapDelhiveryStatus recognizes. */
+  matched: boolean;
+  /** False if matched but the transition was rejected by
+   *  canTransitionFulfillment (out-of-order/invalid push) — nothing changed. */
+  applied: boolean;
+  /** True only on a genuine NEW arrival at "delivered" (order wasn't already
+   *  "delivered" before this call) — this is what gates the WhatsApp send,
+   *  so a repeat observation of the same delivered shipment never re-sends it. */
+  newlyDelivered: boolean;
+  orderNumber?: string;
+}
+
+/**
+ * Applies one observed Delhivery status (a courier scan) to whichever order
+ * owns this AWB. This is the single place that decides what happens when we
+ * learn an order's real shipment status — shared by the real-time webhook
+ * (app/api/webhooks/delhivery) and the daily reconciliation sweep
+ * (syncInFlightShipmentStatuses below), so both paths behave identically and
+ * can never drift out of sync with each other. See
+ * lib/orders/fulfillment-transitions.ts for the out-of-order-push guard this
+ * relies on.
+ *
+ * Fixes a real gap in the webhook's own previous inline version: the
+ * "delivered" WhatsApp send had no guard against firing again on a repeat
+ * "delivered" observation (Delhivery webhook retries, or this function being
+ * called twice for the same already-delivered order), unlike the sibling
+ * "returned" RTO-alert branch which already correctly checked
+ * `order.fulfillmentStatus !== "returned"` first. `newlyDelivered` here
+ * closes that gap for both callers at once.
+ */
+export async function applyDelhiveryStatus(
+  awb: string,
+  statusLabel: string,
+  statusType?: string,
+): Promise<DelhiveryStatusSyncResult> {
+  const next = mapDelhiveryStatus(statusLabel, statusType);
+  if (!next) return { matched: false, applied: false, newlyDelivered: false };
+
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.awbNumber, awb))
+    .limit(1);
+  if (!order) return { matched: false, applied: false, newlyDelivered: false };
+
+  if (!canTransitionFulfillment(order.fulfillmentStatus, next)) {
+    return { matched: true, applied: false, newlyDelivered: false, orderNumber: order.orderNumber };
+  }
+
+  const newlyDelivered = next === "delivered" && order.fulfillmentStatus !== "delivered";
+  const newlyReturned = next === "returned" && order.fulfillmentStatus !== "returned";
+
+  await db
+    .update(orders)
+    .set({
+      fulfillmentStatus: next,
+      updatedAt: new Date(),
+      // coalesce, not an unconditional set — Delhivery can push "delivered"
+      // more than once (retries), and a repeat push must not push the
+      // return window's start date forward.
+      ...(next === "delivered"
+        ? { deliveredAt: sql`coalesce(${orders.deliveredAt}, now())` }
+        : {}),
+    })
+    .where(eq(orders.awbNumber, awb));
+
+  if (newlyDelivered) {
+    await notifyWhatsApp({
+      orderId: order.id,
+      phone: order.phone,
+      whatsappOptIn: order.whatsappOptIn,
+      templateKey: "delivered",
+      bodyValues: [firstNameFromAddress(order.shippingAddress), order.orderNumber],
+    });
+  }
+
+  // RTO — see the identical comment previously inline in the webhook route
+  // for why this deliberately does NOT auto-restock: an RTO parcel has been
+  // through transit and a failed delivery attempt, so it needs a human
+  // eyes-on check for transit damage before it's fit to sell again.
+  if (newlyReturned) {
+    await alertAdminSuspiciousActivity({
+      event: "Shipment returned to origin — needs inspection before restocking",
+      detail: `Order ${order.orderNumber} (AWB ${awb}) was returned to origin by Delhivery. Stock was NOT automatically restocked — inspect the parcel for transit damage or tampering first, then add it back via /studio/inventory if it's sellable.`,
+    }).catch((err) => {
+      console.error("[delhivery status sync] RTO alert failed:", awb, err);
+    });
+  }
+
+  return { matched: true, applied: true, newlyDelivered, orderNumber: order.orderNumber };
+}
+
+/**
+ * Daily reconciliation sweep — for every order still "shipped"/
+ * "out_for_delivery" with an AWB, asks Delhivery's own tracking API what's
+ * actually true and applies it via applyDelhiveryStatus, exactly as if that
+ * status had arrived through the real-time webhook. This is the actual fix
+ * for the failure class alertStaleShipments only detects and emails a human
+ * about (see its own comment) — this closes the loop automatically, same-day,
+ * without waiting for STALE_SHIPMENT_DAYS or manual admin correction.
+ * alertStaleShipments stays in place as a backstop for whatever this can't
+ * resolve itself (e.g. Delhivery's tracking API down that day, or an AWB it
+ * doesn't recognize) — a genuinely stuck order still surfaces to a human
+ * rather than going silent forever.
+ *
+ * Riding the existing daily cron rather than a second Vercel Cron entry —
+ * same reasoning already documented on alertStaleShipments and the rate-limit
+ * cleanup above it.
+ *
+ * Sequential, not parallel — current order volume is small enough that this
+ * finishes in seconds either way, and sequential is gentler on Delhivery's
+ * API. Revisit if order volume grows enough for this to matter.
+ */
+export async function syncInFlightShipmentStatuses(): Promise<{
+  checked: number;
+  updated: number;
+  newlyDelivered: number;
+  errors: number;
+}> {
+  const inFlight = await db
+    .select({ awbNumber: orders.awbNumber })
+    .from(orders)
+    .where(
+      and(
+        inArray(orders.fulfillmentStatus, ["shipped", "out_for_delivery"]),
+        isNotNull(orders.awbNumber),
+      ),
+    );
+
+  // isNotNull above already guarantees this at the SQL level; the filter is
+  // just to narrow the TS type from `string | null` to `string`.
+  const withAwb = inFlight.filter((o): o is { awbNumber: string } => o.awbNumber !== null);
+
+  let updated = 0;
+  let newlyDelivered = 0;
+  let errors = 0;
+
+  for (const { awbNumber } of withAwb) {
+    try {
+      const tracking = (await trackShipment(awbNumber)) as {
+        ShipmentData?: { Shipment?: { Status?: { Status?: string; StatusType?: string } } }[];
+      };
+      const status = tracking?.ShipmentData?.[0]?.Shipment?.Status;
+      if (!status?.Status) continue;
+
+      const result = await applyDelhiveryStatus(awbNumber, status.Status, status.StatusType);
+      if (result.applied) {
+        updated++;
+        if (result.newlyDelivered) newlyDelivered++;
+      }
+    } catch (err) {
+      errors++;
+      console.error(`[sync-delivery-status] tracking check failed for AWB ${awbNumber}:`, err);
+    }
+  }
+
+  return { checked: withAwb.length, updated, newlyDelivered, errors };
 }
 
 /**

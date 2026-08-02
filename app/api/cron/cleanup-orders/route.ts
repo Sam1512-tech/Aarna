@@ -32,8 +32,16 @@ const STALE_DAYS = 7;
  *
  * Also runs alertStaleShipments — catches an order stuck "shipped"/
  * "out_for_delivery" well past Delhivery's normal delivery window, which in
- * practice means the Delhivery status webhook stopped reaching the app
- * (see lib/db/queries/orders.ts for the incident this was built from).
+ * practice means the Delhivery status webhook stopped reaching the app (see
+ * lib/db/queries/orders.ts for the incident this was built from). Runs after
+ * the sync-delivery-status cron (app/api/cron/sync-delivery-status —
+ * separate route, runs every few minutes on the Pro plan's finer cron
+ * granularity) has had its own daily-in-aggregate chance to resolve things,
+ * so this only ever alerts on what that sweep genuinely couldn't fix itself.
+ * Deliberately its own once-a-day cadence, not folded into that frequent
+ * cron — it re-alerts every day a shipment stays stuck rather than tracking
+ * "already alerted" state (see its own comment), which would turn into
+ * inbox spam if it ran every few minutes instead.
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;

@@ -1,13 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { eq, sql } from "drizzle-orm";
-import { db, schema } from "@/lib/db";
-import { mapDelhiveryStatus } from "@/lib/delhivery";
-import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
-import { canTransitionFulfillment } from "@/lib/orders/fulfillment-transitions";
-import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
-
-const { orders } = schema;
+import { applyDelhiveryStatus } from "@/lib/db/queries/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,91 +58,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const next = mapDelhiveryStatus(statusLabel, statusType);
-  if (next) {
-    const [order] = await db
-      .select()
-      .from(orders)
-      .where(eq(orders.awbNumber, awb))
-      .limit(1);
-
-    // Courier webhooks aren't guaranteed to arrive in order (retries, network
-    // delays) — an "out for delivery" push that arrives late, after
-    // "delivered" was already recorded, must never revert the order
-    // backwards. canTransitionFulfillment treats from===to as always allowed
-    // (a repeated "delivered" push is still fine — deliveredAt is coalesced
-    // below, not overwritten), so this only ever blocks genuine regressions.
-    if (order && canTransitionFulfillment(order.fulfillmentStatus, next)) {
-      await db
-        .update(orders)
-        .set({
-          fulfillmentStatus: next,
-          updatedAt: new Date(),
-          // coalesce, not an unconditional set — Delhivery can push "delivered"
-          // more than once (retries), and a repeat push must not push the
-          // return window's start date forward.
-          ...(next === "delivered"
-            ? { deliveredAt: sql`coalesce(${orders.deliveredAt}, now())` }
-            : {}),
-        })
-        .where(eq(orders.awbNumber, awb));
-
-      // In-transit / shipped / out-for-delivery updates are left to Delhivery's
-      // own comms — we don't duplicate those. On delivery we send Aarna's own
-      // branded WhatsApp (a key milestone: brand touch). No email here —
-      // delivery isn't one of Aarna's transactional emails.
-      //
-      // Only 2 body values, not 3 — confirmed live against Interakt's actual
-      // API (2026-07-26): the template's live/approved body no longer
-      // mentions the return window (docs/whatsapp-templates.md's 3-variable
-      // draft is stale, likely edited down during/after Meta review). A real
-      // delivered order (AARNA-001023) had been failing with "Number of
-      // Body's variable values (3) does not match the expected number of
-      // params (2)" on every attempt — confirmed via message_log and a
-      // direct test call to Interakt's /message/ endpoint with these same 2
-      // values, which the template accepted (HTTP 201).
-      if (next === "delivered") {
-        await notifyWhatsApp({
-          orderId: order.id,
-          phone: order.phone,
-          whatsappOptIn: order.whatsappOptIn,
-          templateKey: "delivered",
-          bodyValues: [
-            firstNameFromAddress(order.shippingAddress),
-            order.orderNumber,
-          ],
-        });
-      }
-
-      // RTO (courier couldn't deliver, shipment came back) — the garment is
-      // physically back in the warehouse, but deliberately NOT auto-restocked:
-      // unlike an admin manually cancelling an order (which never left the
-      // warehouse), an RTO parcel has been through transit and a failed
-      // delivery attempt, so it needs a human eyes-on check for transit
-      // damage, tampering, or a courier-side item swap before it's fit to
-      // sell again. Auto-restocking here would risk shipping a damaged item
-      // to the next customer with nobody having looked at it. Instead, alert
-      // an admin so it gets inspected and, if it checks out, restocked by
-      // hand via the existing /studio/inventory adjust-stock tool — same
-      // "flag for a human, don't guess" principle deleteStaleUnpaidOrders
-      // uses for its own irreversible-adjacent decision. Guarded on
-      // order.fulfillmentStatus !== "returned" (the pre-update snapshot) so
-      // a repeated RTO webhook push for the same order doesn't re-alert.
-      if (next === "returned" && order.fulfillmentStatus !== "returned") {
-        await alertAdminSuspiciousActivity({
-          event: "Shipment returned to origin — needs inspection before restocking",
-          detail: `Order ${order.orderNumber} (AWB ${awb}) was returned to origin by Delhivery. Stock was NOT automatically restocked — inspect the parcel for transit damage or tampering first, then add it back via /studio/inventory if it's sellable.`,
-        }).catch((err) => {
-          console.error("[delhivery webhook] RTO alert failed:", awb, err);
-        });
-      }
-    } else if (order) {
-      console.warn(
-        "[delhivery webhook] ignored out-of-order/invalid transition:",
-        awb,
-        `${order.fulfillmentStatus} -> ${next}`,
-      );
-    }
+  // Courier webhooks aren't guaranteed to arrive in order (retries, network
+  // delays) — an "out for delivery" push that arrives late, after
+  // "delivered" was already recorded, must never revert the order backwards.
+  // applyDelhiveryStatus (lib/db/queries/orders.ts) owns that guard (and the
+  // "delivered" WhatsApp send, and the RTO admin alert) — it's the same
+  // logic the daily reconciliation sweep uses, so a shipment's status can
+  // never end up different depending on which path last touched it.
+  const result = await applyDelhiveryStatus(awb, statusLabel, statusType);
+  if (result.matched && !result.applied) {
+    console.warn(
+      "[delhivery webhook] ignored out-of-order/invalid transition:",
+      awb,
+      result.orderNumber,
+    );
   }
 
   return NextResponse.json({ ok: true });
