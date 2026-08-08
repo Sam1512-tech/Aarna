@@ -1,4 +1,5 @@
 import { and, eq, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
+import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import type { InvoiceData } from "@/lib/invoice/generate";
 import {
@@ -884,6 +885,17 @@ export interface DelhiveryStatusSyncResult {
  * "returned" RTO-alert branch which already correctly checked
  * `order.fulfillmentStatus !== "returned"` first. `newlyDelivered` here
  * closes that gap for both callers at once.
+ *
+ * The DB update itself is awaited (the state change must be durable before
+ * this function returns), but the notification side effects (WhatsApp,
+ * admin email) are deferred via next/server's `after()` rather than
+ * awaited — Delhivery's webhook integration requires a P99 response time
+ * under 500ms or it times out and the scan is lost; a real, synchronous
+ * network call to Interakt (or Resend) on every "delivered"/"returned"
+ * event risked blowing well past that on a slow BSP response, on exactly
+ * the events this integration exists to catch. `after()` still runs these
+ * to completion (Vercel keeps the function alive for it) — it just doesn't
+ * block the HTTP response Delhivery is timing.
  */
 export async function applyDelhiveryStatus(
   awb: string,
@@ -922,13 +934,15 @@ export async function applyDelhiveryStatus(
     .where(eq(orders.awbNumber, awb));
 
   if (newlyDelivered) {
-    await notifyWhatsApp({
-      orderId: order.id,
-      phone: order.phone,
-      whatsappOptIn: order.whatsappOptIn,
-      templateKey: "delivered",
-      bodyValues: [firstNameFromAddress(order.shippingAddress), order.orderNumber],
-    });
+    after(() =>
+      notifyWhatsApp({
+        orderId: order.id,
+        phone: order.phone,
+        whatsappOptIn: order.whatsappOptIn,
+        templateKey: "delivered",
+        bodyValues: [firstNameFromAddress(order.shippingAddress), order.orderNumber],
+      }),
+    );
   }
 
   // RTO — see the identical comment previously inline in the webhook route
@@ -936,12 +950,14 @@ export async function applyDelhiveryStatus(
   // through transit and a failed delivery attempt, so it needs a human
   // eyes-on check for transit damage before it's fit to sell again.
   if (newlyReturned) {
-    await alertAdminSuspiciousActivity({
-      event: "Shipment returned to origin — needs inspection before restocking",
-      detail: `Order ${order.orderNumber} (AWB ${awb}) was returned to origin by Delhivery. Stock was NOT automatically restocked — inspect the parcel for transit damage or tampering first, then add it back via /studio/inventory if it's sellable.`,
-    }).catch((err) => {
-      console.error("[delhivery status sync] RTO alert failed:", awb, err);
-    });
+    after(() =>
+      alertAdminSuspiciousActivity({
+        event: "Shipment returned to origin — needs inspection before restocking",
+        detail: `Order ${order.orderNumber} (AWB ${awb}) was returned to origin by Delhivery. Stock was NOT automatically restocked — inspect the parcel for transit damage or tampering first, then add it back via /studio/inventory if it's sellable.`,
+      }).catch((err) => {
+        console.error("[delhivery status sync] RTO alert failed:", awb, err);
+      }),
+    );
   }
 
   return { matched: true, applied: true, newlyDelivered, orderNumber: order.orderNumber };
