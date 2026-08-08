@@ -222,7 +222,7 @@ export async function updateReturnStatus(
     });
   }
 
-  if (status === "received") {
+  if (status === "received" && row.status !== "received") {
     // Refund amount may not be set yet — fall back to the returned item's total.
     const refundBasis = row.refundAmount ?? row.lineTotal;
     await notifyWhatsApp({
