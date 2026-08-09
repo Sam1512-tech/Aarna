@@ -713,7 +713,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                                 : ""
                             }${
                               pincodeStatus.etaDays
-                                ? ` · ~${pincodeStatus.etaDays} days`
+                                ? ` · Delivery in ${pincodeStatus.etaDays} days`
                                 : ""
                             }`}
                   </p>
