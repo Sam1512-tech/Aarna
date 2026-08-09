@@ -50,6 +50,33 @@ export function invoiceSequenceName(financialYear: string): string {
 }
 
 /**
+ * Formats a sequential credit note number, mirroring formatInvoiceNumber's
+ * "AL/26-27/00042" shape with a "CN" prefix instead — e.g.
+ * formatCreditNoteNumber("26-27", 7) → "CN/26-27/00007". Kept as its own
+ * sequence (creditNoteSequenceName below), not sharing the invoice sequence
+ * — a credit note is a distinct GST document type from a tax invoice and
+ * needs its own traceable numbering for GSTR-1's credit/debit-note table.
+ */
+export function formatCreditNoteNumber(financialYear: string, sequence: number): string {
+  return `CN/${financialYear}/${String(sequence).padStart(5, "0")}`;
+}
+
+/**
+ * Derives the Postgres sequence name for a credit note number, e.g.
+ * "26-27" -> "credit_note_seq_26_27". Same reasoning and same validation
+ * discipline as invoiceSequenceName above.
+ */
+export function creditNoteSequenceName(financialYear: string): string {
+  const name = `credit_note_seq_${financialYear.replace("-", "_")}`;
+  if (!/^credit_note_seq_\d{2}_\d{2}$/.test(name)) {
+    throw new Error(
+      `Unexpected credit note sequence name derived from financial year "${financialYear}": ${name}`,
+    );
+  }
+  return name;
+}
+
+/**
  * Determines whether an order is inter-state based on the customer's state.
  * Karnataka orders are intra-state (CGST+SGST), all others are inter-state (IGST).
  *

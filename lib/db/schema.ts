@@ -494,6 +494,61 @@ export const orderRefundEvents = pgTable(
   }),
 );
 
+// One row per refund event that actually reduces GST liability — the proper
+// accounting document for a post-invoice sales return under Section 34 of
+// the CGST Act. Deliberately 1:1 with orderRefundEvents (same
+// razorpayRefundId, unique), not with `returns`: a real refund can happen
+// without a matching return row (a manual Razorpay-dashboard refund, e.g.
+// AARNA-001067/AARNA-001138 — see CLAUDE.md), and this table's whole purpose
+// is to make sure GST reporting still catches those, not just the ones that
+// went through /studio/returns.
+export const creditNotes = pgTable(
+  "credit_notes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    // Null when the refund wasn't tied to a specific return row (see above)
+    // — set null on delete, not cascade: the credit note is the permanent
+    // tax record and must survive even if the return row it originated from
+    // is later removed.
+    returnId: uuid("return_id").references(() => returns.id, {
+      onDelete: "set null",
+    }),
+    razorpayRefundId: varchar("razorpay_refund_id", { length: 60 })
+      .notNull()
+      .unique(),
+    creditNoteNumber: varchar("credit_note_number", { length: 30 })
+      .notNull()
+      .unique(),
+    refundedAmount: integer("refunded_amount").notNull(), // paise, GST-inclusive
+    taxableValue: integer("taxable_value").notNull(), // paise
+    cgst: integer("cgst").notNull().default(0),
+    sgst: integer("sgst").notNull().default(0),
+    igst: integer("igst").notNull().default(0),
+    // Same shape as calculateOrderGst's rateBreakdown (lib/invoice/generate.ts)
+    // — an order mixing 5%/18% items can have a refund spanning both slabs.
+    rateBreakdown: jsonb("rate_breakdown")
+      .$type<
+        { ratePercent: number; taxableAmount: number; cgst: number; sgst: number; igst: number }[]
+      >()
+      .notNull(),
+    // True when this credit note's GST breakdown is a proportional estimate
+    // across the whole order rather than attributed to the exact item
+    // refunded — happens only when the refund has no matching return row to
+    // resolve the specific order_item from. Surfaced in the admin report so
+    // an accountant knows which credit notes to double-check by hand.
+    needsReview: boolean("needs_review").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    orderIdx: index("credit_note_order_idx").on(t.orderId),
+  }),
+);
+
 export const reviews = pgTable(
   "reviews",
   {
@@ -603,6 +658,15 @@ export const returns = pgTable(
     // return row — regardless of status — as blocking a new request, so
     // there's no "rejected returns can be re-requested" case to carve out.
     orderItemUnique: uniqueIndex("return_order_item_idx").on(t.orderItemId),
+    // Partial — most returns never reach a refund, so razorpayRefundId is
+    // null far more often than not; only rows that DO have one need to stay
+    // unique. Backs recordRefund's credit-note "precise match" query
+    // (lib/db/queries/orders.ts), which looks up a return by this column —
+    // without a DB-level guarantee, that lookup's uniqueness only held by
+    // convention (markReturnQc always producing a fresh Razorpay refund id).
+    razorpayRefundIdUnique: uniqueIndex("return_razorpay_refund_id_idx")
+      .on(t.razorpayRefundId)
+      .where(sql`${t.razorpayRefundId} IS NOT NULL`),
   }),
 );
 

@@ -27,6 +27,7 @@ ALTER TABLE public.categories           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.collection_products  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.collections          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.credit_notes         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.homepage_video_slots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_movements  ENABLE ROW LEVEL SECURITY;

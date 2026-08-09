@@ -69,6 +69,15 @@ interface Order {
   billingAddress: unknown;
   invoiceNumber: string | null;
   items: OrderItem[];
+  creditNotes: CreditNote[];
+}
+
+interface CreditNote {
+  id: string;
+  creditNoteNumber: string;
+  refundedAmount: number;
+  createdAt: string;
+  needsReview: boolean;
 }
 
 interface Address {
@@ -499,6 +508,47 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
             </>
           ) : null}
         </Card>
+
+        {order.creditNotes.length > 0 ? (
+          <Card>
+            <SectionTitle>Credit Notes</SectionTitle>
+            <p className="mt-2 text-xs text-charcoal/50">
+              Issued automatically whenever a refund is processed for this
+              order — one per refund event, for GST filing.
+            </p>
+            <div className="mt-3 space-y-2">
+              {order.creditNotes.map((cn) => (
+                <div
+                  key={cn.id}
+                  className="rounded-xl border border-cocoa/18 p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-charcoal">
+                      {cn.creditNoteNumber}
+                    </span>
+                    <span className="text-sm text-charcoal/70">
+                      {formatINR(cn.refundedAmount)}
+                    </span>
+                  </div>
+                  {cn.needsReview ? (
+                    <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-burnt-red">
+                      Needs review — estimated GST split
+                    </p>
+                  ) : null}
+                  <a
+                    href={`/api/admin/credit-notes/${cn.id}/pdf`}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-cocoa transition duration-500 hover:text-maroon"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <FileDown className="h-3 w-3" aria-hidden="true" />
+                    download credit note
+                  </a>
+                </div>
+              ))}
+            </div>
+          </Card>
+        ) : null}
 
         {notice ? (
           <p className="inline-flex items-center gap-2 text-xs text-cocoa">

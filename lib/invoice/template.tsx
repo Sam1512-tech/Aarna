@@ -67,7 +67,11 @@ export interface InvoiceData {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const SELLER = {
+// Exported for reuse by lib/credit-note/template.tsx — a credit note is a
+// distinct GST document type but shares the same seller identity and money
+// formatting; duplicating these would risk the two documents drifting apart
+// (e.g. one showing a stale GSTIN after the other was updated).
+export const SELLER = {
   name: "Aarna Label",
   addressLine1: "No. 3571, 1st H Cross",
   addressLine2: "Behind Girinagar Police Station,",
@@ -77,11 +81,11 @@ const SELLER = {
   email: "hello@shopaarna.in",
 };
 
-const LOGO_PATH = path.join(process.cwd(), "public", "logo-invoice.png");
+export const LOGO_PATH = path.join(process.cwd(), "public", "logo-invoice.png");
 
 // "Rs." not "₹" — the built-in Helvetica PDF font has no rupee glyph (it
 // renders as "¹"), and this is a legal tax document.
-const INR = (paise: number) =>
+export const INR = (paise: number) =>
   `Rs.${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
 // ── Styles ───────────────────────────────────────────────────────────────────
@@ -169,7 +173,7 @@ function numToWords(n: number): string {
   return numToWords(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 ? " " + numToWords(n % 10000000) : "");
 }
 
-function amountInWords(paise: number): string {
+export function amountInWords(paise: number): string {
   const rupees = Math.floor(paise / 100);
   const p = paise % 100;
   let result = numToWords(rupees) + " Rupees";

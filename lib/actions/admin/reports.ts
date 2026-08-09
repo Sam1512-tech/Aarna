@@ -1,12 +1,12 @@
 "use server";
 
-import { and, asc, gte, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { calculateOrderGst, isInterStateOrder } from "@/lib/invoice/generate";
 import { assertReportRangeWithinCap } from "@/lib/reports/date-range";
 
-const { orders, orderItems } = schema;
+const { orders, orderItems, creditNotes } = schema;
 
 interface ShippingAddress {
   fullName: string;
@@ -205,4 +205,75 @@ export async function getGstSalesRegisterRows(
   }
 
   return rows;
+}
+
+// ── GST credit notes register ───────────────────────────────────────────────
+// The other half of GST filing the sales register alone can't cover — every
+// refund reduces output GST liability via a credit note (Section 34, CGST
+// Act), reported separately in GSTR-1's credit/debit-note table rather than
+// blended into the sales figures. See lib/db/schema.ts's creditNotes comment
+// and lib/db/queries/orders.ts's recordRefund for how these get created.
+
+export interface GstCreditNoteRow {
+  creditNoteNumber: string;
+  creditNoteDate: string;
+  originalInvoiceNumber: string;
+  orderNumber: string;
+  customerName: string;
+  gstRatePercent: number;
+  taxableValue: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total: number;
+  needsReview: string;
+}
+
+export async function getGstCreditNotesRegisterRows(
+  from: Date,
+  to: Date,
+): Promise<GstCreditNoteRow[]> {
+  await requireAdmin();
+  assertReportRangeWithinCap(from, to);
+
+  const rows = await db
+    .select({
+      creditNoteNumber: creditNotes.creditNoteNumber,
+      createdAt: creditNotes.createdAt,
+      rateBreakdown: creditNotes.rateBreakdown,
+      needsReview: creditNotes.needsReview,
+      invoiceNumber: orders.invoiceNumber,
+      orderNumber: orders.orderNumber,
+      shippingAddress: orders.shippingAddress,
+    })
+    .from(creditNotes)
+    .innerJoin(orders, eq(orders.id, creditNotes.orderId))
+    .where(and(gte(creditNotes.createdAt, from), lt(creditNotes.createdAt, to)))
+    .orderBy(asc(creditNotes.createdAt));
+
+  const out: GstCreditNoteRow[] = [];
+  for (const r of rows) {
+    const shipping = r.shippingAddress as { fullName?: string } | null;
+    // One row per GST rate present in this credit note — same reason the
+    // sales register itemizes rateBreakdown separately rather than blending
+    // a mixed-rate refund into one number.
+    for (const bucket of r.rateBreakdown) {
+      out.push({
+        creditNoteNumber: r.creditNoteNumber,
+        creditNoteDate: fmtIstDate(r.createdAt),
+        originalInvoiceNumber: r.invoiceNumber ?? "",
+        orderNumber: r.orderNumber,
+        customerName: shipping?.fullName ?? "—",
+        gstRatePercent: bucket.ratePercent,
+        taxableValue: bucket.taxableAmount / 100,
+        cgst: bucket.cgst / 100,
+        sgst: bucket.sgst / 100,
+        igst: bucket.igst / 100,
+        total: (bucket.taxableAmount + bucket.cgst + bucket.sgst + bucket.igst) / 100,
+        needsReview: r.needsReview ? "Yes" : "No",
+      });
+    }
+  }
+
+  return out;
 }

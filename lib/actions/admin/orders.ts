@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { generateInvoicePdf, generateInvoicePdfBatch } from "@/lib/invoice/generate";
 import { buildInvoiceData } from "@/lib/db/queries/orders";
+import { getCreditNotesForOrder } from "@/lib/db/queries/credit-notes";
 import { sendEmail } from "@/lib/resend";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import { ActionError } from "@/lib/action-error";
@@ -220,7 +221,16 @@ export async function getAdminOrderDetail(idOrOrderNumber: string) {
     imageUrl: i.productId ? imageByProduct.get(i.productId) ?? null : null,
   }));
 
-  return { ...order, items: hydratedItems };
+  const creditNoteRows = await getCreditNotesForOrder(order.id);
+  const creditNotes = creditNoteRows.map((c) => ({
+    id: c.id,
+    creditNoteNumber: c.creditNoteNumber,
+    refundedAmount: c.refundedAmount,
+    createdAt: c.createdAt.toISOString(),
+    needsReview: c.needsReview,
+  }));
+
+  return { ...order, items: hydratedItems, creditNotes };
 }
 
 // ── Status updates ───────────────────────────────────────────────────────────

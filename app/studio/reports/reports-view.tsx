@@ -52,7 +52,7 @@ function ReportCard({
   title,
   description,
 }: {
-  type: "general" | "gst";
+  type: "general" | "gst" | "credit_notes";
   title: string;
   description: string;
 }) {
@@ -154,6 +154,11 @@ export function ReportsView() {
         type="gst"
         title="GST sales register"
         description="Invoice-level GST breakup (taxable value, CGST/SGST/IGST by rate, HSN, buyer GSTIN) — the format your accountant needs to file GSTR-1/GSTR-3B. Only includes orders that were actually invoiced."
+      />
+      <ReportCard
+        type="credit_notes"
+        title="GST credit notes register"
+        description="Every credit note issued against a refund in the period — taxable value and CGST/SGST/IGST being reversed, referencing the original invoice. This is what actually reduces GST liability for a cancelled or returned order; the sales register above always shows the original, unadjusted sale. Rows marked 'Needs Review' are estimated (a refund with no matching return record) — verify those by hand."
       />
     </div>
   );
