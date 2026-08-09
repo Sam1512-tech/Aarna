@@ -147,7 +147,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
       checking: boolean;
       verified: boolean;
       postalHint: string | null;
-      etaDays?: number;
+      etaDays?: string;
       reason?: string;
     }
   >(null);
@@ -324,7 +324,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
             "[checkout] pincode serviceability call failed (network/transport error, not a Delhivery answer):",
             err,
           );
-          return { serviceable: true, etaDays: 5 };
+          return { serviceable: true, etaDays: "5" };
         }),
       ]);
       if (cancelled) return;
@@ -354,7 +354,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
           verified: delhivery.serviceable,
           postalHint: null,
           etaDays: delhivery.serviceable
-            ? (delhivery as { etaDays?: number }).etaDays
+            ? (delhivery as { etaDays?: string }).etaDays
             : undefined,
           reason: delhivery.serviceable
             ? undefined
@@ -377,7 +377,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
         verified: true,
         postalHint: `${postal.record.district}, ${postal.record.state}`,
         etaDays: delhivery.serviceable
-          ? (delhivery as { etaDays?: number }).etaDays
+          ? (delhivery as { etaDays?: string }).etaDays
           : undefined,
         reason: delhivery.serviceable
           ? undefined
