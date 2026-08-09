@@ -19,7 +19,7 @@ export default function ShippingPolicyPage() {
         items={[
           `${FREE_SHIPPING_MESSAGE} — no minimum order value.`,
           "Orders are processed within 1–2 business days.",
-          "Once shipped, delivery timelines may vary based on the customer’s location.",
+          "Orders to Bengaluru typically arrive in 2–3 days; delivery elsewhere in India typically takes about 5 days, depending on location.",
           "Customers will receive tracking details via email/SMS once the order is dispatched.",
           "Delays caused by courier partners, natural calamities, or unforeseen circumstances are beyond our control.",
         ]}
