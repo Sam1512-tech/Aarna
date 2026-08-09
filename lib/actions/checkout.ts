@@ -270,9 +270,27 @@ export async function initCheckout(
   return { summary, razorpay };
 }
 
+// Bengaluru (560xxx) ships noticeably faster than the rest of India — the
+// warehouse ("Aarna Godown") is in Bengaluru, so it's effectively same-city
+// for those pincodes. Calibrated Aug 2026 from real Delhivery tracking data
+// (order-placed to the courier's actual "Delivered" scan timestamp, not our
+// own DB's delivered_at column — which was unreliable for older orders due
+// to the webhook outage documented in CLAUDE.md) across 19 genuinely-
+// delivered Bengaluru orders: median 2.13 days, average 2.19 days, with the
+// large majority between 1.2–2.9 days. "2-3 days" reflects that typical
+// case. The rest-of-India figure is still the original placeholder (5
+// days) — no comparably real, verified data for other regions yet; revisit
+// once order volume outside Bengaluru is large enough to calibrate the same
+// way (and exclude any order whose real Delhivery status shows it was never
+// actually picked up, which skews the average — see the return-investigation
+// note in CLAUDE.md for why that check matters here).
+function estimatedDeliveryWindow(pincode: string): string {
+  return pincode.startsWith("560") ? "2-3" : "5";
+}
+
 export async function checkPincodeServiceability(
   pincode: string,
-): Promise<{ serviceable: boolean; etaDays?: number }> {
+): Promise<{ serviceable: boolean; etaDays?: string }> {
   // Basic Indian pincode validation — 6 digits
   if (!/^\d{6}$/.test(pincode)) {
     return { serviceable: false };
@@ -282,7 +300,7 @@ export async function checkPincodeServiceability(
   // checkout UI keeps working. Once DELHIVERY_API_TOKEN is configured this hits
   // the real pincode serviceability API.
   if (!process.env.DELHIVERY_API_TOKEN) {
-    return { serviceable: true, etaDays: 5 };
+    return { serviceable: true, etaDays: estimatedDeliveryWindow(pincode) };
   }
 
   try {
@@ -293,14 +311,15 @@ export async function checkPincodeServiceability(
     // upstream of Delhivery's answer went wrong.
     console.log(`[checkout] Delhivery serviceability for ${pincode}:`, result);
     // Aarna is prepaid-only, so prepaid serviceability is what matters.
-    // (Delhivery's pincode endpoint doesn't return an ETA; 5 days is a placeholder.)
+    // (Delhivery's pincode endpoint doesn't return a real ETA — this is our
+    // own estimate, see estimatedDeliveryWindow above.)
     return {
       serviceable: result.serviceable,
-      etaDays: result.serviceable ? 5 : undefined,
+      etaDays: result.serviceable ? estimatedDeliveryWindow(pincode) : undefined,
     };
   } catch (err) {
     console.error(`[checkout] Delhivery serviceability call failed for ${pincode}:`, err);
     // Don't block checkout on a logistics-API hiccup.
-    return { serviceable: true, etaDays: 5 };
+    return { serviceable: true, etaDays: estimatedDeliveryWindow(pincode) };
   }
 }
