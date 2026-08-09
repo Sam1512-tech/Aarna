@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import type { InvoiceData } from "@/lib/invoice/generate";
 import {
   calculateOrderGst,
+  creditNoteSequenceName,
   currentFinancialYear,
   invoiceSequenceName,
   isInterStateOrder,
@@ -15,8 +16,17 @@ import { mapDelhiveryStatus, trackShipment } from "@/lib/delhivery";
 import { canTransitionFulfillment } from "@/lib/orders/fulfillment-transitions";
 import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
 
-const { orders, orderItems, returns, carts, cartItems, messageLog, coupons, orderRefundEvents } =
-  schema;
+const {
+  orders,
+  orderItems,
+  returns,
+  carts,
+  cartItems,
+  messageLog,
+  coupons,
+  orderRefundEvents,
+  creditNotes,
+} = schema;
 
 /** How long a checkout attempt holds its reserved stock before it's treated
  * as abandoned and released back — see releaseExpiredCheckoutHolds. */
@@ -98,6 +108,43 @@ async function ensureInvoiceSequence(
     const [{ existingMax }] = (await tx.execute(
       sql`SELECT COALESCE(MAX(substring(invoice_number from '\\d+$')::int), 0) AS "existingMax"
           FROM orders WHERE invoice_number LIKE ${invoicePrefix + "%"}`,
+    )) as unknown as { existingMax: number }[];
+
+    if (existingMax > 0) {
+      await tx.execute(sql`SELECT setval(${sequenceName}, ${existingMax}, true)`);
+    }
+  });
+}
+
+/**
+ * Same lazy-bootstrap pattern as ensureInvoiceSequence above, scoped to
+ * credit_notes.credit_note_number instead of orders.invoice_number — credit
+ * notes are a distinct GST document type with their own sequence per
+ * financial year (see creditNoteSequenceName/formatCreditNoteNumber in
+ * lib/invoice/generate.ts).
+ */
+async function ensureCreditNoteSequence(
+  sequenceName: string,
+  creditNotePrefix: string,
+): Promise<void> {
+  const [{ existed }] = (await db.execute(
+    sql`SELECT to_regclass(${sequenceName}) IS NOT NULL AS existed`,
+  )) as unknown as { existed: boolean }[];
+  if (existed) return;
+
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${sequenceName}))`);
+
+    const [{ existed: existedAfterLock }] = (await tx.execute(
+      sql`SELECT to_regclass(${sequenceName}) IS NOT NULL AS existed`,
+    )) as unknown as { existed: boolean }[];
+    if (existedAfterLock) return;
+
+    await tx.execute(sql`CREATE SEQUENCE IF NOT EXISTS ${sql.raw(sequenceName)} START 1`);
+
+    const [{ existingMax }] = (await tx.execute(
+      sql`SELECT COALESCE(MAX(substring(credit_note_number from '\\d+$')::int), 0) AS "existingMax"
+          FROM credit_notes WHERE credit_note_number LIKE ${creditNotePrefix + "%"}`,
     )) as unknown as { existingMax: number }[];
 
     if (existingMax > 0) {
@@ -543,7 +590,7 @@ export async function recordRefund(params: {
 }): Promise<{ order: OrderRow; isDuplicate: boolean } | null> {
   await ensureOrderRefundEventsTable();
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [order] = await tx
       .select()
       .from(orders)
@@ -624,6 +671,264 @@ export async function recordRefund(params: {
       );
 
     return { order: updatedOrder ?? order, isDuplicate: false };
+  });
+
+  if (!result) return null;
+
+  // ── Credit note (GST — Section 34, CGST Act) ────────────────────────────
+  // Deliberately OUTSIDE the transaction above and wrapped in its own
+  // try/catch — mirrors the payment.captured webhook's isolation of invoice
+  // PDF/email generation from markOrderPaid's own critical transaction (see
+  // that function's docstring). The order/return status flips above are the
+  // money-critical writes that must never roll back once a real Razorpay
+  // refund has happened; credit-note bookkeeping matters but must not be
+  // able to take those down with it if generation hits e.g. a Supabase
+  // pooler hiccup (a real, recurring failure mode in this project — see
+  // CLAUDE.md's dev-environment gotchas).
+  //
+  // Deliberately attempted on every call (not gated on `!result.isDuplicate`)
+  // and made idempotent on its own terms (an existence check plus
+  // creditNotes.razorpayRefundId's UNIQUE constraint as a backstop) rather
+  // than piggybacking on the orderRefundEvents claim above — that claim only
+  // ever succeeds once per refund id, so gating on it would mean a
+  // redelivered webhook could never retry a credit note that failed to
+  // generate on an earlier attempt.
+  try {
+    await ensureCreditNoteForRefund(result.order, params);
+  } catch (err) {
+    console.error(
+      `[recordRefund] credit note generation failed for refund ${params.razorpayRefundId} on order ${result.order.orderNumber}:`,
+      err,
+    );
+    await alertAdminSuspiciousActivity({
+      event: "Credit note generation failed after a real refund",
+      detail: `Refund ${params.razorpayRefundId} on order ${result.order.orderNumber} (Rs.${(params.amountRefundedPaise / 100).toFixed(2)}) succeeded in Razorpay and the order/return status updated correctly, but generating its GST credit note failed. This will retry automatically if Razorpay redelivers this webhook; otherwise a credit note needs to be created by hand. Error: ${err instanceof Error ? err.message : String(err)}`,
+    }).catch((alertErr) => {
+      console.error("[recordRefund] failed to alert admin about credit note failure:", alertErr);
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Generates the GST credit note for a single refund event — idempotent (a
+ * no-op if one already exists for this razorpayRefundId) and intentionally
+ * separate from recordRefund's own transaction, see that function's comment.
+ *
+ * GST attribution has two paths:
+ *
+ * - Precise: this refund's razorpayRefundId already matches a `returns` row
+ *   (markReturnQc sets it synchronously, before Razorpay's webhook can
+ *   possibly arrive — recordRefund's own row lock on `orders`, shared by
+ *   markReturnQc's join-wide FOR UPDATE, is what guarantees that write has
+ *   already committed by the time this runs; see the comment on
+ *   markReturnQc's own lock acquisition). The credit note is attributed to
+ *   the real order item and its real GST rate slab — computed from
+ *   calculateOrderGst run across the WHOLE order with the order's real
+ *   discount, then isolating that one item's own already-discount-adjusted
+ *   line, never a fresh GST calculation on the raw refunded amount at
+ *   discount=0 (that undercounted the discount and overstated the credit
+ *   note's tax whenever the order had a coupon — see PR review history).
+ *   markReturnQc refunds the item's raw, pre-discount lineTotal (its own
+ *   comment: "the coupon discount is never subtracted from any individual
+ *   item's refund"), which can exceed what that item's discounted,
+ *   actually-invoiced share was taxed on — a credit note can never reverse
+ *   more GST than was charged, so the item's real tax split is scaled by
+ *   the refund's fraction of the item's raw price, capped at 1.
+ * - Fallback: no return row to resolve the specific item from (a
+ *   manual/dashboard refund — see AARNA-001067/AARNA-001138 in CLAUDE.md).
+ *   Allocates proportionally across the order's own rateBreakdown, flagged
+ *   needsReview so an accountant verifies by hand rather than trusting an
+ *   estimate silently.
+ *
+ * Both paths reconcile their own rounding: independently Math.round()-ing
+ * each GST bucket can leave the buckets' sum a paisa or two short of the
+ * true total, so any drift is absorbed into the last (precise: only) bucket
+ * — same principle calculateOrderGst already applies to its own rounding.
+ */
+async function ensureCreditNoteForRefund(
+  order: OrderRow,
+  params: { razorpayRefundId: string; amountRefundedPaise: number },
+): Promise<void> {
+  const existing = await db
+    .select({ id: creditNotes.id })
+    .from(creditNotes)
+    .where(eq(creditNotes.razorpayRefundId, params.razorpayRefundId))
+    .limit(1);
+  if (existing.length > 0) return;
+
+  // Credit note sequence is FY-scoped like invoices (see
+  // ensureCreditNoteSequence's own comment) — bootstrapped here, outside the
+  // transaction below, exactly like ensureInvoiceSequence's own call site in
+  // markOrderPaid: it does its own advisory-locked transaction and is a
+  // cheap no-op after the first call each FY.
+  const financialYear = currentFinancialYear();
+  const creditNoteSeqName = creditNoteSequenceName(financialYear);
+  const creditNotePrefix = `CN/${financialYear}/`;
+  await ensureCreditNoteSequence(creditNoteSeqName, creditNotePrefix);
+
+  await db.transaction(async (tx) => {
+    // Re-check inside the transaction — closes the race between the
+    // pre-check above and this insert if two redeliveries land concurrently.
+    // The insert below is also guarded by the UNIQUE constraint via
+    // onConflictDoNothing as a final backstop.
+    const existingInner = await tx
+      .select({ id: creditNotes.id })
+      .from(creditNotes)
+      .where(eq(creditNotes.razorpayRefundId, params.razorpayRefundId))
+      .limit(1);
+    if (existingInner.length > 0) return;
+
+    const interState = isInterStateOrder(
+      (order.shippingAddress as { state?: string })?.state ?? "",
+    );
+
+    const allItems = await tx
+      .select({
+        id: orderItems.id,
+        unitPrice: orderItems.unitPriceSnapshot,
+        quantity: orderItems.quantity,
+        lineTotal: orderItems.lineTotal,
+      })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, order.id));
+
+    // Real, discount-adjusted GST for every line on this order — the same
+    // calculation buildInvoiceData used to generate the original tax
+    // invoice, so whatever this credit note reverses is bounded by what was
+    // genuinely charged.
+    const gst = calculateOrderGst(
+      allItems.map((i) => ({
+        unitPrice: i.unitPrice,
+        quantity: i.quantity,
+        lineTotal: i.lineTotal,
+      })),
+      order.discount,
+      interState,
+    );
+
+    const [matchedReturn] = await tx
+      .select({ returnId: returns.id, orderItemId: returns.orderItemId })
+      .from(returns)
+      .where(eq(returns.razorpayRefundId, params.razorpayRefundId))
+      .limit(1);
+
+    const matchedIndex = matchedReturn
+      ? allItems.findIndex((i) => i.id === matchedReturn.orderItemId)
+      : -1;
+
+    let taxableValue: number;
+    let cgst: number;
+    let sgst: number;
+    let igst: number;
+    let rateBreakdown: {
+      ratePercent: number;
+      taxableAmount: number;
+      cgst: number;
+      sgst: number;
+      igst: number;
+    }[];
+    let needsReview: boolean;
+    let returnId: string | null;
+
+    if (matchedReturn && matchedIndex >= 0) {
+      const matchedLine = gst.lines[matchedIndex];
+
+      const itemFraction =
+        matchedLine.lineTotal > 0
+          ? Math.min(1, params.amountRefundedPaise / matchedLine.lineTotal)
+          : 0;
+
+      const scaledTaxable = Math.round(matchedLine.taxableAmount * itemFraction);
+      const scaledCgst = Math.round(matchedLine.cgst * itemFraction);
+      const scaledSgst = Math.round(matchedLine.sgst * itemFraction);
+      const scaledIgst = Math.round(matchedLine.igst * itemFraction);
+
+      // Ideal total is the item's own real discounted value (capped at the
+      // refunded amount, for a genuinely partial refund) — NOT the full
+      // refunded amount when that exceeds what was actually taxed. The
+      // raw-vs-discounted gap markReturnQc can create is a legitimate
+      // over-refund to the customer, not a GST reversal, so it's excluded
+      // here rather than force-reconciled away like the fallback path does.
+      const idealTotal = Math.min(
+        params.amountRefundedPaise,
+        matchedLine.discountedLineTotal,
+      );
+      const roundedTotal = scaledTaxable + scaledCgst + scaledSgst + scaledIgst;
+      const drift = idealTotal - roundedTotal;
+
+      taxableValue = scaledTaxable + drift;
+      cgst = scaledCgst;
+      sgst = scaledSgst;
+      igst = scaledIgst;
+      rateBreakdown = [
+        {
+          ratePercent: matchedLine.gstRatePercent,
+          taxableAmount: taxableValue,
+          cgst,
+          sgst,
+          igst,
+        },
+      ];
+      needsReview = false;
+      returnId = matchedReturn.returnId;
+    } else {
+      const totalInvoicedInclGst = gst.lines.reduce(
+        (sum, l) => sum + l.discountedLineTotal,
+        0,
+      );
+      const scale =
+        totalInvoicedInclGst > 0
+          ? params.amountRefundedPaise / totalInvoicedInclGst
+          : 0;
+
+      const scaledBreakdown = gst.rateBreakdown.map((b) => ({
+        ratePercent: b.ratePercent,
+        taxableAmount: Math.round(b.taxableAmount * scale),
+        cgst: Math.round(b.cgst * scale),
+        sgst: Math.round(b.sgst * scale),
+        igst: Math.round(b.igst * scale),
+      }));
+
+      const roundedTotal = scaledBreakdown.reduce(
+        (s, b) => s + b.taxableAmount + b.cgst + b.sgst + b.igst,
+        0,
+      );
+      const drift = params.amountRefundedPaise - roundedTotal;
+      if (drift !== 0 && scaledBreakdown.length > 0) {
+        scaledBreakdown[scaledBreakdown.length - 1].taxableAmount += drift;
+      }
+
+      rateBreakdown = scaledBreakdown;
+      taxableValue = rateBreakdown.reduce((s, b) => s + b.taxableAmount, 0);
+      cgst = rateBreakdown.reduce((s, b) => s + b.cgst, 0);
+      sgst = rateBreakdown.reduce((s, b) => s + b.sgst, 0);
+      igst = rateBreakdown.reduce((s, b) => s + b.igst, 0);
+      needsReview = true;
+      returnId = null;
+    }
+
+    // Sequence number generated inside this same INSERT's values, nothing
+    // after it that can still fail — mirrors markOrderPaid's invoice-number
+    // discipline (see its docstring) so a losing/failed write never burns a
+    // permanent gap in the credit-note sequence.
+    await tx
+      .insert(creditNotes)
+      .values({
+        orderId: order.id,
+        returnId,
+        razorpayRefundId: params.razorpayRefundId,
+        creditNoteNumber: sql`${creditNotePrefix} || lpad(nextval('${sql.raw(creditNoteSeqName)}')::text, 5, '0')`,
+        refundedAmount: params.amountRefundedPaise,
+        taxableValue,
+        cgst,
+        sgst,
+        igst,
+        rateBreakdown,
+        needsReview,
+      })
+      .onConflictDoNothing({ target: creditNotes.razorpayRefundId });
   });
 }
 

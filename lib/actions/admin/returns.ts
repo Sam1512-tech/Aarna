@@ -288,6 +288,22 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
   // locks the joined order/order-item rows too (FOR UPDATE with a join
   // locks every joined table by default) — acceptable for a low-frequency
   // admin action, not a customer-facing hot path.
+  //
+  // That join-wide lock has a second, load-bearing effect this comment used
+  // to not mention: it also locks the `orders` row for this whole
+  // transaction, including across the Razorpay `createRefund()` call below.
+  // recordRefund (lib/db/queries/orders.ts), triggered by Razorpay's
+  // refund.processed webhook, takes its own `FOR UPDATE` on that same order
+  // row as its very first statement — so it necessarily queues behind this
+  // transaction and can only start once the `returns.razorpayRefundId` write
+  // below has committed. That's what guarantees recordRefund's credit-note
+  // "precise match" query (matching a `returns` row by razorpayRefundId)
+  // never runs before this write lands. Narrowing this lock (e.g.
+  // `.for("update", { of: [returns] })`, a natural-looking optimization to
+  // stop blocking unrelated order reads while waiting on Razorpay) would
+  // silently remove that guarantee — recordRefund would then fall into its
+  // (non-catastrophic, needsReview-flagged) fallback path instead, but only
+  // sometimes and without any signal that the ordering assumption broke.
   const { row, updated, finalRefund } = await db.transaction(async (tx) => {
     const [r] = await tx
       .select({

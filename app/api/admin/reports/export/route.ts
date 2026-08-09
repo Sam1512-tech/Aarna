@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/actions/auth";
 import {
   getGeneralSalesReportRows,
+  getGstCreditNotesRegisterRows,
   getGstSalesRegisterRows,
 } from "@/lib/actions/admin/reports";
 import { resolveReportDateRange, type ReportPreset } from "@/lib/reports/date-range";
@@ -13,10 +14,10 @@ import { ActionError } from "@/lib/action-error";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type ReportType = "general" | "gst";
+type ReportType = "general" | "gst" | "credit_notes";
 type ReportFormat = "csv" | "xlsx" | "pdf";
 
-const REPORT_TYPES: ReportType[] = ["general", "gst"];
+const REPORT_TYPES: ReportType[] = ["general", "gst", "credit_notes"];
 const REPORT_FORMATS: ReportFormat[] = ["csv", "xlsx", "pdf"];
 const PRESETS: ReportPreset[] = [
   "this_month",
@@ -108,6 +109,36 @@ const GST_COL_WIDTHS = [
   1.0, // Payment Status
 ];
 
+const CREDIT_NOTE_HEADERS = [
+  "Credit Note Number",
+  "Credit Note Date",
+  "Against Invoice",
+  "Order Number",
+  "Customer",
+  "GST Rate (%)",
+  "Taxable Value (Rs.)",
+  "CGST (Rs.)",
+  "SGST (Rs.)",
+  "IGST (Rs.)",
+  "Total Credit (Rs.)",
+  "Needs Review",
+];
+
+const CREDIT_NOTE_COL_WIDTHS = [
+  1.5, // Credit Note Number
+  1.2, // Credit Note Date
+  1.4, // Against Invoice
+  1.3, // Order Number
+  1.7, // Customer
+  0.8, // GST Rate (%)
+  1.2, // Taxable Value (Rs.)
+  0.9, // CGST (Rs.)
+  0.9, // SGST (Rs.)
+  0.9, // IGST (Rs.)
+  1.2, // Total Credit (Rs.)
+  1.0, // Needs Review
+];
+
 function money(n: number): string {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -155,7 +186,12 @@ export async function GET(req: Request) {
     );
   }
 
-  const title = type === "gst" ? "GST Sales Register" : "Sales Report";
+  const title =
+    type === "gst"
+      ? "GST Sales Register"
+      : type === "credit_notes"
+        ? "GST Credit Notes Register"
+        : "Sales Report";
 
   let headers: string[];
   let columnWidths: number[];
@@ -189,6 +225,37 @@ export async function GET(req: Request) {
           data.reduce((s, r) => s + f(r), 0);
         totalsRow = [
           "", "", "", "", "", "", "", "", "TOTAL",
+          money(sum((r) => r.taxableValue)),
+          money(sum((r) => r.cgst)),
+          money(sum((r) => r.sgst)),
+          money(sum((r) => r.igst)),
+          money(sum((r) => r.total)),
+          "",
+        ];
+      }
+    } else if (type === "credit_notes") {
+      const data = await getGstCreditNotesRegisterRows(range.from, range.to);
+      headers = CREDIT_NOTE_HEADERS;
+      columnWidths = CREDIT_NOTE_COL_WIDTHS;
+      rows = data.map((r) => [
+        r.creditNoteNumber,
+        r.creditNoteDate,
+        r.originalInvoiceNumber,
+        r.orderNumber,
+        r.customerName,
+        r.gstRatePercent,
+        money(r.taxableValue),
+        money(r.cgst),
+        money(r.sgst),
+        money(r.igst),
+        money(r.total),
+        r.needsReview,
+      ]);
+      if (data.length > 0) {
+        const sum = (f: (r: (typeof data)[number]) => number) =>
+          data.reduce((s, r) => s + f(r), 0);
+        totalsRow = [
+          "", "", "", "", "", "TOTAL",
           money(sum((r) => r.taxableValue)),
           money(sum((r) => r.cgst)),
           money(sum((r) => r.sgst)),
