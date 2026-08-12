@@ -10,6 +10,7 @@ import { Pagination } from "@/components/admin/pagination";
 import { ReturnStatusSelect } from "@/components/admin/return-status-select";
 import { ReturnPhotoGrid } from "@/components/admin/return-photo-grid";
 import { ReturnQcTrigger } from "@/components/admin/return-qc-trigger";
+import { ShipExchangeTrigger } from "@/components/admin/ship-exchange-trigger";
 import { REJECT_REASONS } from "@/lib/returns/reject-reasons";
 import { getAdminReturns } from "@/lib/actions/admin/returns";
 import { formatINR } from "@/lib/utils";
@@ -23,6 +24,8 @@ const STATUSES = [
   "picked",
   "received",
   "refunded",
+  "exchange_shipped",
+  "exchange_delivered",
 ] as const;
 type ReturnStatus = (typeof STATUSES)[number];
 
@@ -322,6 +325,31 @@ export default async function AdminReturnsPage({
                       refundAmount={r.refundAmount ?? r.lineTotal}
                       type={r.type as "return" | "exchange"}
                     />
+                  ) : null}
+
+                  {r.type === "exchange" && r.status === "refunded" ? (
+                    <ShipExchangeTrigger returnId={r.id} />
+                  ) : null}
+
+                  {r.outboundAwb && r.outboundAwb !== "PENDING" ? (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cocoa/12 bg-cocoa/4 px-4 py-3">
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+                          Replacement {r.status === "exchange_delivered" ? "delivered" : "shipped"}
+                        </p>
+                        <p className="mt-1 font-mono text-xs tabular-nums text-charcoal/70">
+                          AWB {r.outboundAwb}
+                        </p>
+                      </div>
+                      <Link
+                        href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(r.outboundAwb)}`}
+                        target="_blank"
+                        rel="noopener"
+                        className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
+                      >
+                        Track shipment
+                      </Link>
+                    </div>
                   ) : null}
 
                   {/* Meta footer */}

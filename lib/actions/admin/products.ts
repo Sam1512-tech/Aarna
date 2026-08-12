@@ -17,6 +17,7 @@ const {
   categories,
   cartItems,
   orderItems,
+  returns,
 } = schema;
 
 /**
@@ -40,6 +41,39 @@ async function clearCartsAndGuardOrders(variantIds: string[]): Promise<void> {
   }
 
   await db.delete(cartItems).where(inArray(cartItems.variantId, variantIds));
+}
+
+/**
+ * Throws if any variant is still the chosen replacement (desiredVariantId)
+ * on a live, not-yet-shipped exchange. returns.desiredVariantId has ON
+ * DELETE SET NULL (schema.ts), so a delete would otherwise succeed silently
+ * and null it out from under createExchangeShipment (lib/actions/admin/
+ * returns.ts) — an adversarial review on that feature found a real,
+ * concurrent-delete race producing an outbound shipment for a variant whose
+ * own stock never gets decremented, with no error surfaced anywhere.
+ * "exchange_shipped"/"exchange_delivered"/"rejected" are excluded — those
+ * exchanges are already resolved and don't need this variant anymore.
+ */
+async function guardDesiredVariantReferences(variantIds: string[]): Promise<void> {
+  if (variantIds.length === 0) return;
+
+  const referenced = await db
+    .select({ id: returns.id })
+    .from(returns)
+    .where(
+      and(
+        inArray(returns.desiredVariantId, variantIds),
+        ne(returns.status, "exchange_shipped"),
+        ne(returns.status, "exchange_delivered"),
+        ne(returns.status, "rejected"),
+      ),
+    )
+    .limit(1);
+  if (referenced.length > 0) {
+    throw new ActionError(
+      "Can't delete — a customer's pending exchange is waiting to receive this exact size/colour. Resolve or reject that exchange first.",
+    );
+  }
 }
 
 type ProductStatus = "draft" | "active" | "archived";
@@ -505,7 +539,9 @@ export async function deleteProduct(id: string): Promise<{ ok: true }> {
     .select({ id: productVariants.id })
     .from(productVariants)
     .where(eq(productVariants.productId, id));
-  await clearCartsAndGuardOrders(variants.map((v) => v.id));
+  const variantIds = variants.map((v) => v.id);
+  await clearCartsAndGuardOrders(variantIds);
+  await guardDesiredVariantReferences(variantIds);
 
   // Variants + images cascade-delete via FK ON DELETE CASCADE in schema
   await db.delete(products).where(eq(products.id, id));
@@ -713,6 +749,7 @@ export async function deleteVariant(variantId: string): Promise<{ ok: true }> {
   if (!existing[0]) throw new ActionError("Variant not found");
 
   await clearCartsAndGuardOrders([variantId]);
+  await guardDesiredVariantReferences([variantId]);
 
   await db.delete(productVariants).where(eq(productVariants.id, variantId));
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { getCurrentCustomer } from "@/lib/actions/auth";
 import type { AddressInput } from "@/lib/types";
@@ -496,6 +496,13 @@ export async function getMyReturns() {
       rejectionReason: returns.rejectionReason,
       adminNote: returns.adminNote,
       qcOutcome: returns.qcOutcome,
+      // Outbound replacement shipment AWB — null until an admin ships it.
+      // Filtered here, at the query itself (not left to callers to
+      // remember), so the internal "PENDING" claim sentinel
+      // (createExchangeShipment) can never leak out as a fake tracking
+      // number — an adversarial review found this filtering previously
+      // lived only in the one page that happened to consume it.
+      outboundAwb: sql<string | null>`CASE WHEN ${returns.outboundAwb} = 'PENDING' THEN NULL ELSE ${returns.outboundAwb} END`,
     })
     .from(returns)
     .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
