@@ -17,7 +17,7 @@ import {
   type FulfillmentStatus,
 } from "@/lib/orders/fulfillment-transitions";
 
-const { orders, orderItems, productImages, productVariants } = schema;
+const { orders, orderItems, productImages, productVariants, orderRefundEvents } = schema;
 
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded" | "partially_refunded";
 
@@ -808,6 +808,7 @@ export async function getOrderStats(daysBack = 30) {
 
   const rows = await db
     .select({
+      id: orders.id,
       fulfillmentStatus: orders.fulfillmentStatus,
       paymentStatus: orders.paymentStatus,
       total: orders.total,
@@ -825,22 +826,46 @@ export async function getOrderStats(daysBack = 30) {
     cancelled: 0,
     returned: 0,
   };
-  let revenue = 0;
+  // Gross captured — every order that ever had a real Razorpay capture
+  // (payment_status "paid", "refunded", AND "partially_refunded" all imply
+  // that: only markOrderPaid ever sets any of them, and only from a real
+  // payment.captured webhook). Previously this only summed "paid" orders,
+  // which zeroed out a refund-touched order's ENTIRE value — including the
+  // portion the customer never got back — understating real kept revenue on
+  // every partially-refunded order, not just the refunded slice of it.
+  let grossCaptured = 0;
   let paidCount = 0;
+  const capturedOrderIds: string[] = [];
 
   for (const row of rows) {
     counts[row.fulfillmentStatus] += 1;
-    if (row.paymentStatus === "paid") {
-      revenue += row.total;
-      paidCount += 1;
+    if (row.paymentStatus === "paid") paidCount += 1;
+    if (["paid", "refunded", "partially_refunded"].includes(row.paymentStatus)) {
+      grossCaptured += row.total;
+      capturedOrderIds.push(row.id);
     }
+  }
+
+  // Subtract only what was actually refunded, joined to the SAME order
+  // cohort above (not re-filtered by the refund event's own date) — a
+  // refund can only happen after its order exists, so every refund on an
+  // order in this window is itself within the window too; querying by
+  // order id instead of independently re-filtering by refund date avoids a
+  // latent boundary mismatch between the two date columns.
+  let totalRefunded = 0;
+  if (capturedOrderIds.length > 0) {
+    const refundRows = await db
+      .select({ amountPaise: orderRefundEvents.amountPaise })
+      .from(orderRefundEvents)
+      .where(inArray(orderRefundEvents.orderId, capturedOrderIds));
+    totalRefunded = refundRows.reduce((sum, r) => sum + r.amountPaise, 0);
   }
 
   return {
     daysBack,
     totalOrders: rows.length,
     paidOrders: paidCount,
-    totalRevenue: revenue,
+    totalRevenue: grossCaptured - totalRefunded,
     byFulfillmentStatus: counts,
   };
 }
