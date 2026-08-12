@@ -142,12 +142,20 @@ export async function createShipment(
   // Delhivery's bulk create endpoint can return HTTP 200 while still
   // reporting a per-shipment failure inside the response body (bad pincode,
   // serviceability issue, etc.) — an HTTP-level success here does NOT mean
-  // the shipment was actually accepted. requestReversePickup below already
-  // validates this correctly for the reverse flow; this forward path
-  // previously didn't, so a rejected shipment would silently look like a
-  // success to the caller, which saves a fake AWB and marks the order
-  // "shipped" with no real shipment behind it.
+  // the shipment was actually accepted. Checking only `pkg.waybill`'s
+  // presence isn't enough either: confirmed live (Aug 12, investigating the
+  // reverse-pickup path below) that Delhivery ECHOES BACK a `waybill` field
+  // even on a genuine per-shipment failure (`status: "Fail"`,
+  // `success: false`) — that exact response shape is what let
+  // requestReversePickup silently save 5 real, completely fake AWBs before
+  // this was caught. This forward path uses the identical response shape
+  // and the identical `!pkg?.waybill`-only check, so it's exposed to the
+  // same risk even though no failure has surfaced here yet in practice —
+  // hardened defensively rather than waiting for it to actually happen on
+  // a real order.
   const result = await delhiveryFetch<{
+    success?: boolean;
+    rmk?: string;
     packages?: Array<{ waybill?: string; status?: string; remarks?: string[] }>;
   }>(`/api/cmu/create.json`, {
     method: "POST",
@@ -156,13 +164,22 @@ export async function createShipment(
   });
 
   const pkg = result.packages?.[0];
-  if (!pkg?.waybill) {
+  const failed =
+    !pkg?.waybill ||
+    result.success === false ||
+    (typeof pkg.status === "string" && pkg.status.toLowerCase() === "fail");
+  if (failed) {
     throw new Error(
-      `Delhivery shipment creation failed: ${pkg?.remarks?.join(", ") ?? "no waybill returned"}`,
+      `Delhivery shipment creation failed: ${
+        pkg?.remarks?.join(", ") || result.rmk || "no waybill returned"
+      }`,
     );
   }
 
-  return { waybill: pkg.waybill };
+  // `failed` (including the `!pkg?.waybill` check) already threw above, so
+  // pkg.waybill is a real string here — the assertion is just TS not
+  // following the narrowing through a separately-computed boolean.
+  return { waybill: pkg.waybill! };
 }
 
 // ── Tracking ───────────────────────────────────────────────────────────────
@@ -207,9 +224,17 @@ export interface ReversePickupInput {
  * (the customer), and `return_*` describes where it's going TO (the
  * studio) — that's what tells Delhivery this is a return, not a delivery.
  *
- * Best-effort against Delhivery's documented RVP shape; verify against the
- * Delhivery panel/support on the first real pickup before relying on it —
- * same caveat as createShipment's per-item HSN TODO above.
+ * Confirmed live (Aug 12) against a real, currently-rejected pickup for a
+ * real order: Delhivery's /api/cmu/create.json ECHOES BACK a `waybill`
+ * field even when the package genuinely failed (`status: "Fail"`,
+ * `success: false`, a real rejection in `remarks`) — including when no
+ * waybill was even submitted in the request. A truthy `pkg.waybill` alone
+ * is NOT proof of success; every reverse pickup this function ever booked
+ * before this fix (5 real returns, going back to Jul 30) turned out to be
+ * fake — Delhivery's own tracking API has never heard of any of those
+ * AWBs. `status`/`success` must be checked, not just waybill presence —
+ * the same class of bug createShipment's own comment already flags for the
+ * forward-shipment path.
  */
 export async function requestReversePickup(input: ReversePickupInput) {
   const pickupName = process.env.DELHIVERY_PICKUP_NAME;
@@ -249,6 +274,8 @@ export async function requestReversePickup(input: ReversePickupInput) {
   });
 
   const result = await delhiveryFetch<{
+    success?: boolean;
+    rmk?: string;
     packages?: Array<{ waybill?: string; status?: string; remarks?: string[] }>;
   }>(`/api/cmu/create.json`, {
     method: "POST",
@@ -256,10 +283,21 @@ export async function requestReversePickup(input: ReversePickupInput) {
     body: body.toString(),
   });
 
+  // Checked against the confirmed failure signal (status "Fail", top-level
+  // success:false) rather than requiring an exact success string — the
+  // live-observed failure response is what's proven, and rejecting on a
+  // known-bad signal is safer than assuming the exact spelling of a
+  // known-good one and risking false negatives on a genuine success.
   const pkg = result.packages?.[0];
-  if (!pkg?.waybill) {
+  const failed =
+    !pkg?.waybill ||
+    result.success === false ||
+    (typeof pkg.status === "string" && pkg.status.toLowerCase() === "fail");
+  if (failed) {
     throw new Error(
-      `Delhivery reverse pickup failed: ${pkg?.remarks?.join(", ") ?? "no waybill returned"}`,
+      `Delhivery reverse pickup failed: ${
+        pkg?.remarks?.join(", ") || result.rmk || "no waybill returned"
+      }`,
     );
   }
 
