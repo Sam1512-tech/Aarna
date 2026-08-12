@@ -25,6 +25,7 @@ export default async function AccountReturnsPage() {
         status: r.status,
         refundAmount: r.refundAmount,
         createdAt: r.createdAt,
+        outboundAwb: r.outboundAwb,
       }))}
       eligibleItems={eligibleItems}
     />

@@ -17,10 +17,12 @@ export interface ReturnQcPanelProps {
 
 /**
  * Rendered in the admin row when a return reaches status='received'. Admin
- * inspects the item and either passes (triggers refund / outbound swap) or
- * fails (with an optional partial refund %).
+ * inspects the item and either passes (triggers a refund for a return, or
+ * approves the swap for an exchange — a ShipExchangeTrigger then appears to
+ * actually book the outbound replacement shipment) or fails (with an
+ * optional partial refund %).
  *
- * Wires to `markReturnQc()` in Sam's PR 2.
+ * Wires to `markReturnQc()`.
  */
 export function ReturnQcPanel({
   refundAmount,
@@ -56,7 +58,7 @@ export function ReturnQcPanel({
   }
 
   const passLabel =
-    type === "exchange" ? "Ship the swap" : `Refund ${formatINR(refundAmount)}`;
+    type === "exchange" ? "Approve the swap" : `Refund ${formatINR(refundAmount)}`;
 
   return (
     <div className="mt-4 rounded-xl border border-cocoa/20 bg-cocoa/6 px-4 py-4 md:px-5 md:py-5">

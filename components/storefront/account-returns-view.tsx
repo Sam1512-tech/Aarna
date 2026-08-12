@@ -20,6 +20,8 @@ export interface ReturnRow {
   status: string;
   refundAmount: number | null;
   createdAt: Date | string;
+  /** Outbound replacement shipment AWB — null until it's actually shipped. */
+  outboundAwb: string | null;
 }
 
 export interface EligibleItem {
@@ -41,18 +43,29 @@ interface AccountReturnsViewProps {
 type Tab = "all" | "returns" | "exchanges";
 type Type = "return" | "exchange";
 
-// Same enum keys backend uses in lib/db/schema.ts.
-// Label for "refunded" adapts by type — a completed exchange means the swap
-// has been dispatched, not a money refund.
-const STEPS = [
+// Same enum keys backend uses in lib/db/schema.ts. Returns and exchanges
+// diverge after "received" — a return's last real milestone is the refund;
+// an exchange's is the replacement actually arriving, two steps later
+// (shipped, delivered), with "refunded" (QC passed, not yet shipped) as an
+// in-between step exchanges have and returns don't.
+const RETURN_STEPS = ["requested", "approved", "picked", "received", "refunded"] as const;
+const EXCHANGE_STEPS = [
   "requested",
   "approved",
   "picked",
   "received",
   "refunded",
+  "exchange_shipped",
+  "exchange_delivered",
 ] as const;
 
-function stepLabel(step: (typeof STEPS)[number], type: Type): string {
+type Step = (typeof EXCHANGE_STEPS)[number];
+
+function stepsFor(type: Type): readonly Step[] {
+  return type === "exchange" ? EXCHANGE_STEPS : RETURN_STEPS;
+}
+
+function stepLabel(step: Step, type: Type): string {
   switch (step) {
     case "requested":
       return "requested";
@@ -63,7 +76,11 @@ function stepLabel(step: (typeof STEPS)[number], type: Type): string {
     case "received":
       return "received";
     case "refunded":
-      return type === "exchange" ? "swap on the way" : "refunded";
+      return type === "exchange" ? "swap approved" : "refunded";
+    case "exchange_shipped":
+      return "shipped";
+    case "exchange_delivered":
+      return "delivered";
   }
 }
 
@@ -126,6 +143,7 @@ export function AccountReturnsView({
         status: row.status,
         refundAmount: row.refundAmount,
         createdAt: row.createdAt,
+        outboundAwb: null,
       },
       ...prev,
     ]);
@@ -266,7 +284,8 @@ function RequestCard({
   type: Type;
 }) {
   const isRejected = row.status === "rejected";
-  const currentIdx = STEPS.findIndex((s) => s === row.status);
+  const steps = stepsFor(type);
+  const currentIdx = steps.findIndex((s) => s === row.status);
   const displayReason = row.reason;
 
   return (
@@ -333,7 +352,7 @@ function RequestCard({
           </p>
         </div>
       ) : (
-        <Timeline currentIdx={currentIdx} type={type} />
+        <Timeline currentIdx={currentIdx} type={type} steps={steps} />
       )}
 
       {type === "return" && row.status === "refunded" && row.refundAmount ? (
@@ -345,20 +364,63 @@ function RequestCard({
 
       {type === "exchange" && row.status === "refunded" ? (
         <p className="mt-4 text-xs leading-6 text-charcoal/55">
-          Your swap is on the way — tracking will appear once dispatched.
+          Your replacement is being prepared — you&apos;ll see tracking here
+          once it ships.
         </p>
+      ) : null}
+
+      {type === "exchange" && row.outboundAwb && row.status === "exchange_shipped" ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cocoa/10 bg-cocoa/4 px-4 py-3">
+          <p className="text-xs leading-6 text-charcoal/55">
+            Your replacement has shipped.
+          </p>
+          <a
+            href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(row.outboundAwb)}`}
+            target="_blank"
+            rel="noopener"
+            className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
+          >
+            Track shipment
+          </a>
+        </div>
+      ) : null}
+
+      {type === "exchange" && row.status === "exchange_delivered" ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cocoa/10 bg-cocoa/4 px-4 py-3">
+          <p className="text-xs leading-6 text-charcoal/55">
+            Your replacement was delivered.
+          </p>
+          {row.outboundAwb ? (
+            <a
+              href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(row.outboundAwb)}`}
+              target="_blank"
+              rel="noopener"
+              className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
+            >
+              View tracking
+            </a>
+          ) : null}
+        </div>
       ) : null}
     </li>
   );
 }
 
-function Timeline({ currentIdx, type }: { currentIdx: number; type: Type }) {
+function Timeline({
+  currentIdx,
+  type,
+  steps,
+}: {
+  currentIdx: number;
+  type: Type;
+  steps: readonly Step[];
+}) {
   return (
     <ol
       aria-label="Status timeline"
       className="mt-4 flex flex-col gap-3 md:flex-row md:items-start md:gap-0"
     >
-      {STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const done = i < currentIdx;
         const active = i === currentIdx;
         return (
@@ -390,7 +452,7 @@ function Timeline({ currentIdx, type }: { currentIdx: number; type: Type }) {
               {stepLabel(step, type)}
             </span>
 
-            {i < STEPS.length - 1 ? (
+            {i < steps.length - 1 ? (
               <span
                 aria-hidden="true"
                 className={`absolute left-3 top-6 h-6 w-px md:left-auto md:top-3 md:h-px md:w-full md:translate-x-1/2 ${

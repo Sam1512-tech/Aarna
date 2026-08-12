@@ -14,14 +14,22 @@ const STATUSES = [
   "picked",
   "received",
   "refunded",
+  "exchange_shipped",
+  "exchange_delivered",
 ] as const;
 type ReturnStatus = (typeof STATUSES)[number];
 
 // "refunded" is only reachable through ReturnQcPanel → markReturnQc, which
-// actually issues the Razorpay refund. It's excluded from the manual
-// dropdown so an admin can't flip a return to "refunded" without money
-// actually moving.
-const SELECTABLE_STATUSES = STATUSES.filter((s) => s !== "refunded");
+// actually issues the Razorpay refund (or, for an exchange, approves the
+// swap). "exchange_shipped"/"exchange_delivered" are only reachable through
+// createExchangeShipment and the Delhivery status sync respectively. All
+// three are excluded from the manual dropdown so an admin can't flip a
+// return into a state that claims money moved or a real shipment exists
+// when neither actually happened.
+const SELECTABLE_STATUSES = STATUSES.filter(
+  (s) => s !== "refunded" && s !== "exchange_shipped" && s !== "exchange_delivered",
+);
+type SelectableStatus = (typeof SELECTABLE_STATUSES)[number];
 
 const TONE_CLASS: Record<ReturnStatus, string> = {
   requested: "border-cocoa/22 bg-cream text-charcoal/70",
@@ -30,6 +38,8 @@ const TONE_CLASS: Record<ReturnStatus, string> = {
   picked: "border-cocoa/25 bg-cocoa/8 text-cocoa",
   received: "border-cocoa/25 bg-cocoa/8 text-cocoa",
   refunded: "border-cocoa/30 bg-cocoa/12 text-cocoa",
+  exchange_shipped: "border-cocoa/30 bg-cocoa/12 text-cocoa",
+  exchange_delivered: "border-maroon/25 bg-maroon/6 text-maroon",
 };
 
 const LABEL: Record<ReturnStatus, string> = {
@@ -39,6 +49,8 @@ const LABEL: Record<ReturnStatus, string> = {
   picked: "picked up",
   received: "received",
   refunded: "refunded",
+  exchange_shipped: "swap shipped",
+  exchange_delivered: "swap delivered",
 };
 
 /**
@@ -70,7 +82,7 @@ export function ReturnStatusSelect({
     setCurrent(status);
   }
 
-  function commitStatus(next: ReturnStatus) {
+  function commitStatus(next: SelectableStatus) {
     const previous = current;
     setCurrent(next);
     setError(null);
@@ -85,7 +97,7 @@ export function ReturnStatusSelect({
     });
   }
 
-  function handleChange(next: ReturnStatus) {
+  function handleChange(next: SelectableStatus) {
     if (next === current) return;
     if (next === "rejected") {
       setShowReject(true);
@@ -108,10 +120,17 @@ export function ReturnStatusSelect({
     }
   }
 
-  // Terminal states — "refunded" is only reachable via ReturnQcPanel, and a
-  // rejected request isn't reopened from here. Show a fixed pill instead of
-  // a dropdown that implies more transitions are possible.
-  if (current === "refunded" || current === "rejected") {
+  // Terminal (or automation-only) states — "refunded" is only reachable via
+  // ReturnQcPanel, "exchange_shipped"/"exchange_delivered" only via
+  // createExchangeShipment and the Delhivery status sync, and a rejected
+  // request isn't reopened from here. Show a fixed pill instead of a
+  // dropdown that implies more transitions are possible.
+  if (
+    current === "refunded" ||
+    current === "rejected" ||
+    current === "exchange_shipped" ||
+    current === "exchange_delivered"
+  ) {
     return (
       <span
         className={`rounded-full border px-3 py-1 text-[10px] font-medium uppercase tracking-[0.16em] ${TONE_CLASS[current]}`}
@@ -126,7 +145,7 @@ export function ReturnStatusSelect({
       <select
         value={current}
         disabled={pending}
-        onChange={(e) => handleChange(e.target.value as ReturnStatus)}
+        onChange={(e) => handleChange(e.target.value as SelectableStatus)}
         aria-label="Return status"
         className={`rounded-full border px-3 py-1 text-base font-medium uppercase tracking-[0.16em] outline-none transition duration-300 focus-visible:ring-2 focus-visible:ring-cocoa/40 disabled:opacity-50 sm:text-[10px] ${TONE_CLASS[current]}`}
       >

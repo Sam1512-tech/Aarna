@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { applyDelhiveryStatus } from "@/lib/db/queries/orders";
+import { applyExchangeShipmentStatus } from "@/lib/db/queries/returns";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,13 +66,43 @@ export async function POST(req: Request) {
   // "delivered" WhatsApp send, and the RTO admin alert) — it's the same
   // logic the daily reconciliation sweep uses, so a shipment's status can
   // never end up different depending on which path last touched it.
-  const result = await applyDelhiveryStatus(awb, statusLabel, statusType);
+  //
+  // Run both lookups in parallel rather than trying the order match first
+  // and only falling back to the exchange match on a miss — AWBs are
+  // Delhivery's own unique identifiers, so a push matches at most one of
+  // these two tables, never both, which means running them sequentially
+  // means every exchange-shipment push pays for a guaranteed-miss order
+  // lookup first. Delhivery requires a sub-500ms P99 response (see
+  // applyDelhiveryStatus's own comment) — this keeps both lookups inside
+  // one round trip's worth of latency instead of stacking them.
+  const [result, exchangeResult] = await Promise.all([
+    applyDelhiveryStatus(awb, statusLabel, statusType),
+    applyExchangeShipmentStatus(awb, statusLabel, statusType),
+  ]);
+
   if (result.matched && !result.applied) {
     console.warn(
       "[delhivery webhook] ignored out-of-order/invalid transition:",
       awb,
       result.orderNumber,
     );
+  }
+  if (exchangeResult.matched && !exchangeResult.applied) {
+    console.warn(
+      "[delhivery webhook] ignored out-of-order/invalid exchange-shipment transition:",
+      awb,
+      exchangeResult.returnId,
+    );
+  }
+  if (!result.matched && !exchangeResult.matched) {
+    // Doesn't necessarily mean anything's wrong — Delhivery pushes status
+    // for reverse pickups too (returns.delhiveryReversePickupId), which
+    // nothing currently tracks — but a real, valid push vanishing with zero
+    // trace is exactly the failure class this whole status-sync feature
+    // exists to catch for orders (see the AARNA-001023 incident in
+    // CLAUDE.md). Logged, not alerted — this fires routinely for genuinely
+    // unrelated/test pushes and would be noisy as an admin alert.
+    console.warn("[delhivery webhook] AWB matched no order or exchange shipment:", awb, statusLabel);
   }
 
   return NextResponse.json({ ok: true });
