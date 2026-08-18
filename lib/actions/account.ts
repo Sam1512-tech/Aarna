@@ -503,6 +503,10 @@ export async function getMyReturns() {
       // number — an adversarial review found this filtering previously
       // lived only in the one page that happened to consume it.
       outboundAwb: sql<string | null>`CASE WHEN ${returns.outboundAwb} = 'PENDING' THEN NULL ELSE ${returns.outboundAwb} END`,
+      // Reverse pickup AWB (customer -> studio leg) — unlike outboundAwb,
+      // this column is only ever written a real waybill directly (no
+      // "PENDING" claim sentinel exists for it), so no filtering needed.
+      reversePickupAwb: returns.delhiveryReversePickupId,
     })
     .from(returns)
     .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
