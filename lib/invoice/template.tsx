@@ -53,6 +53,14 @@ export interface InvoiceData {
   subtotal: number;
   discount: number;
   shippingFee: number;
+  /** Paise, non-taxable (same treatment as shippingFee) — 0 for a prepaid
+   *  order. See lib/checkout/cod.ts. */
+  codFee: number;
+  paymentMethod: "prepaid" | "cod";
+  /** Raw order.paymentStatus — the Payment box renders off this directly so
+   *  a COD invoice viewed before cash is collected doesn't lie and say
+   *  "Paid" (it can legitimately be viewed while still cod_pending). */
+  paymentStatus: string;
   isInterState: boolean;
   // One entry per distinct GST rate actually present in this order — a
   // single invoice can legitimately mix 5% and 18% items, and each rate's
@@ -181,6 +189,21 @@ export function amountInWords(paise: number): string {
   return result + " Only";
 }
 
+function paymentStatusLabel(status: string): string {
+  switch (status) {
+    case "paid":
+      return "Paid";
+    case "cod_pending":
+      return "Pending — due on delivery";
+    case "refunded":
+      return "Refunded";
+    case "partially_refunded":
+      return "Partially Refunded";
+    default:
+      return status.replaceAll("_", " ");
+  }
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function InvoiceDocument({ data }: { data: InvoiceData }) {
@@ -210,7 +233,8 @@ export function InvoiceBatchDocument({ invoices }: { invoices: InvoiceData[] }) 
 function InvoicePage({ data }: { data: InvoiceData }) {
   const {
     invoiceNumber, invoiceDate, orderNumber, orderDate,
-    customer, items, subtotal, discount, shippingFee,
+    customer, items, subtotal, discount, shippingFee, codFee,
+    paymentMethod, paymentStatus,
     isInterState, rateBreakdown, total,
   } = data;
 
@@ -260,8 +284,10 @@ function InvoicePage({ data }: { data: InvoiceData }) {
 
         <View style={s.infoBox}>
           <Text style={s.infoLabel}>Payment</Text>
-          <Text style={s.infoText}>Method: Online (Razorpay)</Text>
-          <Text style={s.infoText}>Status: Paid</Text>
+          <Text style={s.infoText}>
+            Method: {paymentMethod === "cod" ? "Cash on Delivery" : "Online (Razorpay)"}
+          </Text>
+          <Text style={s.infoText}>Status: {paymentStatusLabel(paymentStatus)}</Text>
           <Text style={[s.infoText, { marginTop: 8 }]}>Place of Supply:</Text>
           <Text style={s.infoTextBold}>{customer.address.state}</Text>
           <Text style={[s.infoText, { marginTop: 4 }]}>
@@ -317,6 +343,12 @@ function InvoicePage({ data }: { data: InvoiceData }) {
             <View style={s.totalRow}>
               <Text style={s.totalLabel}>Shipping</Text>
               <Text style={s.totalValue}>{INR(shippingFee)}</Text>
+            </View>
+          )}
+          {codFee > 0 && (
+            <View style={s.totalRow}>
+              <Text style={s.totalLabel}>Cash on Delivery fee</Text>
+              <Text style={s.totalValue}>{INR(codFee)}</Text>
             </View>
           )}
           {rateBreakdown.map((bucket) => (

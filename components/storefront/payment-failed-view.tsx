@@ -9,6 +9,7 @@ interface PaymentFailedViewProps {
     | "failed"
     | "refunded"
     | "partially_refunded"
+    | "cod_pending"
     | null;
 }
 
@@ -20,6 +21,14 @@ const PAID_MESSAGE =
   "Good news — this order was paid successfully. There's nothing more to do here.";
 const REFUNDED_MESSAGE =
   "This order was refunded. Check your account for the refund details.";
+// This page should never actually be reached for a COD order (nothing
+// redirects here for one — see the order-confirmation page's own redirect,
+// keyed on paymentStatus === "failed", which a COD order never has), but the
+// paymentStatus type union includes cod_pending regardless, so this covers
+// the type and gives a correct, non-alarming message if a stale link ever
+// does land here.
+const COD_MESSAGE =
+  "This order was placed as Cash on Delivery — there's no online payment to verify. Pay the courier when your order arrives.";
 
 export function PaymentFailedView({
   orderNumber,
@@ -29,10 +38,11 @@ export function PaymentFailedView({
   const isPaid = paymentStatus === "paid";
   const isRefunded =
     paymentStatus === "refunded" || paymentStatus === "partially_refunded";
+  const isCod = paymentStatus === "cod_pending";
   // A retry only makes sense when the payment genuinely never went through —
-  // never show it for an order that's already paid or already refunded, since
-  // that's an actual charge, not a failure to recover from.
-  const isResolved = isPaid || isRefunded;
+  // never show it for an order that's already paid, already refunded, or is
+  // Cash on Delivery (nothing to retry — there was never an online payment).
+  const isResolved = isPaid || isRefunded || isCod;
 
   const eyebrow = isPending
     ? "Payment pending"
@@ -40,21 +50,27 @@ export function PaymentFailedView({
       ? "Payment successful"
       : isRefunded
         ? "Order refunded"
-        : "Payment unsuccessful";
+        : isCod
+          ? "Order placed"
+          : "Payment unsuccessful";
   const heading = isPending
     ? "We're still verifying"
     : isPaid
       ? "Your payment went through"
       : isRefunded
         ? "This order was refunded"
-        : "Payment couldn't be completed";
+        : isCod
+          ? "Your order is confirmed"
+          : "Payment couldn't be completed";
   const message = isPending
     ? PENDING_MESSAGE
     : isPaid
       ? PAID_MESSAGE
       : isRefunded
         ? REFUNDED_MESSAGE
-        : FAILED_MESSAGE;
+        : isCod
+          ? COD_MESSAGE
+          : FAILED_MESSAGE;
   const statusValue = isPending
     ? "Pending verification"
     : isPaid
@@ -65,7 +81,9 @@ export function PaymentFailedView({
           ? "Partially refunded"
           : paymentStatus === "failed"
             ? "Failed"
-            : "Not completed";
+            : isCod
+              ? "Cash on Delivery"
+              : "Not completed";
 
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[128px] md:px-6 md:pt-36">

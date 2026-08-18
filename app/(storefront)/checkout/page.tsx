@@ -5,6 +5,7 @@ import { CheckoutView } from "@/components/storefront/checkout-view";
 import { getCart } from "@/lib/actions/cart";
 import { getCurrentCustomer } from "@/lib/actions/auth";
 import { getMyAddresses } from "@/lib/actions/account";
+import { isCodEnabled } from "@/lib/checkout/cod";
 
 export const metadata: Metadata = {
   title: "Checkout",
@@ -57,6 +58,7 @@ export default async function CheckoutPage() {
           pincode: a.pincode,
           isDefault: a.isDefault,
         }))}
+        codEnabled={isCodEnabled()}
       />
     </>
   );

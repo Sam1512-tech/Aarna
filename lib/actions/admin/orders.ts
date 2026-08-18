@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { generateInvoicePdf, generateInvoicePdfBatch } from "@/lib/invoice/generate";
-import { buildInvoiceData } from "@/lib/db/queries/orders";
+import {
+  buildInvoiceData,
+  checkCouponPerCustomerOverage,
+  incrementCouponUsage,
+} from "@/lib/db/queries/orders";
 import { getCreditNotesForOrder } from "@/lib/db/queries/credit-notes";
 import { sendEmail } from "@/lib/resend";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
@@ -19,7 +23,13 @@ import {
 
 const { orders, orderItems, productImages, productVariants, orderRefundEvents } = schema;
 
-type PaymentStatus = "pending" | "paid" | "failed" | "refunded" | "partially_refunded";
+type PaymentStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "refunded"
+  | "partially_refunded"
+  | "cod_pending";
 
 function assertValidTransition(from: FulfillmentStatus, to: FulfillmentStatus) {
   if (!canTransitionFulfillment(from, to)) {
@@ -48,6 +58,7 @@ export interface AdminOrderListItem {
   discount: number;
   shippingFee: number;
   total: number;
+  paymentMethod: "prepaid" | "cod";
   paymentStatus: PaymentStatus;
   fulfillmentStatus: FulfillmentStatus;
   invoiceNumber: string | null;
@@ -134,6 +145,7 @@ export async function getAdminOrders(
     discount: o.discount,
     shippingFee: o.shippingFee,
     total: o.total,
+    paymentMethod: o.paymentMethod,
     paymentStatus: o.paymentStatus,
     fulfillmentStatus: o.fulfillmentStatus,
     invoiceNumber: o.invoiceNumber,
@@ -244,7 +256,6 @@ export async function updateOrderFulfillmentStatus(
   const existing = await db
     .select({
       fulfillmentStatus: orders.fulfillmentStatus,
-      paymentStatus: orders.paymentStatus,
       orderNumber: orders.orderNumber,
     })
     .from(orders)
@@ -286,10 +297,34 @@ export async function updateOrderFulfillmentStatus(
     );
   }
 
-  // Cancelling a paid order restores the stock the Razorpay webhook removed
-  // on capture — the goods never left the warehouse. An order cancelled
-  // before payment completed never had stock decremented, so there's
-  // nothing to give back.
+  // Cancelling an order whose stock is still genuinely held restores it —
+  // the goods never left the warehouse. Checked via
+  // `stockReserved && paymentStatus !== "failed"`, NOT a plain
+  // paymentStatus === "paid" check (the original code) or a plain
+  // stockReserved check (a first attempt at this fix, which reintroduced a
+  // real double-restock bug — see below).
+  //
+  // Plain paymentStatus === "paid" silently leaked stock forever on a
+  // cancelled COD order — a cod_pending order has its stock reserved at
+  // checkout (initCheckout) exactly like a prepaid one, but never passes
+  // through paymentStatus "paid" until applyDelhiveryStatus confirms
+  // delivery, and most COD cancellations happen well before that
+  // (pre-shipment).
+  //
+  // Plain stockReserved alone double-restocks: that column is set once at
+  // checkout and NEVER reset back to false anywhere in the codebase — not
+  // by releaseExpiredCheckoutHolds, not by markOrderPaymentFailed, both of
+  // which already restock a stale/failed order's stock and flip
+  // paymentStatus to "failed" in the process. A prepaid order abandoned
+  // mid-checkout, released by either of those, still reads stockReserved:
+  // true forever — so an admin cancelling that same order later (a real,
+  // UI-reachable "pending" -> "cancelled" transition, independent of
+  // payment status) would restock it a SECOND time, inflating real saleable
+  // stock. paymentStatus === "failed" is exactly the signal
+  // markOrderPaid's own needsStockDecrement logic already uses to detect
+  // "this order's reservation was already released" — reusing the same
+  // signal here (in its negated form: skip restocking when it's true)
+  // closes the same gap for the cancel path.
   //
   // Also gated on `fromStatus !== newStatus` — canTransitionFulfillment
   // treats a same-status call as a valid no-op transition (by design, for
@@ -308,7 +343,8 @@ export async function updateOrderFulfillmentStatus(
   if (
     fromStatus !== newStatus &&
     newStatus === "cancelled" &&
-    existing[0].paymentStatus === "paid"
+    updated.stockReserved &&
+    updated.paymentStatus !== "failed"
   ) {
     const items = await db
       .select({ variantId: orderItems.variantId, quantity: orderItems.quantity })
@@ -448,7 +484,14 @@ export async function createDelhiveryShipment(orderId: string) {
     .then((rows) => rows[0] ?? null);
 
   if (!order) throw new ActionError("Order not found");
-  if (order.paymentStatus !== "paid") {
+  // A COD order has to ship BEFORE cash can ever be collected — waiting for
+  // paymentStatus "paid" first is backwards for COD (it only reaches "paid"
+  // once applyDelhiveryStatus confirms delivery). cod_pending is COD's own
+  // normal, shippable state, same role "paid" plays for a prepaid order.
+  const payable =
+    order.paymentStatus === "paid" ||
+    (order.paymentMethod === "cod" && order.paymentStatus === "cod_pending");
+  if (!payable) {
     throw new ActionError("Order is not paid — cannot create a shipment");
   }
   if (order.awbNumber) {
@@ -530,6 +573,12 @@ export async function createDelhiveryShipment(orderId: string) {
       phone: shipping.phone,
       totalAmount: Math.round(order.total / 100), // Delhivery expects rupees
       weightGrams: Math.max(weightGrams, 100),
+      paymentMode: order.paymentMethod === "cod" ? "COD" : "Prepaid",
+      // order.total already includes codFee (see initCheckout) — the full
+      // amount Delhivery's courier collects at the door, not just the
+      // merchandise value.
+      codAmount:
+        order.paymentMethod === "cod" ? Math.round(order.total / 100) : undefined,
     });
 
     // Conditional on both the "PENDING" claim AND the fulfillment_status
@@ -627,6 +676,94 @@ export async function createDelhiveryShipment(orderId: string) {
   }
 }
 
+/**
+ * Manual fallback for COD's automatic "cash collected" confirmation
+ * (applyDelhiveryStatus's own newly-delivered branch, lib/db/queries/orders.ts) —
+ * that already flips cod_pending -> paid the moment Delhivery confirms
+ * delivery, so this button is redundant in the normal case by the time an
+ * admin looks. It exists for the rare correction: a courier mis-scan, a
+ * status that arrived through some path other than the webhook/sync-cron,
+ * or a genuine "the app says X but the money is actually in hand" mismatch
+ * a human needs to override.
+ *
+ * Race-safe the same way as every other money-transitioning action in this
+ * file: a conditional UPDATE whose WHERE clause re-checks both
+ * payment_status and fulfillment_status at write time (not from a snapshot
+ * read earlier), so a double-click or two admin tabs can't both "win" and
+ * double-count the coupon-usage side effect below.
+ */
+export async function markCodCollected(orderId: string): Promise<{ ok: true }> {
+  const admin = await requireAdmin();
+
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1);
+  if (!order) throw new ActionError("Order not found");
+  if (order.paymentMethod !== "cod") {
+    throw new ActionError("This isn't a Cash on Delivery order");
+  }
+
+  const updated = await db
+    .update(orders)
+    .set({ paymentStatus: "paid", updatedAt: new Date() })
+    .where(
+      and(
+        eq(orders.id, orderId),
+        eq(orders.paymentStatus, "cod_pending"),
+        eq(orders.fulfillmentStatus, "delivered"),
+      ),
+    )
+    .returning({ id: orders.id });
+
+  if (updated.length === 0) {
+    throw new ActionError(
+      order.paymentStatus !== "cod_pending"
+        ? "This order's cash collection is already confirmed"
+        : "Order must be marked delivered before cash collection can be confirmed",
+    );
+  }
+
+  // Same "spend a coupon's usage only once revenue is real" point the
+  // automatic path fires from — see applyDelhiveryStatus's own comment.
+  if (order.couponCode) {
+    try {
+      const counted = await incrementCouponUsage(order.couponCode);
+      if (!counted) {
+        await alertAdminSuspiciousActivity({
+          event: "Coupon redeemed past its usage limit",
+          detail: `Order ${order.orderNumber} (COD) had its cash collection manually confirmed with coupon "${order.couponCode}", but the coupon's usage limit was already reached — the discount was still honored, just not counted toward the limit. Check /studio/coupons.`,
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.error("[admin] markCodCollected coupon usage increment failed:", err);
+    }
+    if (order.customerId) {
+      try {
+        const overage = await checkCouponPerCustomerOverage(order.customerId, order.couponCode);
+        if (overage?.overLimit) {
+          await alertAdminSuspiciousActivity({
+            event: "Coupon redeemed past its per-customer limit",
+            detail: `Order ${order.orderNumber} (COD) confirmed with coupon "${order.couponCode}" — this customer has now redeemed it ${overage.timesUsed} time(s), over their per-customer limit of ${overage.limit}. Check /studio/coupons and /studio/orders.`,
+          }).catch(() => {});
+        }
+      } catch (err) {
+        console.error("[admin] markCodCollected per-customer overage check failed:", err);
+      }
+    }
+  }
+
+  revalidatePath("/studio/orders");
+  revalidatePath(`/studio/orders/${order.orderNumber}`);
+
+  await logAdminAction(admin.id, "order.mark_cod_collected", "order", orderId, {
+    orderNumber: order.orderNumber,
+  });
+
+  return { ok: true };
+}
+
 // ── Invoice ──────────────────────────────────────────────────────────────────
 
 /**
@@ -685,7 +822,16 @@ export async function resendOrderConfirmationEmail(orderId: string): Promise<{ o
     .then((rows) => rows[0] ?? null);
 
   if (!order) throw new ActionError("Order not found");
-  if (order.paymentStatus !== "paid" && order.paymentStatus !== "partially_refunded") {
+  // A COD order is fully invoiced at cod_pending (see initCheckout) — no
+  // payment.captured webhook to wait behind — so it belongs in this
+  // eligible set alongside prepaid's paid/partially_refunded, not excluded
+  // from it. Real gap this closes: initCheckout's own COD invoice-email
+  // failure alert points admins at this exact action as the recovery path.
+  const eligible =
+    order.paymentStatus === "paid" ||
+    order.paymentStatus === "partially_refunded" ||
+    (order.paymentMethod === "cod" && order.paymentStatus === "cod_pending");
+  if (!eligible) {
     throw new ActionError("Order hasn't been paid — nothing to send a confirmation for");
   }
   if (!order.invoiceNumber) {

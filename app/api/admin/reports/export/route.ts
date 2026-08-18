@@ -37,8 +37,10 @@ const GENERAL_HEADERS = [
   "Subtotal (Rs.)",
   "Discount (Rs.)",
   "Shipping (Rs.)",
+  "COD Fee (Rs.)",
   "Total (Rs.)",
   "Coupon",
+  "Payment Method",
   "Payment Status",
   "Fulfillment Status",
   "Invoice Number",
@@ -60,8 +62,10 @@ const GENERAL_COL_WIDTHS = [
   1.1, // Subtotal (Rs.)
   1.1, // Discount (Rs.)
   1.1, // Shipping (Rs.)
+  1.1, // COD Fee (Rs.)
   1.1, // Total (Rs.)
   1.0, // Coupon
+  1.1, // Payment Method
   1.1, // Payment Status
   1.3, // Fulfillment Status
   1.4, // Invoice Number
@@ -278,8 +282,10 @@ export async function GET(req: Request) {
         money(r.subtotal),
         money(r.discount),
         money(r.shippingFee),
+        money(r.codFee),
         money(r.total),
         r.couponCode,
+        r.paymentMethod,
         r.paymentStatus,
         r.fulfillmentStatus,
         r.invoiceNumber,
@@ -294,8 +300,9 @@ export async function GET(req: Request) {
           money(sum((r) => r.subtotal)),
           money(sum((r) => r.discount)),
           money(sum((r) => r.shippingFee)),
+          money(sum((r) => r.codFee)),
           money(sum((r) => r.total)),
-          "", "", "", "", "",
+          "", "", "", "", "", "",
         ];
       }
     }

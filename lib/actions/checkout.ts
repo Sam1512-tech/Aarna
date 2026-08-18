@@ -1,18 +1,32 @@
 "use server";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createRazorpayOrder } from "@/lib/razorpay";
 import { checkServiceability } from "@/lib/delhivery";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCart, applyCoupon } from "@/lib/actions/cart";
-import { releaseExpiredCheckoutHolds } from "@/lib/db/queries/orders";
+import {
+  buildInvoiceData,
+  ensureInvoiceSequence,
+  getOrderById,
+  releaseExpiredCheckoutHolds,
+} from "@/lib/db/queries/orders";
+import {
+  currentFinancialYear,
+  generateInvoicePdf,
+  invoiceSequenceName,
+} from "@/lib/invoice/generate";
+import { sendEmail } from "@/lib/resend";
+import { notifyWhatsApp, firstNameFromAddress, rupees } from "@/lib/whatsapp/notify";
+import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 import type { AddressInput, CheckoutSummary } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { isValidGstin, normalizeGstin } from "@/lib/gst";
 import { shippingAddressSchema } from "@/lib/checkout/address-schema";
+import { COD_CONVENIENCE_FEE_PAISE, isCodEnabled } from "@/lib/checkout/cod";
 
-const { customers, orders, orderItems, productVariants, inventoryMovements } = schema;
+const { customers, orders, orderItems, productVariants, inventoryMovements, carts, cartItems } = schema;
 
 export interface CheckoutInitInput {
   email: string;
@@ -23,6 +37,7 @@ export interface CheckoutInitInput {
   whatsappOptIn: boolean;
   /** Buyer's GSTIN, optional — only set for a business/GST invoice. */
   gstNumber?: string;
+  paymentMethod: "prepaid" | "cod";
 }
 
 export interface RazorpayOrderHandle {
@@ -32,6 +47,10 @@ export interface RazorpayOrderHandle {
   currency: "INR";
   orderNumber: string;
 }
+
+export type CheckoutInitResult =
+  | { paymentMethod: "prepaid"; razorpay: RazorpayOrderHandle; orderNumber: string; summary: CheckoutSummary }
+  | { paymentMethod: "cod"; orderNumber: string; summary: CheckoutSummary };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -68,7 +87,7 @@ async function requireCheckoutCustomer(): Promise<{
 
 export async function initCheckout(
   input: CheckoutInitInput,
-): Promise<{ summary: CheckoutSummary; razorpay: RazorpayOrderHandle }> {
+): Promise<CheckoutInitResult> {
   // 0. Release any expired checkout holds first, so their stock is available
   // again before this checkout's own stock check/reservation below (see
   // releaseExpiredCheckoutHolds — this is what stands in for a frequent
@@ -92,6 +111,22 @@ export async function initCheckout(
     throw new ActionError(
       addressResult.error.issues[0]?.message ?? "Please check your shipping address",
     );
+  }
+
+  // 1c. Cash on Delivery gate — never trust the client's own read of
+  // isCodEnabled()/codServiceable (checkPincodeServiceability's own client
+  // consumer only uses these to decide what to *show*). Re-checked here,
+  // independently, before a COD order is ever allowed to be created.
+  if (input.paymentMethod === "cod") {
+    if (!isCodEnabled()) {
+      throw new ActionError("Cash on Delivery isn't available right now");
+    }
+    const pincodeCheck = await checkPincodeServiceability(input.shippingAddress.pincode);
+    if (!pincodeCheck.codServiceable) {
+      throw new ActionError(
+        "Cash on Delivery isn't available for this pincode — please choose online payment",
+      );
+    }
   }
 
   // 2. Apply coupon (re-validate server-side; don't trust client)
@@ -119,7 +154,9 @@ export async function initCheckout(
   // this only changes what gets written into NEW rows going forward.
   const subtotal = cart.subtotal;
   const shippingFee = 0;
-  const total = subtotal - discount + shippingFee;
+  // Non-taxable, same treatment as shippingFee — see lib/checkout/cod.ts.
+  const codFee = input.paymentMethod === "cod" ? COD_CONVENIENCE_FEE_PAISE : 0;
+  const total = subtotal - discount + shippingFee + codFee;
 
   if (total <= 0) throw new ActionError("Invalid order total");
 
@@ -135,6 +172,21 @@ export async function initCheckout(
   // a failed checkout already "wastes" a number today).
   const orderNumber = await nextOrderNumber();
 
+  // 5b. COD only: bootstrap this financial year's invoice sequence before
+  // opening the transaction below (mirrors markOrderPaid's own discipline —
+  // see its comment for why the sequence draw itself must happen INSIDE the
+  // insert, not here). Prepaid orders skip this entirely; their invoice
+  // number is generated later, inside markOrderPaid, once payment.captured
+  // actually lands — there's no webhook to defer to for COD, so the invoice
+  // has to exist the moment the order is placed (GST liability arises at
+  // time of supply, not payment).
+  const financialYear = input.paymentMethod === "cod" ? currentFinancialYear() : null;
+  const invoiceSeqName = financialYear ? invoiceSequenceName(financialYear) : null;
+  const invoicePrefix = financialYear ? `AL/${financialYear}/` : null;
+  if (invoiceSeqName && invoicePrefix) {
+    await ensureInvoiceSequence(invoiceSeqName, invoicePrefix);
+  }
+
   // 6. Reserve stock and create the order atomically in one transaction.
   // Each variant is checked AND decremented under a row lock (SELECT ... FOR
   // UPDATE) in the same step — closing the race where two concurrent
@@ -144,6 +196,44 @@ export async function initCheckout(
   // is released by markOrderPaymentFailed (declined payment) or
   // releaseExpiredCheckoutHolds (abandoned checkout, no webhook at all).
   const orderId = await db.transaction(async (tx) => {
+    // COD-only: close the double-submit race a prepaid checkout doesn't
+    // have. A duplicate prepaid submit only ever produces a second harmless
+    // "pending" order — it still needs a distinct Razorpay payment
+    // confirmation to become real, and an abandoned one self-heals via
+    // releaseExpiredCheckoutHolds. A duplicate COD submit needs no further
+    // customer action at all: it's fully self-completing right here (real
+    // invoice, real stock decrement, real confirmation), and cod_pending
+    // orders are never touched by that same cleanup — so two near-
+    // simultaneous submits (a slow connection double-tap, a client retry)
+    // could otherwise both create a real, separately-shippable order for
+    // the same cart, with the courier collecting cash twice.
+    //
+    // pg_advisory_xact_lock serializes concurrent transactions for the same
+    // customer; by itself that only makes them sequential, it doesn't stop
+    // the second one from still creating a duplicate order — the fresh
+    // re-read of the cart right after acquiring the lock is what actually
+    // closes the race, since the first call's own in-transaction cart-clear
+    // (below) has by then already committed and removed these exact items.
+    if (input.paymentMethod === "cod") {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${customerId}))`);
+
+      const [freshCart] = await tx
+        .select({ id: carts.id })
+        .from(carts)
+        .where(eq(carts.customerId, customerId))
+        .limit(1);
+      const freshCount = freshCart
+        ? await tx
+            .select({ id: cartItems.id })
+            .from(cartItems)
+            .where(eq(cartItems.cartId, freshCart.id))
+            .limit(1)
+        : [];
+      if (freshCount.length === 0) {
+        throw new ActionError("Cart is empty");
+      }
+    }
+
     const skuByVariantId = new Map<string, string>();
 
     for (const line of cart.lines) {
@@ -204,10 +294,27 @@ export async function initCheckout(
         subtotal,
         discount,
         shippingFee,
+        codFee,
         total,
         couponCode,
         gstNumber,
+        paymentMethod: input.paymentMethod,
         stockReserved: true,
+        // COD only: generated synchronously here (see 5b above) since there's
+        // no payment.captured webhook to defer to for COD — the invoice
+        // number draw itself happens inside this insert's own SET-equivalent
+        // (Postgres only evaluates it for the row actually being written),
+        // mirroring markOrderPaid's "sequence draw is the last thing that can
+        // fail" discipline. Prepaid orders leave these at their column
+        // defaults (pending/pending/null/null), unchanged from before.
+        ...(input.paymentMethod === "cod" && invoiceSeqName && invoicePrefix
+          ? {
+              paymentStatus: "cod_pending" as const,
+              fulfillmentStatus: "processing" as const,
+              placedAt: new Date(),
+              invoiceNumber: sql`${invoicePrefix} || lpad(nextval('${sql.raw(invoiceSeqName)}')::text, 5, '0')`,
+            }
+          : {}),
       })
       .returning({ id: orders.id });
 
@@ -225,8 +332,105 @@ export async function initCheckout(
       })),
     );
 
+    // COD only, and deliberately INSIDE this same transaction (not the
+    // post-transaction clearPurchasedCartItems call prepaid relies on) —
+    // this is the write that actually closes the double-submit race: a
+    // concurrent call blocked on the advisory lock above only sees this
+    // cart as empty, once unblocked, because this delete has already
+    // committed by the time its lock is granted.
+    if (input.paymentMethod === "cod") {
+      const variantIds = cart.lines.map((line) => line.variantId);
+      const [cartRow] = await tx
+        .select({ id: carts.id })
+        .from(carts)
+        .where(eq(carts.customerId, customerId))
+        .limit(1);
+      if (cartRow) {
+        await tx
+          .delete(cartItems)
+          .where(
+            and(eq(cartItems.cartId, cartRow.id), inArray(cartItems.variantId, variantIds)),
+          );
+      }
+    }
+
     return createdOrder.id;
   });
+
+  // Coupon usedCount is intentionally NOT bumped here for either payment
+  // method. For prepaid it's incremented in the payment.captured webhook;
+  // for COD it's incremented when applyDelhiveryStatus auto-confirms
+  // delivery (lib/db/queries/orders.ts, incrementCouponUsage) — in both
+  // cases, only once the order has actually converted into real revenue,
+  // not at order-creation time, so an abandoned/never-collected order can't
+  // exhaust a coupon's budget without a single real redemption ever landing.
+
+  const summary: CheckoutSummary = {
+    subtotal,
+    discount,
+    shippingFee,
+    codFee,
+    total,
+    couponCode: couponCode ?? undefined,
+  };
+
+  if (input.paymentMethod === "cod") {
+    // No Razorpay order for COD — the order is already fully placed
+    // (cod_pending, invoiced, stock reserved) as of the transaction above.
+    // Everything below mirrors the payment.captured webhook's own
+    // invoice/email/WhatsApp side effects, since nothing else will ever fire
+    // them for a COD order (there's no webhook to defer to).
+    const order = await getOrderById(orderId);
+    if (!order || !order.invoiceNumber) {
+      // Should be unreachable — the transaction above always sets both for
+      // a COD order — but if it somehow happens, fail loudly rather than
+      // silently skipping the customer's confirmation.
+      throw new ActionError("Something went wrong placing your order — please contact support");
+    }
+
+    // Cart already cleared inside the stock-reservation transaction above
+    // (deliberately, not via the post-transaction clearPurchasedCartItems
+    // prepaid relies on — see that transaction's own comment for why).
+
+    // Never let a PDF/email hiccup break checkout itself — the order is
+    // already real and paid-for-later at this point, same "alert an admin,
+    // keep going" rule the payment.captured webhook follows for prepaid.
+    try {
+      const invoiceData = buildInvoiceData(order, order.invoiceNumber);
+      const pdfBuffer = await generateInvoicePdf(invoiceData);
+      const pdfFilename = `${order.invoiceNumber.replace(/\//g, "-")}.pdf`;
+
+      await sendEmail({
+        to: order.email,
+        subject: `Order Confirmed — ${order.orderNumber} | Aarna`,
+        templateKey: "order_receipt",
+        data: { order, invoiceNumber: order.invoiceNumber },
+        attachments: [{ filename: pdfFilename, content: pdfBuffer }],
+      });
+    } catch (err) {
+      console.error("[checkout] COD invoice generation/email failed:", err);
+      await alertAdminSuspiciousActivity({
+        event: "COD order confirmation email failed to send",
+        detail: `Order ${order.orderNumber} (${order.invoiceNumber}) was placed as Cash on Delivery, but the invoice PDF/confirmation email failed: ${err instanceof Error ? err.message : String(err)}. Use "Resend confirmation email" on /studio/orders/${order.orderNumber} once the underlying issue is fixed.`,
+      }).catch((alertErr) => {
+        console.error("[checkout] COD failure alert itself failed:", alertErr);
+      });
+    }
+
+    await notifyWhatsApp({
+      orderId: order.id,
+      phone: order.phone,
+      whatsappOptIn: order.whatsappOptIn,
+      templateKey: "order_placed",
+      bodyValues: [
+        firstNameFromAddress(order.shippingAddress),
+        order.orderNumber,
+        rupees(order.total),
+      ],
+    });
+
+    return { paymentMethod: "cod", orderNumber, summary };
+  }
 
   // 7. Create Razorpay order
   const rpOrder = await createRazorpayOrder({
@@ -245,20 +449,6 @@ export async function initCheckout(
     .set({ razorpayOrderId: rpOrder.id })
     .where(eq(orders.id, orderId));
 
-  // Coupon usedCount is intentionally NOT bumped here. It's incremented
-  // atomically in the payment.captured webhook once payment actually lands
-  // (lib/db/queries/orders.ts, incrementCouponUsage) — bumping it at
-  // order-creation time let an abandoned or repeatedly-retried checkout
-  // exhaust a coupon's budget without a single real redemption ever paying.
-
-  const summary: CheckoutSummary = {
-    subtotal,
-    discount,
-    shippingFee,
-    total,
-    couponCode: couponCode ?? undefined,
-  };
-
   const razorpay: RazorpayOrderHandle = {
     razorpayOrderId: rpOrder.id,
     razorpayKeyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "",
@@ -267,7 +457,7 @@ export async function initCheckout(
     orderNumber,
   };
 
-  return { summary, razorpay };
+  return { paymentMethod: "prepaid", razorpay, orderNumber, summary };
 }
 
 // Bengaluru (560xxx) ships noticeably faster than the rest of India — the
@@ -290,36 +480,39 @@ function estimatedDeliveryWindow(pincode: string): string {
 
 export async function checkPincodeServiceability(
   pincode: string,
-): Promise<{ serviceable: boolean; etaDays?: string }> {
+): Promise<{ serviceable: boolean; etaDays?: string; codServiceable: boolean }> {
   // Basic Indian pincode validation — 6 digits
   if (!/^\d{6}$/.test(pincode)) {
-    return { serviceable: false };
+    return { serviceable: false, codServiceable: false };
   }
 
   // Pre-KYC: if the Delhivery token isn't set yet, stay optimistic so Vismaya's
   // checkout UI keeps working. Once DELHIVERY_API_TOKEN is configured this hits
-  // the real pincode serviceability API.
+  // the real pincode serviceability API. COD stays false here (fail closed —
+  // see isCodEnabled's own reasoning for why COD specifically shouldn't
+  // fail open the way plain deliverability does).
   if (!process.env.DELHIVERY_API_TOKEN) {
-    return { serviceable: true, etaDays: estimatedDeliveryWindow(pincode) };
+    return { serviceable: true, etaDays: estimatedDeliveryWindow(pincode), codServiceable: false };
   }
 
   try {
     const result = await checkServiceability(pincode);
-    // Raw upstream result, not just the boolean we return — so a "why did
+    // Raw upstream result, not just the booleans we return — so a "why did
     // this pincode read as not-serviceable" question can be answered from
     // logs alone instead of guessing whether Delhivery said no or something
     // upstream of Delhivery's answer went wrong.
     console.log(`[checkout] Delhivery serviceability for ${pincode}:`, result);
-    // Aarna is prepaid-only, so prepaid serviceability is what matters.
-    // (Delhivery's pincode endpoint doesn't return a real ETA — this is our
-    // own estimate, see estimatedDeliveryWindow above.)
+    // prepaid serviceability drives the general "can we ship here" answer;
+    // codServiceable is independent — a pincode can be prepaid-only.
     return {
       serviceable: result.serviceable,
       etaDays: result.serviceable ? estimatedDeliveryWindow(pincode) : undefined,
+      codServiceable: result.codServiceable,
     };
   } catch (err) {
     console.error(`[checkout] Delhivery serviceability call failed for ${pincode}:`, err);
-    // Don't block checkout on a logistics-API hiccup.
-    return { serviceable: true, etaDays: estimatedDeliveryWindow(pincode) };
+    // Don't block checkout on a logistics-API hiccup — but COD stays false,
+    // same fail-closed reasoning as the pre-KYC branch above.
+    return { serviceable: true, etaDays: estimatedDeliveryWindow(pincode), codServiceable: false };
   }
 }

@@ -42,8 +42,10 @@ export interface GeneralSalesRow {
   subtotal: number;
   discount: number;
   shippingFee: number;
+  codFee: number;
   total: number;
   couponCode: string;
+  paymentMethod: string;
   paymentStatus: string;
   fulfillmentStatus: string;
   invoiceNumber: string;
@@ -91,8 +93,10 @@ export async function getGeneralSalesReportRows(
       subtotal: o.subtotal / 100,
       discount: o.discount / 100,
       shippingFee: o.shippingFee / 100,
+      codFee: o.codFee / 100,
       total: o.total / 100,
       couponCode: o.couponCode ?? "",
+      paymentMethod: o.paymentMethod,
       paymentStatus: o.paymentStatus,
       fulfillmentStatus: o.fulfillmentStatus,
       invoiceNumber: o.invoiceNumber ?? "",
@@ -105,10 +109,20 @@ export async function getGeneralSalesReportRows(
 // One row per order PER GST rate present (an order can legitimately mix 5%
 // and 18% lines — see lib/gst.ts) — this is the exact shape an accountant
 // needs to file GSTR-1/GSTR-3B, so it only includes orders that actually
-// have an invoice (placedAt is set exactly once, in the payment.captured
-// webhook, at the same moment invoiceNumber is assigned — see
-// lib/db/queries/orders.ts markOrderPaid). Orders that never completed
-// payment never had GST liability, so they're correctly excluded.
+// have an invoice (placedAt is set exactly once, at the same moment
+// invoiceNumber is assigned — for a prepaid order that's in the
+// payment.captured webhook, see lib/db/queries/orders.ts markOrderPaid; for
+// COD it's synchronous, inside initCheckout itself, since GST liability
+// arises at time of supply/invoice, not payment — see lib/checkout/cod.ts).
+// A never-paid prepaid order (pending/failed) never gets an invoice, so it's
+// correctly excluded. Known pre-existing gap this doesn't newly introduce:
+// an order CANCELLED after its invoice already exists — always possible for
+// prepaid (cancel after payment), now also possible for COD (cancel before
+// delivery, since placedAt/invoiceNumber are already set at order placement)
+// — still appears here with no offsetting credit note, since cancellation
+// doesn't generate one today. Flag a cancelled-but-invoiced order to the
+// accountant manually; a real fix would need cancellation to generate its
+// own credit note, matching how a return/refund already does.
 //
 // Note: this reflects original invoice values only. A refunded order still
 // appears (the original supply was taxed), but proper GST filing for a

@@ -12,7 +12,10 @@ interface OrderConfirmationViewProps {
     | "failed"
     | "refunded"
     | "partially_refunded"
+    | "cod_pending"
     | null;
+  paymentMethod?: "prepaid" | "cod" | null;
+  codFee?: number;
 }
 
 const SUPPORT_NOTE =
@@ -23,8 +26,17 @@ export function OrderConfirmationView({
   shipping,
   hasDetail,
   paymentStatus,
+  paymentMethod,
+  codFee,
 }: OrderConfirmationViewProps) {
+  // cod_pending is a fully confirmed order (invoiced, stock reserved) — only
+  // "pending" (a prepaid order whose payment.captured webhook hasn't landed
+  // yet) is the real "still verifying" state.
   const stillVerifying = hasDetail && paymentStatus === "pending";
+  const isCod = paymentMethod === "cod";
+  const paymentMethodLabel = isCod
+    ? `Cash on Delivery${codFee ? ` · pay ₹${(codFee / 100).toLocaleString("en-IN")} extra at delivery` : ""}`
+    : "Razorpay · secure online payment";
 
   return (
     <section className="paper-grain min-h-screen bg-cream px-5 pb-24 pt-[128px] md:px-6 md:pt-36">
@@ -77,7 +89,7 @@ export function OrderConfirmationView({
           <DetailRow
             label="Payment method"
             icon={<ShieldCheck className="h-4 w-4 text-cocoa" aria-hidden="true" />}
-            value="Razorpay · secure online payment"
+            value={paymentMethodLabel}
           />
 
           {!hasDetail ? (

@@ -13,6 +13,7 @@ const PAYMENT_STATUSES = [
   "failed",
   "refunded",
   "partially_refunded",
+  "cod_pending",
 ] as const;
 const FULFILLMENT_STATUSES = [
   "pending",

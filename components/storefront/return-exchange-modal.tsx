@@ -20,6 +20,7 @@ export interface RequestableItem {
   variantLabel: string | null;
   quantity: number;
   lineTotal: number;
+  paymentMethod: "prepaid" | "cod";
 }
 
 export interface SubmittedRow {
@@ -33,6 +34,7 @@ export interface SubmittedRow {
   status: string;
   refundAmount: number | null;
   createdAt: Date;
+  paymentMethod: "prepaid" | "cod";
 }
 
 type Intent = "return" | "exchange";
@@ -84,6 +86,8 @@ export function ReturnExchangeModal({
   const [detail, setDetail] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [desiredVariantId, setDesiredVariantId] = useState<string | null>(null);
+  const [upiId, setUpiId] = useState("");
+  const [upiIdForItem, setUpiIdForItem] = useState(orderItemId);
   const [variantOptions, setVariantOptions] = useState<VariantOption[]>([]);
   const [variantsLoading, startVariantsTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +125,20 @@ export function ReturnExchangeModal({
     };
   }, [intent, chosen]);
 
+  // Reset the UPI-ID field whenever the picked item changes — without this,
+  // a value typed for one order's COD return silently carries over and gets
+  // submitted against a *different* order's return after switching items in
+  // the step-1 picker (real money is sent to whatever refundUpiId ends up
+  // on the row, so a stale carryover here is a genuine wrong-destination
+  // refund risk, not just a UI nit). Adjusted during render, not in an
+  // effect — same "resetting state when a prop changes" pattern
+  // return-status-select.tsx already uses, avoiding the extra
+  // render-then-effect-then-render cascade a useEffect would cause here.
+  if (orderItemId !== upiIdForItem) {
+    setUpiIdForItem(orderItemId);
+    setUpiId("");
+  }
+
   const categories = intent === "exchange" ? EXCHANGE_CATEGORIES : RETURN_CATEGORIES;
   const detailLen = detail.trim().length;
   const photosRequired = category === "damaged";
@@ -142,6 +160,7 @@ export function ReturnExchangeModal({
     setDetail("");
     setPhotos([]);
     setDesiredVariantId(null);
+    setUpiId("");
     setVariantOptions([]);
     setError(null);
   }
@@ -176,6 +195,10 @@ export function ReturnExchangeModal({
           desiredVariantId:
             intent === "exchange" ? (desiredVariantId ?? undefined) : undefined,
           photos,
+          upiId:
+            intent === "return" && chosen.paymentMethod === "cod"
+              ? upiId.trim() || undefined
+              : undefined,
         });
         onSubmitted({
           id: `pending-${Date.now()}`,
@@ -188,6 +211,7 @@ export function ReturnExchangeModal({
           status: "requested",
           refundAmount: intent === "return" ? chosen.lineTotal : null,
           createdAt: new Date(),
+          paymentMethod: chosen.paymentMethod,
         });
         close();
       } catch (err) {
@@ -284,6 +308,8 @@ export function ReturnExchangeModal({
               setDesiredVariantId={setDesiredVariantId}
               variantOptions={variantOptions}
               variantsLoading={variantsLoading}
+              upiId={upiId}
+              setUpiId={setUpiId}
             />
           )}
 
@@ -449,7 +475,9 @@ function StepIntent({
             <span className="font-medium text-cocoa">
               {formatINR(chosen.lineTotal)}
             </span>{" "}
-            back to your original payment method in 5–7 business days.
+            {chosen.paymentMethod === "cod"
+              ? "via UPI, once we've received and inspected the piece."
+              : "back to your original payment method in 5–7 business days."}
           </p>
         </div>
       ) : null}
@@ -521,6 +549,8 @@ interface StepReasonProps {
   setDesiredVariantId: (v: string) => void;
   variantOptions: VariantOption[];
   variantsLoading: boolean;
+  upiId: string;
+  setUpiId: (v: string) => void;
 }
 
 function StepReason({
@@ -539,6 +569,8 @@ function StepReason({
   setDesiredVariantId,
   variantOptions,
   variantsLoading,
+  upiId,
+  setUpiId,
 }: StepReasonProps) {
   const detailShort = detailLen > 0 && detailLen < MIN_DETAIL_LEN;
   const detailPromptCopy =
@@ -601,6 +633,26 @@ function StepReason({
             onSelect={setDesiredVariantId}
             loading={variantsLoading}
           />
+        </div>
+      ) : null}
+
+      {intent === "return" && chosen?.paymentMethod === "cod" ? (
+        <div>
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
+            UPI ID for your refund
+          </p>
+          <input
+            type="text"
+            value={upiId}
+            onChange={(e) => setUpiId(e.target.value)}
+            placeholder="yourname@upi"
+            className="mt-2 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-3 text-base text-charcoal outline-none transition duration-500 placeholder:text-charcoal/35 focus:border-cocoa"
+          />
+          <p className="mt-1.5 text-xs text-charcoal/50">
+            This order was Cash on Delivery, so any refund is sent manually via
+            UPI. Optional here — you can also share it later if you don&apos;t
+            have it handy now.
+          </p>
         </div>
       ) : null}
 

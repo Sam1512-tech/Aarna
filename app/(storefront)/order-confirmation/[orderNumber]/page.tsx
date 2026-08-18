@@ -50,6 +50,8 @@ export default async function OrderConfirmationPage({
         shipping={shipping}
         hasDetail={Boolean(order)}
         paymentStatus={order?.paymentStatus ?? null}
+        paymentMethod={order?.paymentMethod ?? null}
+        codFee={order?.codFee}
       />
     </>
   );

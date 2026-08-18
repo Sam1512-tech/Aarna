@@ -13,6 +13,7 @@ const STATUSES = [
   "rejected",
   "picked",
   "received",
+  "refund_pending",
   "refunded",
   "exchange_shipped",
   "exchange_delivered",
@@ -21,13 +22,19 @@ type ReturnStatus = (typeof STATUSES)[number];
 
 // "refunded" is only reachable through ReturnQcPanel → markReturnQc, which
 // actually issues the Razorpay refund (or, for an exchange, approves the
-// swap). "exchange_shipped"/"exchange_delivered" are only reachable through
-// createExchangeShipment and the Delhivery status sync respectively. All
-// three are excluded from the manual dropdown so an admin can't flip a
-// return into a state that claims money moved or a real shipment exists
-// when neither actually happened.
+// swap). "refund_pending" (COD only) is the same action's other outcome —
+// parked awaiting RecordCodRefundTrigger → recordCodRefundSent, never
+// manually settable either. "exchange_shipped"/"exchange_delivered" are
+// only reachable through createExchangeShipment and the Delhivery status
+// sync respectively. All four are excluded from the manual dropdown so an
+// admin can't flip a return into a state that claims money moved or a real
+// shipment exists when neither actually happened.
 const SELECTABLE_STATUSES = STATUSES.filter(
-  (s) => s !== "refunded" && s !== "exchange_shipped" && s !== "exchange_delivered",
+  (s) =>
+    s !== "refund_pending" &&
+    s !== "refunded" &&
+    s !== "exchange_shipped" &&
+    s !== "exchange_delivered",
 );
 type SelectableStatus = (typeof SELECTABLE_STATUSES)[number];
 
@@ -37,6 +44,7 @@ const TONE_CLASS: Record<ReturnStatus, string> = {
   rejected: "border-burnt-red/30 bg-burnt-red/8 text-burnt-red",
   picked: "border-cocoa/25 bg-cocoa/8 text-cocoa",
   received: "border-cocoa/25 bg-cocoa/8 text-cocoa",
+  refund_pending: "border-cocoa/25 bg-cocoa/8 text-cocoa",
   refunded: "border-cocoa/30 bg-cocoa/12 text-cocoa",
   exchange_shipped: "border-cocoa/30 bg-cocoa/12 text-cocoa",
   exchange_delivered: "border-maroon/25 bg-maroon/6 text-maroon",
@@ -48,6 +56,7 @@ const LABEL: Record<ReturnStatus, string> = {
   rejected: "rejected",
   picked: "picked up",
   received: "received",
+  refund_pending: "refund pending",
   refunded: "refunded",
   exchange_shipped: "swap shipped",
   exchange_delivered: "swap delivered",
@@ -120,12 +129,13 @@ export function ReturnStatusSelect({
     }
   }
 
-  // Terminal (or automation-only) states — "refunded" is only reachable via
-  // ReturnQcPanel, "exchange_shipped"/"exchange_delivered" only via
-  // createExchangeShipment and the Delhivery status sync, and a rejected
-  // request isn't reopened from here. Show a fixed pill instead of a
-  // dropdown that implies more transitions are possible.
+  // Terminal (or automation-only) states — "refunded"/"refund_pending" are
+  // only reachable via ReturnQcPanel, "exchange_shipped"/"exchange_delivered"
+  // only via createExchangeShipment and the Delhivery status sync, and a
+  // rejected request isn't reopened from here. Show a fixed pill instead of
+  // a dropdown that implies more transitions are possible.
   if (
+    current === "refund_pending" ||
     current === "refunded" ||
     current === "rejected" ||
     current === "exchange_shipped" ||

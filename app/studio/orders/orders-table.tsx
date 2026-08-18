@@ -143,13 +143,19 @@ export function OrdersTable({ items }: { items: AdminOrderListItem[] }) {
                 <td className={t.td}>{formatINR(o.total)}</td>
                 <td className={t.td}>
                   <StatusPill
-                    label={o.paymentStatus.replaceAll("_", " ")}
+                    label={
+                      o.paymentStatus === "cod_pending"
+                        ? "cash on delivery"
+                        : o.paymentStatus.replaceAll("_", " ")
+                    }
                     tone={
                       o.paymentStatus === "paid"
                         ? "ok"
                         : o.paymentStatus === "failed"
                           ? "bad"
-                          : "muted"
+                          : o.paymentStatus === "cod_pending"
+                            ? "warn"
+                            : "muted"
                     }
                   />
                 </td>

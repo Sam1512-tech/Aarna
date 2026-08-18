@@ -77,6 +77,9 @@ export interface CheckoutSummary {
   subtotal: number;
   discount: number;
   shippingFee: number;
+  /** Flat convenience fee for choosing Cash on Delivery, in paise — 0 for a
+   *  prepaid order. See lib/checkout/cod.ts. */
+  codFee: number;
   total: number;
   couponCode?: string;
 }

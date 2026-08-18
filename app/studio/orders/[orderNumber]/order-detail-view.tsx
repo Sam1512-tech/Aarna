@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import { useState, useTransition } from "react";
-import { Truck, Package, FileDown, Mail, RefreshCw } from "lucide-react";
+import { Truck, Package, FileDown, Mail, RefreshCw, Banknote } from "lucide-react";
 import { StatusPill } from "@/components/admin/admin-primitives";
 import {
   attachAwbNumber,
   createDelhiveryShipment,
+  markCodCollected,
   resendOrderConfirmationEmail,
   updateOrderFulfillmentStatus,
 } from "@/lib/actions/admin/orders";
@@ -55,10 +56,12 @@ interface Order {
   id: string;
   orderNumber: string;
   paymentStatus: string;
+  paymentMethod: "prepaid" | "cod";
   fulfillmentStatus: FulfillmentStatus;
   awbNumber: string | null;
   subtotal: number;
   shippingFee: number;
+  codFee: number;
   discount: number;
   total: number;
   couponCode: string | null;
@@ -120,14 +123,21 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
 
   const shipping = order.shippingAddress as Address | null;
 
+  // Mirrors createDelhiveryShipment's own server-side gate exactly — a COD
+  // order has to ship BEFORE cash can ever be collected, so cod_pending is
+  // its normal shippable state, same role "paid" plays for prepaid.
+  const orderIsPayable =
+    order.paymentStatus === "paid" ||
+    (order.paymentMethod === "cod" && order.paymentStatus === "cod_pending");
+
   const canCreateShipment =
-    order.paymentStatus === "paid" &&
+    orderIsPayable &&
     !order.awbNumber &&
     (order.fulfillmentStatus === "processing" ||
       order.fulfillmentStatus === "pending");
 
   const shipmentReason = !order.awbNumber
-    ? order.paymentStatus !== "paid"
+    ? !orderIsPayable
       ? "Order is not paid yet"
       : order.fulfillmentStatus !== "processing" &&
           order.fulfillmentStatus !== "pending"
@@ -212,6 +222,29 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
     });
   }
 
+  // Almost always redundant by the time an admin sees this button —
+  // applyDelhiveryStatus already auto-confirms cash collection the moment
+  // Delhivery reports the order delivered (see its own comment). This is
+  // the manual correction path for the rare mismatch (a courier mis-scan,
+  // a status that arrived some other way).
+  const canMarkCodCollected =
+    order.paymentMethod === "cod" &&
+    order.paymentStatus === "cod_pending" &&
+    order.fulfillmentStatus === "delivered";
+
+  function handleMarkCodCollected() {
+    if (!canMarkCodCollected) return;
+    startTransition(async () => {
+      try {
+        await markCodCollected(order.id);
+        setOrder((o) => ({ ...o, paymentStatus: "paid" }));
+        announce("Cash collection confirmed — order marked paid.");
+      } catch (err) {
+        announce(actionErrorMessage(err, "Couldn't confirm cash collection"), true);
+      }
+    });
+  }
+
   function handleResendConfirmation() {
     startTransition(async () => {
       try {
@@ -223,8 +256,12 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
     });
   }
 
+  // Mirrors resendOrderConfirmationEmail's own server-side gate exactly — a
+  // COD order is fully invoiced at cod_pending (no payment.captured webhook
+  // to wait behind), so it's eligible for a resend the same as
+  // paid/partially_refunded.
   const canResendConfirmation =
-    (order.paymentStatus === "paid" || order.paymentStatus === "partially_refunded") &&
+    (orderIsPayable || order.paymentStatus === "partially_refunded") &&
     Boolean(order.invoiceNumber);
 
   return (
@@ -321,11 +358,15 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
               />
             ) : null}
             <Row label="Shipping" value={formatINR(order.shippingFee)} />
+            {order.codFee > 0 ? (
+              <Row label="Cash on Delivery fee" value={formatINR(order.codFee)} />
+            ) : null}
             <div className="mt-1 border-t border-cocoa/10 pt-3">
               <Row label="Total" value={formatINR(order.total)} strong />
             </div>
             <p className="mt-1 text-xs text-charcoal/55">
-              status · {order.paymentStatus}
+              {order.paymentMethod === "cod" ? "Cash on Delivery" : "Paid online"} · status ·{" "}
+              {order.paymentStatus}
               {order.invoiceNumber ? ` · invoice ${order.invoiceNumber}` : ""}
             </p>
             {order.gstNumber ? (
@@ -474,6 +515,28 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
             )}
           </div>
         </Card>
+
+        {order.paymentMethod === "cod" ? (
+          <Card>
+            <SectionTitle>Cash on Delivery</SectionTitle>
+            <button
+              type="button"
+              onClick={handleMarkCodCollected}
+              disabled={!canMarkCodCollected || pending}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-cocoa px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.18em] text-cream shadow-[0_10px_28px_rgba(140,106,90,0.22)] transition duration-500 hover:bg-cocoa/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Banknote className="h-3.5 w-3.5" aria-hidden="true" />
+              {pending ? "working…" : "mark cash collected"}
+            </button>
+            <p className="mt-2 text-xs text-charcoal/55">
+              {order.paymentStatus === "paid"
+                ? "Already confirmed — cash collection is marked paid."
+                : order.fulfillmentStatus !== "delivered"
+                  ? "Confirms automatically once Delhivery reports this order delivered — needs delivered status first."
+                  : "Delivered, but cash collection hasn't auto-confirmed yet. Use this to confirm it by hand."}
+            </p>
+          </Card>
+        ) : null}
 
         <Card>
           <SectionTitle>Invoice</SectionTitle>

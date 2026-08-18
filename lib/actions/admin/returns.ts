@@ -1,11 +1,12 @@
 "use server";
 
-import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { requestReversePickup, fetchWaybill, createShipment } from "@/lib/delhivery";
 import { createRefund } from "@/lib/razorpay";
+import { insertCodRefundCreditNote } from "@/lib/db/queries/orders";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import {
   notifyWhatsApp,
@@ -20,7 +21,7 @@ import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 
 const FALLBACK_ITEM_WEIGHT_GRAMS = 450; // typical garment when variant has no weight
 
-const { returns, orderItems, orders, productVariants, products } = schema;
+const { returns, orderItems, orders, orderRefundEvents, productVariants, products } = schema;
 
 // Statuses updateReturnStatus will actually accept — "refunded" (only via
 // markReturnQc) and "exchange_shipped"/"exchange_delivered" (only via
@@ -39,7 +40,12 @@ type ReturnStatus = (typeof RETURN_STATUSES)[number];
 // Every status a return row can actually hold — broader than ReturnStatus
 // above since this is what admin list filtering needs to match against, not
 // what's manually settable.
-type AnyReturnStatus = ReturnStatus | "refunded" | "exchange_shipped" | "exchange_delivered";
+type AnyReturnStatus =
+  | ReturnStatus
+  | "refunded"
+  | "exchange_shipped"
+  | "exchange_delivered"
+  | "refund_pending";
 
 // Once a return reaches any of these, updateReturnStatus must never write to
 // it again — each is owned by a different, more specific action with its own
@@ -61,6 +67,11 @@ const TERMINAL_RETURN_STATUSES = [
   "refunded",
   "exchange_shipped",
   "exchange_delivered",
+  // COD return awaiting the admin's manual "record COD refund sent"
+  // confirmation (recordCodRefundSent) — the only action allowed to move it
+  // further, same "each terminal status is owned by one specific action"
+  // reasoning as the others in this list.
+  "refund_pending",
 ] as const;
 
 // ── Read ─────────────────────────────────────────────────────────────────────
@@ -99,6 +110,12 @@ export async function getAdminReturns(filters: AdminReturnFilters = {}) {
         qcOutcome: returns.qcOutcome,
         createdAt: returns.createdAt,
         resolvedAt: returns.resolvedAt,
+        // COD manual-refund fields — refundUpiId is where a refund_pending
+        // return's money is headed; codRefundReference is the admin's own
+        // optional note once recordCodRefundSent confirms it was sent.
+        paymentMethod: orders.paymentMethod,
+        refundUpiId: returns.refundUpiId,
+        codRefundReference: returns.codRefundReference,
         orderId: orders.id,
         orderNumber: orders.orderNumber,
         productTitle: orderItems.productTitleSnapshot,
@@ -243,10 +260,15 @@ export async function updateReturnStatus(
     .where(
       and(
         eq(returns.id, returnId),
-        ne(returns.status, "rejected"),
-        ne(returns.status, "refunded"),
-        ne(returns.status, "exchange_shipped"),
-        ne(returns.status, "exchange_delivered"),
+        // Derived from TERMINAL_RETURN_STATUSES itself, not a separate
+        // hand-written list — a hand-written copy of this exact guard is
+        // what let "refund_pending" get added to TERMINAL_RETURN_STATUSES
+        // (closing the fast-path check above) without also closing this
+        // race-guard, silently reopening the same class of race the fast
+        // path was supposed to prevent for the new status. Deriving from
+        // the single source of truth means the two can never drift apart
+        // again.
+        notInArray(returns.status, [...TERMINAL_RETURN_STATUSES]),
       ),
     )
     .returning();
@@ -369,7 +391,7 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
   // silently remove that guarantee — recordRefund would then fall into its
   // (non-catastrophic, needsReview-flagged) fallback path instead, but only
   // sometimes and without any signal that the ordering assumption broke.
-  const { row, updated, finalRefund } = await db.transaction(async (tx) => {
+  const { row, updated, finalRefund, codRefundPending } = await db.transaction(async (tx) => {
     const [r] = await tx
       .select({
         status: returns.status,
@@ -385,6 +407,8 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
         whatsappOptIn: orders.whatsappOptIn,
         shippingAddress: orders.shippingAddress,
         razorpayPaymentId: orders.razorpayPaymentId,
+        paymentMethod: orders.paymentMethod,
+        refundUpiId: returns.refundUpiId,
       })
       .from(returns)
       .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
@@ -429,33 +453,49 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
 
     // Issue the actual refund before touching our own records — money
     // actually moving is the part that can't be silently "marked done" if it
-    // didn't happen.
+    // didn't happen. A COD order has no Razorpay payment to refund against
+    // at all — that used to be treated as an unexpected data problem
+    // (hard-throw, "refund manually"), but for COD it's the normal, expected
+    // case: parked at refund_pending awaiting the admin's manual UPI
+    // transfer + recordCodRefundSent confirmation, rather than blocking QC
+    // entirely.
     let razorpayRefundId: string | undefined;
+    let codRefundPending = false;
     if (computedRefund > 0) {
-      if (!r.razorpayPaymentId) {
+      if (r.razorpayPaymentId) {
+        const refund = await createRefund(r.razorpayPaymentId, computedRefund, {
+          returnId,
+          orderNumber: r.orderNumber,
+        });
+        razorpayRefundId = refund.id;
+      } else if (r.paymentMethod === "cod") {
+        codRefundPending = true;
+      } else {
+        // Not COD and no Razorpay payment on record — still a genuine
+        // data problem, not something to silently park.
         throw new ActionError("No Razorpay payment on this order — refund manually");
       }
-      const refund = await createRefund(r.razorpayPaymentId, computedRefund, {
-        returnId,
-        orderNumber: r.orderNumber,
-      });
-      razorpayRefundId = refund.id;
     }
+
+    const nextStatus = codRefundPending ? "refund_pending" : "refunded";
 
     const [u] = await tx
       .update(returns)
       .set({
-        status: "refunded",
+        status: nextStatus,
         qcOutcome: input.outcome,
         refundAmount: computedRefund,
         adminNote: input.note?.trim() || null,
         ...(razorpayRefundId ? { razorpayRefundId } : {}),
-        resolvedAt: new Date(),
+        // Not resolved yet if a COD refund is still just parked — no money
+        // has moved. resolvedAt is set for real once recordCodRefundSent
+        // confirms it was actually sent.
+        ...(nextStatus === "refunded" ? { resolvedAt: new Date() } : {}),
       })
       .where(eq(returns.id, returnId))
       .returning();
 
-    return { row: r, updated: u, finalRefund: computedRefund };
+    return { row: r, updated: u, finalRefund: computedRefund, codRefundPending };
   });
 
   revalidatePath("/studio/returns");
@@ -496,11 +536,18 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
         refundLine,
       ],
     });
-  } else if (finalRefund > 0) {
+  } else if (finalRefund > 0 && !codRefundPending) {
     // A pass on an exchange sends no money (finalRefund 0) — the actual
     // "your swap has shipped" moment is createExchangeShipment below, a
     // separate admin action, not this one (see that function's comment for
     // why shipment creation isn't bundled into this transaction).
+    //
+    // codRefundPending is excluded here on purpose — nothing has actually
+    // been refunded yet for a COD return parked at refund_pending (there's
+    // no Razorpay payment to refund against), so sending this template now
+    // would tell the customer money already moved when it hasn't.
+    // recordCodRefundSent sends its own notification once the admin
+    // actually confirms the UPI transfer went out.
     await notifyWhatsApp({
       orderId: row.orderId,
       phone: row.phone,
@@ -521,6 +568,158 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
   });
 
   return updated;
+}
+
+/**
+ * Closes the loop on a COD return markReturnQc parked at "refund_pending" —
+ * there's no Razorpay payment to refund against for a COD order, so the
+ * admin sends the money by hand via UPI (to the customer-supplied
+ * refundUpiId) and confirms it here once actually sent. No payout API
+ * integration; this only records that it happened.
+ *
+ * Race-safe the same way markReturnQc is: a locked read (SELECT ... FOR
+ * UPDATE) followed by an explicit status check inside the transaction — a
+ * concurrent second call (double-click, two admin tabs) blocks on the row
+ * lock until the first commits, then re-reads status "refunded" and
+ * correctly fails the check instead of ever generating a second credit note
+ * or re-sending the refund-processed notification.
+ *
+ * Also records the refund against the ORDER, not just the return —
+ * inserting an order_refund_events row and flipping orders.paymentStatus to
+ * "refunded"/"partially_refunded" once the cumulative refunded total
+ * actually covers the order, exactly mirroring what recordRefund
+ * (lib/db/queries/orders.ts) already does for a real Razorpay refund. Both
+ * writes happen inside this same locked transaction, atomically with the
+ * return's own status flip — without this, getOrderStats's revenue calc
+ * (which nets grossCaptured against order_refund_events) would never learn
+ * a COD order was refunded and would overstate revenue by the refunded
+ * amount forever, and every other surface that reads orders.paymentStatus
+ * (the invoice PDF, the admin order list/detail, both accountant reports,
+ * the customer's own order list) would keep showing "Paid" indefinitely.
+ */
+export async function recordCodRefundSent(
+  returnId: string,
+  input: { reference?: string },
+): Promise<{ ok: true }> {
+  const admin = await requireAdmin();
+
+  const row = await db.transaction(async (tx) => {
+    const [r] = await tx
+      .select({
+        status: returns.status,
+        refundAmount: returns.refundAmount,
+        refundUpiId: returns.refundUpiId,
+        orderItemId: returns.orderItemId,
+        orderId: orders.id,
+        orderNumber: orders.orderNumber,
+        phone: orders.phone,
+        whatsappOptIn: orders.whatsappOptIn,
+        shippingAddress: orders.shippingAddress,
+      })
+      .from(returns)
+      .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .where(eq(returns.id, returnId))
+      .for("update");
+    if (!r) throw new ActionError("Return not found");
+    if (r.status !== "refund_pending") {
+      throw new ActionError(
+        `This return is "${r.status}", not awaiting a COD refund confirmation`,
+      );
+    }
+
+    await tx
+      .update(returns)
+      .set({
+        status: "refunded",
+        resolvedAt: new Date(),
+        codRefundReference: input.reference?.trim() || null,
+      })
+      .where(eq(returns.id, returnId));
+
+    const refundAmount = r.refundAmount ?? 0;
+    if (refundAmount > 0) {
+      await tx.insert(orderRefundEvents).values({
+        orderId: r.orderId,
+        razorpayRefundId: null,
+        amountPaise: refundAmount,
+      });
+
+      // Same cumulative-total basis recordRefund uses (see its own
+      // comment): the sum of order_items.lineTotal, not orders.total —
+      // markReturnQc always refunds the returned item's raw lineTotal, so
+      // that's the true ceiling every refund event is drawn from
+      // regardless of shipping/discount/codFee.
+      const [{ total: cumulativeRefunded }] = await tx
+        .select({
+          total: sql<number>`coalesce(sum(${orderRefundEvents.amountPaise}), 0)::int`,
+        })
+        .from(orderRefundEvents)
+        .where(eq(orderRefundEvents.orderId, r.orderId));
+
+      const [{ total: refundableTotal }] = await tx
+        .select({
+          total: sql<number>`coalesce(sum(${orderItems.lineTotal}), 0)::int`,
+        })
+        .from(orderItems)
+        .where(eq(orderItems.orderId, r.orderId));
+
+      const nextPaymentStatus: "refunded" | "partially_refunded" =
+        cumulativeRefunded >= refundableTotal ? "refunded" : "partially_refunded";
+
+      await tx
+        .update(orders)
+        .set({ paymentStatus: nextPaymentStatus, updatedAt: new Date() })
+        .where(eq(orders.id, r.orderId));
+    }
+
+    return r;
+  });
+
+  // Credit note + notification are best-effort, same "the money already
+  // moved, don't let a downstream hiccup look like the whole action failed"
+  // rule ensureCreditNoteForRefund's own caller follows — the refund_pending
+  // -> refunded transition above is already committed and durable.
+  try {
+    await insertCodRefundCreditNote({
+      orderId: row.orderId,
+      returnId,
+      orderItemId: row.orderItemId,
+      amountRefundedPaise: row.refundAmount ?? 0,
+    });
+  } catch (err) {
+    console.error(`[returns] COD refund credit note generation failed for return ${returnId}:`, err);
+    await alertAdminSuspiciousActivity({
+      event: "Credit note generation failed after a COD refund was confirmed sent",
+      detail: `Return ${returnId} on order ${row.orderNumber} was confirmed refunded via UPI, but generating its GST credit note failed. The refund itself is real and recorded — a credit note needs to be created by hand. Error: ${err instanceof Error ? err.message : String(err)}`,
+    }).catch((alertErr) => {
+      console.error("[returns] COD refund credit-note-failure alert itself failed:", alertErr);
+    });
+  }
+
+  if ((row.refundAmount ?? 0) > 0) {
+    await notifyWhatsApp({
+      orderId: row.orderId,
+      phone: row.phone,
+      whatsappOptIn: row.whatsappOptIn,
+      templateKey: "refund_processed",
+      bodyValues: [
+        firstNameFromAddress(row.shippingAddress),
+        rupees(row.refundAmount ?? 0),
+        row.orderNumber,
+        "2–3 business days",
+      ],
+    });
+  }
+
+  revalidatePath("/studio/returns");
+  revalidatePath("/account/returns");
+
+  await logAdminAction(admin.id, "return.record_cod_refund_sent", "return", returnId, {
+    reference: input.reference,
+  });
+
+  return { ok: true };
 }
 
 // ── Exchange outbound shipment ──────────────────────────────────────────────
@@ -650,6 +849,11 @@ export async function createExchangeShipment(returnId: string) {
       // swap).
       totalAmount: Math.round(row.total / 100),
       weightGrams,
+      // Explicit regardless of the original order's paymentMethod — an
+      // exchange shipment never itself collects cash (the item was already
+      // paid for, or is COD-pending on the original order; either way,
+      // nothing is due on this replacement parcel).
+      paymentMode: "Prepaid",
     });
 
     // Conditional on both the "PENDING" claim AND status still being

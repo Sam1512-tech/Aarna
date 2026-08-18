@@ -23,6 +23,7 @@ export default async function PaymentFailedPage({
     | "failed"
     | "refunded"
     | "partially_refunded"
+    | "cod_pending"
     | null = null;
   if (order) {
     try {
