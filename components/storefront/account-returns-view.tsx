@@ -22,6 +22,8 @@ export interface ReturnRow {
   createdAt: Date | string;
   /** Outbound replacement shipment AWB — null until it's actually shipped. */
   outboundAwb: string | null;
+  /** Reverse pickup AWB (customer -> studio leg) — null until arranged. */
+  reversePickupAwb: string | null;
 }
 
 export interface EligibleItem {
@@ -144,6 +146,7 @@ export function AccountReturnsView({
         refundAmount: row.refundAmount,
         createdAt: row.createdAt,
         outboundAwb: null,
+        reversePickupAwb: null,
       },
       ...prev,
     ]);
@@ -354,6 +357,22 @@ function RequestCard({
       ) : (
         <Timeline currentIdx={currentIdx} type={type} steps={steps} />
       )}
+
+      {row.reversePickupAwb && (row.status === "approved" || row.status === "picked") ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cocoa/10 bg-cocoa/4 px-4 py-3">
+          <p className="text-xs leading-6 text-charcoal/55">
+            Pickup arranged — our courier will collect this from you.
+          </p>
+          <a
+            href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(row.reversePickupAwb)}`}
+            target="_blank"
+            rel="noopener"
+            className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
+          >
+            Track pickup
+          </a>
+        </div>
+      ) : null}
 
       {type === "return" && row.status === "refunded" && row.refundAmount ? (
         <p className="mt-4 text-xs leading-6 text-charcoal/55">
