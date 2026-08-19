@@ -129,12 +129,9 @@ interface CheckoutViewProps {
   /** Saved addresses from the account address book — empty if the customer
    *  has none yet. Purely a convenience layer over the same manual form. */
   addresses: AddressRow[];
-  /** Server-computed (lib/checkout/cod.ts's isCodEnabled(), read via a
-   *  server component) — never read the underlying env var client-side. */
-  codEnabled: boolean;
 }
 
-export function CheckoutView({ cart, prefill, addresses, codEnabled }: CheckoutViewProps) {
+export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
   const router = useRouter();
   // Pre-select the default saved address (or the first one if none is
   // marked default) so the form opens already filled in for a returning
@@ -164,11 +161,10 @@ export function CheckoutView({ cart, prefill, addresses, codEnabled }: CheckoutV
   const [paymentMethod, setPaymentMethod] = useState<"prepaid" | "cod">("prepaid");
 
   // COD is only actually selectable once the entered pincode is confirmed
-  // COD-serviceable by Delhivery (a pincode can be prepaid-only) — never
-  // just "codEnabled site-wide", same never-trust-a-broader-flag-alone
-  // reasoning checkPincodeServiceability's own fail-closed defaults follow.
+  // COD-serviceable by Delhivery (a pincode can be prepaid-only) — same
+  // never-trust-a-broader-flag-alone reasoning
+  // checkPincodeServiceability's own fail-closed defaults follow.
   const codAvailableForPincode =
-    codEnabled &&
     Boolean(pincodeStatus?.verified) &&
     Boolean(pincodeStatus?.serviceable) &&
     pincodeStatus?.codServiceable === true;
@@ -820,34 +816,32 @@ export function CheckoutView({ cart, prefill, addresses, codEnabled }: CheckoutV
               ) : null}
             </fieldset>
 
-            {codEnabled ? (
-              <fieldset className="space-y-3">
-                <Legend>Payment</Legend>
-                <div className="space-y-2.5" role="radiogroup" aria-label="Choose a payment method">
-                  <PaymentOption
-                    icon={<ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />}
-                    label="Pay online"
-                    hint="Card, UPI, netbanking — via Razorpay"
-                    selected={paymentMethod === "prepaid"}
-                    onSelect={() => setPaymentMethod("prepaid")}
-                  />
-                  <PaymentOption
-                    icon={<Banknote className="h-3.5 w-3.5" aria-hidden="true" />}
-                    label={`Cash on Delivery · pay ${formatINR(COD_CONVENIENCE_FEE_PAISE)} extra`}
-                    hint={
-                      codAvailableForPincode
-                        ? "Pay in cash when your order arrives"
-                        : pincodeStatus?.verified && pincodeStatus.serviceable
-                          ? "Not available for this pincode"
-                          : "Verify your pincode above to check availability"
-                    }
-                    selected={paymentMethod === "cod"}
-                    disabled={!codAvailableForPincode}
-                    onSelect={() => setPaymentMethod("cod")}
-                  />
-                </div>
-              </fieldset>
-            ) : null}
+            <fieldset className="space-y-3">
+              <Legend>Payment</Legend>
+              <div className="space-y-2.5" role="radiogroup" aria-label="Choose a payment method">
+                <PaymentOption
+                  icon={<ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />}
+                  label="Pay online"
+                  hint="Card, UPI, netbanking — via Razorpay"
+                  selected={paymentMethod === "prepaid"}
+                  onSelect={() => setPaymentMethod("prepaid")}
+                />
+                <PaymentOption
+                  icon={<Banknote className="h-3.5 w-3.5" aria-hidden="true" />}
+                  label={`Cash on Delivery · pay ${formatINR(COD_CONVENIENCE_FEE_PAISE)} extra`}
+                  hint={
+                    codAvailableForPincode
+                      ? "Pay in cash when your order arrives"
+                      : pincodeStatus?.verified && pincodeStatus.serviceable
+                        ? "Not available for this pincode"
+                        : "Verify your pincode above to check availability"
+                  }
+                  selected={paymentMethod === "cod"}
+                  disabled={!codAvailableForPincode}
+                  onSelect={() => setPaymentMethod("cod")}
+                />
+              </div>
+            </fieldset>
 
             <TrustStrip />
 

@@ -24,7 +24,7 @@ import type { AddressInput, CheckoutSummary } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { isValidGstin, normalizeGstin } from "@/lib/gst";
 import { shippingAddressSchema } from "@/lib/checkout/address-schema";
-import { COD_CONVENIENCE_FEE_PAISE, isCodEnabled } from "@/lib/checkout/cod";
+import { COD_CONVENIENCE_FEE_PAISE } from "@/lib/checkout/cod";
 
 const { customers, orders, orderItems, productVariants, inventoryMovements, carts, cartItems } = schema;
 
@@ -113,14 +113,11 @@ export async function initCheckout(
     );
   }
 
-  // 1c. Cash on Delivery gate — never trust the client's own read of
-  // isCodEnabled()/codServiceable (checkPincodeServiceability's own client
-  // consumer only uses these to decide what to *show*). Re-checked here,
-  // independently, before a COD order is ever allowed to be created.
+  // 1c. Cash on Delivery pincode gate — never trust the client's own read of
+  // codServiceable (checkPincodeServiceability's own client consumer only
+  // uses it to decide what to *show*). Re-checked here, independently,
+  // before a COD order is ever allowed to be created.
   if (input.paymentMethod === "cod") {
-    if (!isCodEnabled()) {
-      throw new ActionError("Cash on Delivery isn't available right now");
-    }
     const pincodeCheck = await checkPincodeServiceability(input.shippingAddress.pincode);
     if (!pincodeCheck.codServiceable) {
       throw new ActionError(
@@ -489,8 +486,9 @@ export async function checkPincodeServiceability(
   // Pre-KYC: if the Delhivery token isn't set yet, stay optimistic so Vismaya's
   // checkout UI keeps working. Once DELHIVERY_API_TOKEN is configured this hits
   // the real pincode serviceability API. COD stays false here (fail closed —
-  // see isCodEnabled's own reasoning for why COD specifically shouldn't
-  // fail open the way plain deliverability does).
+  // without a real answer from Delhivery, offering COD would be a guess, and
+  // silently letting a customer choose an unserviceable payment method is a
+  // worse failure than just not offering it).
   if (!process.env.DELHIVERY_API_TOKEN) {
     return { serviceable: true, etaDays: estimatedDeliveryWindow(pincode), codServiceable: false };
   }
