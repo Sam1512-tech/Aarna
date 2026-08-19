@@ -29,6 +29,22 @@ export const orderPaymentStatus = pgEnum("order_payment_status", [
   "failed",
   "refunded",
   "partially_refunded",
+  // COD only — order placed, cash not yet collected by the courier. Never
+  // produced by markOrderPaid (unreachable for COD: that function is only
+  // ever invoked via getOrderByRazorpayId, and a COD order never gets a
+  // razorpayOrderId), never touched by releaseExpiredCheckoutHolds /
+  // markOrderPaymentFailed / deleteStaleUnpaidOrders (all keyed on
+  // "pending"/"failed"), and invisible to getOrderStats's revenue calc
+  // until applyDelhiveryStatus flips it to "paid" on confirmed delivery.
+  "cod_pending",
+]);
+
+// Stable for an order's whole life — paymentStatus alone can't say *how* an
+// order reached "paid" (Razorpay capture vs. cash at the door), and both
+// the refund path and Delhivery's payment_mode need that distinction.
+export const orderPaymentMethod = pgEnum("order_payment_method", [
+  "prepaid",
+  "cod",
 ]);
 
 export const orderFulfillmentStatus = pgEnum("order_fulfillment_status", [
@@ -52,6 +68,12 @@ export const returnStatus = pgEnum("return_status", [
   "refunded",
   "exchange_shipped",
   "exchange_delivered",
+  // COD returns only — QC passed with a nonzero refund owed, but there's no
+  // Razorpay payment to refund against, so it parks here awaiting an
+  // admin's manual "record COD refund sent" confirmation (recordCodRefundSent).
+  // Never reached by exchanges (their refund is always 0) or prepaid
+  // returns (they go straight to "refunded" via a real Razorpay refund).
+  "refund_pending",
 ]);
 
 // Split "return vs exchange" onto a dedicated column so it doesn't have to be
@@ -384,8 +406,16 @@ export const orders = pgTable(
     subtotal: integer("subtotal").notNull(),
     discount: integer("discount").default(0).notNull(),
     shippingFee: integer("shipping_fee").default(0).notNull(),
+    // Paise, non-taxable (same treatment as shippingFee) — flat convenience
+    // fee applied only when paymentMethod is "cod". 0 for prepaid orders.
+    codFee: integer("cod_fee").default(0).notNull(),
     total: integer("total").notNull(),
     couponCode: varchar("coupon_code", { length: 40 }),
+    // Stable for the order's whole life, set once at checkout. Existing rows
+    // backfill to "prepaid" for free via the default.
+    paymentMethod: orderPaymentMethod("payment_method")
+      .default("prepaid")
+      .notNull(),
     // Buyer's GSTIN, optional — only business customers who want it on the tax
     // invoice provide one. Format-validated at checkout (lib/gst.ts).
     gstNumber: varchar("gst_number", { length: 15 }),
@@ -461,19 +491,31 @@ export const orderItems = pgTable(
   }),
 );
 
-// One row per processed Razorpay refund event (`refund.processed` webhook),
-// unique on razorpayRefundId — an append-only ledger that recordRefund
-// (lib/db/queries/orders.ts) uses for two things at once:
-//   1. Idempotency — Razorpay documents at-least-once webhook delivery, so a
-//      redelivered event for the exact same refund hits the unique
-//      constraint (INSERT ... ON CONFLICT DO NOTHING) and is recognized as a
-//      duplicate instead of re-triggering the customer email.
+// One row per processed refund event — either a real Razorpay refund
+// (`refund.processed` webhook) or a manually-sent COD UPI refund
+// (recordCodRefundSent, lib/actions/admin/returns.ts). razorpayRefundId is
+// unique when present but nullable — a COD refund has no Razorpay refund to
+// key off. recordRefund (lib/db/queries/orders.ts) uses this table for two
+// things at once, and recordCodRefundSent's own insert exists for the same
+// two reasons:
+//   1. Idempotency for the Razorpay path — Razorpay documents at-least-once
+//      webhook delivery, so a redelivered event for the exact same refund
+//      hits the unique constraint (INSERT ... ON CONFLICT DO NOTHING) and is
+//      recognized as a duplicate instead of re-triggering the customer
+//      email. A COD refund's idempotency comes from a different guard
+//      instead — recordCodRefundSent's own refund_pending -> refunded
+//      transition, which can only succeed once per return (see that
+//      function's own comment) — so its insert here doesn't need a
+//      razorpayRefundId to dedupe against.
 //   2. Cumulative refund total — an order can be refunded across multiple
 //      separate partial refunds (one per returned item, the normal shape
-//      now that returns are processed per item). Summing amountPaise across
-//      every event for an order is what lets recordRefund correctly flip
+//      now that returns are processed per item, regardless of payment
+//      method). Summing amountPaise across every event for an order is what
+//      lets both recordRefund and recordCodRefundSent correctly flip
 //      paymentStatus to "refunded" once the running total actually covers
-//      the order total, instead of comparing a single event's amount.
+//      the order total, instead of comparing a single event's amount — and
+//      what lets getOrderStats's revenue calc correctly net out a COD
+//      order's refunded amount, not just a prepaid one's.
 export const orderRefundEvents = pgTable(
   "order_refund_events",
   {
@@ -481,9 +523,7 @@ export const orderRefundEvents = pgTable(
     orderId: uuid("order_id")
       .notNull()
       .references(() => orders.id, { onDelete: "cascade" }),
-    razorpayRefundId: varchar("razorpay_refund_id", { length: 60 })
-      .notNull()
-      .unique(),
+    razorpayRefundId: varchar("razorpay_refund_id", { length: 60 }),
     amountPaise: integer("amount_paise").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -491,6 +531,14 @@ export const orderRefundEvents = pgTable(
   },
   (t) => ({
     orderIdx: index("order_refund_events_order_idx").on(t.orderId),
+    // Partial — a manually-sent COD refund event legitimately has no
+    // razorpayRefundId; Postgres treats multiple NULLs as distinct by
+    // default, so this only enforces uniqueness among the rows that
+    // actually carry a value. Same pattern as creditNotes' own
+    // razorpayRefundIdUnique above.
+    razorpayRefundIdUnique: uniqueIndex("order_refund_event_razorpay_refund_id_idx")
+      .on(t.razorpayRefundId)
+      .where(sql`${t.razorpayRefundId} IS NOT NULL`),
   }),
 );
 
@@ -516,9 +564,12 @@ export const creditNotes = pgTable(
     returnId: uuid("return_id").references(() => returns.id, {
       onDelete: "set null",
     }),
-    razorpayRefundId: varchar("razorpay_refund_id", { length: 60 })
-      .notNull()
-      .unique(),
+    // Nullable — a manually-refunded COD credit note (no gateway payment to
+    // refund, see recordCodRefundSent in lib/actions/admin/returns.ts) has
+    // no real Razorpay refund to link. Uniqueness enforced by the partial
+    // index below instead of a plain constraint, matching the exact pattern
+    // returns.razorpayRefundIdUnique already uses.
+    razorpayRefundId: varchar("razorpay_refund_id", { length: 60 }),
     creditNoteNumber: varchar("credit_note_number", { length: 30 })
       .notNull()
       .unique(),
@@ -546,6 +597,13 @@ export const creditNotes = pgTable(
   },
   (t) => ({
     orderIdx: index("credit_note_order_idx").on(t.orderId),
+    // Partial — most credit notes have a real razorpayRefundId, but a
+    // manually-refunded COD one legitimately has none; Postgres treats
+    // multiple NULLs as distinct by default, so this only enforces
+    // uniqueness among the rows that actually carry a value.
+    razorpayRefundIdUnique: uniqueIndex("credit_note_razorpay_refund_id_idx")
+      .on(t.razorpayRefundId)
+      .where(sql`${t.razorpayRefundId} IS NOT NULL`),
   }),
 );
 
@@ -644,6 +702,15 @@ export const returns = pgTable(
     // mutually exclusive: a rejected request never reaches QC, and vice versa).
     adminNote: text("admin_note"),
     qcOutcome: returnQcOutcome("qc_outcome"),
+    // Customer-supplied, collected at return-request time only for a COD
+    // order's return (never exchanges — nothing to refund there). Not
+    // required server-side; an admin can follow up separately if missing.
+    refundUpiId: varchar("refund_upi_id", { length: 60 }),
+    // Admin's optional UTR/reference note when confirming a manual COD
+    // refund was actually sent (recordCodRefundSent). Deliberately separate
+    // from adminNote, which is customer-visible — this one is internal
+    // bookkeeping only.
+    codRefundReference: varchar("cod_refund_reference", { length: 120 }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

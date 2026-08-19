@@ -24,6 +24,12 @@ export interface ReturnRow {
   outboundAwb: string | null;
   /** Reverse pickup AWB (customer -> studio leg) — null until arranged. */
   reversePickupAwb: string | null;
+  /** Optional — a freshly-submitted row (handleSubmitted below) never needs
+   *  this, since it starts at "requested" and none of the paymentMethod-
+   *  dependent messaging below renders before "refund_pending"/"refunded". */
+  paymentMethod?: "prepaid" | "cod";
+  /** Where a pending COD refund is headed — only set for a COD return. */
+  refundUpiId?: string | null;
 }
 
 export interface EligibleItem {
@@ -35,6 +41,7 @@ export interface EligibleItem {
   variantLabel: string | null;
   quantity: number;
   lineTotal: number;
+  paymentMethod: "prepaid" | "cod";
 }
 
 interface AccountReturnsViewProps {
@@ -45,12 +52,47 @@ interface AccountReturnsViewProps {
 type Tab = "all" | "returns" | "exchanges";
 type Type = "return" | "exchange";
 
+// Every status either timeline can show — declared as one explicit union
+// (not derived from either array below) so RETURN_STEPS and EXCHANGE_STEPS
+// can each independently list only the states relevant to that type without
+// one having to be a subset of the other.
+type Step =
+  | "requested"
+  | "approved"
+  | "picked"
+  | "received"
+  | "refund_pending"
+  | "refunded"
+  | "exchange_shipped"
+  | "exchange_delivered";
+
 // Same enum keys backend uses in lib/db/schema.ts. Returns and exchanges
-// diverge after "received" — a return's last real milestone is the refund;
-// an exchange's is the replacement actually arriving, two steps later
-// (shipped, delivered), with "refunded" (QC passed, not yet shipped) as an
-// in-between step exchanges have and returns don't.
-const RETURN_STEPS = ["requested", "approved", "picked", "received", "refunded"] as const;
+// diverge after "received" — a return's last real milestone is the refund
+// (with refund_pending as an extra in-between step for a COD return awaiting
+// its manual UPI transfer — an exchange never reaches it, its own refund is
+// always 0); an exchange's is the replacement actually arriving, two steps
+// later (shipped, delivered), with "refunded" (QC passed, not yet shipped)
+// as an in-between step exchanges have and returns don't.
+// Two variants of the return timeline — refund_pending is a real, distinct
+// status only a COD return's status column ever actually holds (markReturnQc
+// sends prepaid returns straight to "refunded", never through
+// refund_pending). Showing the COD-only step for a prepaid return would mark
+// a milestone "done" that its own status history never passed through.
+const RETURN_STEPS_PREPAID = [
+  "requested",
+  "approved",
+  "picked",
+  "received",
+  "refunded",
+] as const satisfies readonly Step[];
+const RETURN_STEPS_COD = [
+  "requested",
+  "approved",
+  "picked",
+  "received",
+  "refund_pending",
+  "refunded",
+] as const satisfies readonly Step[];
 const EXCHANGE_STEPS = [
   "requested",
   "approved",
@@ -59,12 +101,11 @@ const EXCHANGE_STEPS = [
   "refunded",
   "exchange_shipped",
   "exchange_delivered",
-] as const;
+] as const satisfies readonly Step[];
 
-type Step = (typeof EXCHANGE_STEPS)[number];
-
-function stepsFor(type: Type): readonly Step[] {
-  return type === "exchange" ? EXCHANGE_STEPS : RETURN_STEPS;
+function stepsFor(type: Type, paymentMethod?: "prepaid" | "cod"): readonly Step[] {
+  if (type === "exchange") return EXCHANGE_STEPS;
+  return paymentMethod === "cod" ? RETURN_STEPS_COD : RETURN_STEPS_PREPAID;
 }
 
 function stepLabel(step: Step, type: Type): string {
@@ -77,6 +118,8 @@ function stepLabel(step: Step, type: Type): string {
       return "picked up";
     case "received":
       return "received";
+    case "refund_pending":
+      return "refund pending";
     case "refunded":
       return type === "exchange" ? "swap approved" : "refunded";
     case "exchange_shipped":
@@ -147,6 +190,7 @@ export function AccountReturnsView({
         createdAt: row.createdAt,
         outboundAwb: null,
         reversePickupAwb: null,
+        paymentMethod: row.paymentMethod,
       },
       ...prev,
     ]);
@@ -287,7 +331,7 @@ function RequestCard({
   type: Type;
 }) {
   const isRejected = row.status === "rejected";
-  const steps = stepsFor(type);
+  const steps = stepsFor(type, row.paymentMethod);
   const currentIdx = steps.findIndex((s) => s === row.status);
   const displayReason = row.reason;
 
@@ -374,10 +418,18 @@ function RequestCard({
         </div>
       ) : null}
 
+      {type === "return" && row.status === "refund_pending" && row.refundAmount ? (
+        <p className="mt-4 text-xs leading-6 text-charcoal/55">
+          Your {formatINR(row.refundAmount)} refund will be sent via UPI
+          {row.refundUpiId ? ` to ${row.refundUpiId}` : ""} shortly.
+        </p>
+      ) : null}
+
       {type === "return" && row.status === "refunded" && row.refundAmount ? (
         <p className="mt-4 text-xs leading-6 text-charcoal/55">
-          {formatINR(row.refundAmount)} refunded to your original payment method
-          — allow 5–7 business days for it to show up.
+          {row.paymentMethod === "cod"
+            ? `${formatINR(row.refundAmount)} refunded via UPI.`
+            : `${formatINR(row.refundAmount)} refunded to your original payment method — allow 5–7 business days for it to show up.`}
         </p>
       ) : null}
 

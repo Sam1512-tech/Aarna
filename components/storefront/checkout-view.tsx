@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Lock, MapPin, Plus, ShieldCheck, Truck } from "lucide-react";
+import { ArrowRight, Banknote, Check, Lock, MapPin, Plus, ShieldCheck, Truck } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
@@ -12,6 +12,7 @@ import {
 import { createAddress } from "@/lib/actions/account";
 import { applyCoupon } from "@/lib/actions/cart";
 import { clearStoredCoupon, getStoredCoupon } from "@/lib/cart/coupon-storage";
+import { COD_CONVENIENCE_FEE_PAISE } from "@/lib/checkout/cod";
 import type { AddressRow, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/action-error";
@@ -149,6 +150,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
       postalHint: string | null;
       etaDays?: string;
       reason?: string;
+      codServiceable?: boolean;
     }
   >(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -156,6 +158,27 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [discount, setDiscount] = useState(0);
   const [couponNotice, setCouponNotice] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"prepaid" | "cod">("prepaid");
+
+  // COD is only actually selectable once the entered pincode is confirmed
+  // COD-serviceable by Delhivery (a pincode can be prepaid-only) — same
+  // never-trust-a-broader-flag-alone reasoning
+  // checkPincodeServiceability's own fail-closed defaults follow.
+  const codAvailableForPincode =
+    Boolean(pincodeStatus?.verified) &&
+    Boolean(pincodeStatus?.serviceable) &&
+    pincodeStatus?.codServiceable === true;
+
+  // If the customer had COD selected and then changes to an address where
+  // it's not serviceable, silently fall back to prepaid rather than letting
+  // a stale selection reach submit (which the server would reject anyway —
+  // this just avoids a confusing round-trip error for something the UI
+  // already knows).
+  useEffect(() => {
+    if (paymentMethod === "cod" && !codAvailableForPincode) {
+      setPaymentMethod("prepaid");
+    }
+  }, [paymentMethod, codAvailableForPincode]);
 
   // Restore a coupon applied on /cart — re-validate rather than trust the
   // stored discount, since stock/cart contents may have changed since.
@@ -324,7 +347,11 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
             "[checkout] pincode serviceability call failed (network/transport error, not a Delhivery answer):",
             err,
           );
-          return { serviceable: true, etaDays: "5" };
+          // Fail open on general deliverability (existing behaviour) but
+          // fail closed on COD — same reasoning as
+          // checkPincodeServiceability's own server-side fail-closed
+          // defaults for COD.
+          return { serviceable: true, etaDays: "5", codServiceable: false };
         }),
       ]);
       if (cancelled) return;
@@ -359,6 +386,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
           reason: delhivery.serviceable
             ? undefined
             : "We don't deliver to this pincode yet",
+          codServiceable: (delhivery as { codServiceable?: boolean }).codServiceable ?? false,
         });
         return;
       }
@@ -382,6 +410,7 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
         reason: delhivery.serviceable
           ? undefined
           : "We don't deliver to this pincode yet",
+        codServiceable: (delhivery as { codServiceable?: boolean }).codServiceable ?? false,
       });
     }, 350);
     return () => {
@@ -402,9 +431,11 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
 
   // Shipping is free site-wide (client decision) — lib/actions/checkout.ts
   // always computes shippingFee as 0 server-side, so the preview total here
-  // is just the discounted subtotal, no shipping estimate needed.
+  // is just the discounted subtotal (+ the COD fee, when selected) — no
+  // shipping estimate needed.
   const discountedSubtotal = Math.max(0, cart.subtotal - discount);
-  const previewTotal = discountedSubtotal;
+  const codFeePreview = paymentMethod === "cod" ? COD_CONVENIENCE_FEE_PAISE : 0;
+  const previewTotal = discountedSubtotal + codFeePreview;
 
   const openRazorpay = useCallback(
     (
@@ -465,6 +496,13 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
   );
 
   async function onSubmit(data: ShippingForm) {
+    // Belt-and-braces against a double-tap/double-submit racing ahead of
+    // the disabled={submitting} button re-render (real on a slow
+    // connection) — the actual guarantee against a duplicate COD order is
+    // server-side (initCheckout's own advisory lock + fresh cart re-check),
+    // but bailing out here means a second tap doesn't even open a second
+    // in-flight request.
+    if (submitting) return;
     setSubmitError(null);
     setSubmitting(true);
     // Trimmed explicitly — not a format check (nothing here gets rejected
@@ -508,9 +546,33 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
               ? `${postal.record.district}, ${postal.record.state}`
               : null,
           reason: "We don't deliver to this pincode yet",
+          codServiceable: gate.codServiceable,
         });
         throw new Error(
           "Sorry — we don't deliver to that pincode yet.",
+        );
+      }
+
+      // Same never-trust-client-gating reasoning, specifically for COD: the
+      // debounced check above may be stale (address edited fast, or the
+      // customer picked COD right before the pincode finished re-verifying).
+      // initCheckout re-checks this again server-side regardless — this is
+      // just a friendlier client-side error than a round-tripped ActionError.
+      if (paymentMethod === "cod" && !gate.codServiceable) {
+        setPincodeStatus({
+          serviceable: gate.serviceable,
+          checking: false,
+          verified: true,
+          postalHint:
+            postal.status === "found"
+              ? `${postal.record.district}, ${postal.record.state}`
+              : null,
+          etaDays: gate.etaDays,
+          codServiceable: false,
+        });
+        setPaymentMethod("prepaid");
+        throw new Error(
+          "Cash on Delivery isn't available for this pincode — switched you to online payment.",
         );
       }
 
@@ -533,15 +595,31 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
         });
       }
 
-      const { razorpay } = await initCheckout({
+      const result = await initCheckout({
         email: data.email,
         shippingAddress,
         billingSameAsShipping: true,
         whatsappOptIn: data.whatsappOptIn,
         couponCode: couponCode ?? undefined,
         gstNumber: data.gstNumber || undefined,
+        paymentMethod,
       });
-      openRazorpay(razorpay, {
+
+      if (result.paymentMethod === "cod") {
+        // Order is already fully placed (cod_pending, invoiced, confirmation
+        // email sent) — nothing left to do but land on the confirmation page,
+        // same cleanup Razorpay's own success handler does below.
+        try {
+          window.localStorage.removeItem(FORM_DRAFT_KEY);
+        } catch {
+          // ignore
+        }
+        clearStoredCoupon();
+        router.push(`/order-confirmation/${result.orderNumber}`);
+        return;
+      }
+
+      openRazorpay(result.razorpay, {
         name: data.fullName,
         email: data.email,
         phone: data.phone,
@@ -738,6 +816,33 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
               ) : null}
             </fieldset>
 
+            <fieldset className="space-y-3">
+              <Legend>Payment</Legend>
+              <div className="space-y-2.5" role="radiogroup" aria-label="Choose a payment method">
+                <PaymentOption
+                  icon={<ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />}
+                  label="Pay online"
+                  hint="Card, UPI, netbanking — via Razorpay"
+                  selected={paymentMethod === "prepaid"}
+                  onSelect={() => setPaymentMethod("prepaid")}
+                />
+                <PaymentOption
+                  icon={<Banknote className="h-3.5 w-3.5" aria-hidden="true" />}
+                  label={`Cash on Delivery · pay ${formatINR(COD_CONVENIENCE_FEE_PAISE)} extra`}
+                  hint={
+                    codAvailableForPincode
+                      ? "Pay in cash when your order arrives"
+                      : pincodeStatus?.verified && pincodeStatus.serviceable
+                        ? "Not available for this pincode"
+                        : "Verify your pincode above to check availability"
+                  }
+                  selected={paymentMethod === "cod"}
+                  disabled={!codAvailableForPincode}
+                  onSelect={() => setPaymentMethod("cod")}
+                />
+              </div>
+            </fieldset>
+
             <TrustStrip />
 
             <div className="space-y-4">
@@ -749,15 +854,20 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                   !pincodeStatus ||
                   pincodeStatus.checking ||
                   !pincodeStatus.verified ||
-                  !pincodeStatus.serviceable
+                  !pincodeStatus.serviceable ||
+                  (paymentMethod === "cod" && !codAvailableForPincode)
                 }
                 className="group/cta flex min-h-[60px] w-full items-center justify-center rounded-2xl bg-maroon px-6 shadow-[0_18px_40px_rgba(74,31,31,0.22)] transition duration-700 hover:bg-maroon/90 hover:shadow-[0_22px_52px_rgba(74,31,31,0.3)] disabled:opacity-50 disabled:hover:bg-maroon disabled:hover:shadow-[0_18px_40px_rgba(74,31,31,0.22)]"
               >
                 <span className="flex items-center gap-3 text-[12px] font-medium uppercase tracking-[0.24em] text-cream">
                   <Lock className="h-4 w-4" aria-hidden="true" />
                   {submitting
-                    ? "Opening secure payment…"
-                    : `Continue to secure payment · ${formatINR(previewTotal)}`}
+                    ? paymentMethod === "cod"
+                      ? "Placing your order…"
+                      : "Opening secure payment…"
+                    : paymentMethod === "cod"
+                      ? `Place order · Pay ${formatINR(previewTotal)} on delivery`
+                      : `Continue to secure payment · ${formatINR(previewTotal)}`}
                   {!submitting ? (
                     <ArrowRight
                       className="h-4 w-4 transition-transform duration-500 group-hover/cta:translate-x-1"
@@ -772,8 +882,9 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                 </p>
               ) : null}
               <p className="text-center text-xs leading-6 text-charcoal/50">
-                You&rsquo;ll be securely redirected to Razorpay to complete
-                your payment.
+                {paymentMethod === "cod"
+                  ? "Keep the amount ready in cash for the courier at delivery."
+                  : "You’ll be securely redirected to Razorpay to complete your payment."}
               </p>
             </div>
 
@@ -846,6 +957,9 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                   />
                 ) : null}
                 <Row label="Shipping" value="Free" />
+                {codFeePreview > 0 ? (
+                  <Row label="Cash on Delivery fee" value={formatINR(codFeePreview)} />
+                ) : null}
                 <Row label="Taxes" value="Inclusive" muted />
               </dl>
 
@@ -862,6 +976,59 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
         </form>
       </div>
     </section>
+  );
+}
+
+function PaymentOption({
+  icon,
+  label,
+  hint,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint?: string;
+  selected: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      disabled={disabled}
+      onClick={onSelect}
+      className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3.5 text-left transition duration-500 ${
+        disabled
+          ? "cursor-not-allowed border-cocoa/10 opacity-50"
+          : selected
+            ? "border-cocoa bg-cocoa/6"
+            : "border-cocoa/18 hover:border-cocoa/40"
+      }`}
+    >
+      <span
+        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+          selected && !disabled
+            ? "border-cocoa bg-cocoa text-cream"
+            : "border-cocoa/30 text-cocoa"
+        }`}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-charcoal/85">
+          {label}
+        </span>
+        {hint ? (
+          <span className="mt-0.5 block text-xs leading-5 text-charcoal/55">
+            {hint}
+          </span>
+        ) : null}
+      </span>
+    </button>
   );
 }
 

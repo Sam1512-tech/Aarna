@@ -20,6 +20,7 @@ const PAYMENT_LABEL: Record<string, string> = {
   failed: "Payment failed",
   refunded: "Refunded",
   partially_refunded: "Partially refunded",
+  cod_pending: "Cash on Delivery",
 };
 
 const FULFILLMENT_LABEL: Record<string, string> = {
@@ -176,6 +177,7 @@ export default async function AccountOrdersPage() {
                               variantLabel: it.variantLabelSnapshot,
                               quantity: it.quantity,
                               lineTotal: it.lineTotal,
+                              paymentMethod: order.paymentMethod,
                             }}
                           />
                         ) : null}

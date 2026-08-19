@@ -1,7 +1,7 @@
 import { and, eq, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { after } from "next/server";
 import { db, schema } from "@/lib/db";
-import type { InvoiceData } from "@/lib/invoice/generate";
+import type { GstLineResult, GstRateBreakdown, InvoiceData } from "@/lib/invoice/generate";
 import {
   calculateOrderGst,
   creditNoteSequenceName,
@@ -56,6 +56,30 @@ export async function getOrderByRazorpayId(
   return { ...order, orderItems: items };
 }
 
+/**
+ * Same shape as getOrderByRazorpayId, keyed by our own id instead — needed
+ * for COD orders, which never get a razorpayOrderId (initCheckout skips
+ * Razorpay entirely for them) and so have no other way to re-fetch the
+ * freshly-created row + its items for buildInvoiceData.
+ */
+export async function getOrderById(orderId: string): Promise<OrderWithItems | null> {
+  const order = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!order) return null;
+
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, order.id));
+
+  return { ...order, orderItems: items };
+}
+
 export type MarkOrderPaidResult =
   | { won: true; invoiceNumber: string; needsStockDecrement: boolean }
   | { won: false; invoiceNumber: null; needsStockDecrement: false };
@@ -82,7 +106,7 @@ export type MarkOrderPaidResult =
  * function handles both cases without needing a separate one-off migration
  * per year.
  */
-async function ensureInvoiceSequence(
+export async function ensureInvoiceSequence(
   sequenceName: string,
   invoicePrefix: string,
 ): Promise<void> {
@@ -571,7 +595,7 @@ async function ensureOrderRefundEventsTable(): Promise<void> {
       CREATE TABLE IF NOT EXISTS order_refund_events (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-        razorpay_refund_id varchar(60) NOT NULL UNIQUE,
+        razorpay_refund_id varchar(60),
         amount_paise integer NOT NULL,
         created_at timestamptz NOT NULL DEFAULT now()
       )
@@ -579,6 +603,13 @@ async function ensureOrderRefundEventsTable(): Promise<void> {
     await tx.execute(sql`
       CREATE INDEX IF NOT EXISTS order_refund_events_order_idx
         ON order_refund_events (order_id)
+    `);
+    // Partial — a manually-sent COD refund event legitimately has no
+    // razorpayRefundId; see the schema.ts comment on this table for why.
+    await tx.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS order_refund_event_razorpay_refund_id_idx
+        ON order_refund_events (razorpay_refund_id)
+        WHERE razorpay_refund_id IS NOT NULL
     `);
   });
 }
@@ -747,6 +778,60 @@ export async function recordRefund(params: {
  * true total, so any drift is absorbed into the last (precise: only) bucket
  * — same principle calculateOrderGst already applies to its own rounding.
  */
+/**
+ * Shared "precise match" GST-scaling math — given one order line's real,
+ * discount-adjusted GST split (from calculateOrderGst) and the amount being
+ * refunded against it, returns that line's tax attribution scaled down to
+ * the refund. Shared by ensureCreditNoteForRefund's real-Razorpay-refund
+ * path and insertCodRefundCreditNote's manual-COD-refund path below — same
+ * math either way, only how the refund itself was actually sent differs.
+ * See ensureCreditNoteForRefund's own docstring for the full reasoning
+ * (why this scales the item's raw refund by its discounted share, why
+ * rounding drift is absorbed into the taxable value, why the ideal total is
+ * capped at the item's real discounted value).
+ */
+function scaleGstForRefundedItem(
+  matchedLine: GstLineResult,
+  amountRefundedPaise: number,
+): {
+  taxableValue: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  rateBreakdown: GstRateBreakdown[];
+} {
+  const itemFraction =
+    matchedLine.lineTotal > 0
+      ? Math.min(1, amountRefundedPaise / matchedLine.lineTotal)
+      : 0;
+
+  const scaledTaxable = Math.round(matchedLine.taxableAmount * itemFraction);
+  const scaledCgst = Math.round(matchedLine.cgst * itemFraction);
+  const scaledSgst = Math.round(matchedLine.sgst * itemFraction);
+  const scaledIgst = Math.round(matchedLine.igst * itemFraction);
+
+  const idealTotal = Math.min(amountRefundedPaise, matchedLine.discountedLineTotal);
+  const roundedTotal = scaledTaxable + scaledCgst + scaledSgst + scaledIgst;
+  const drift = idealTotal - roundedTotal;
+
+  const taxableValue = scaledTaxable + drift;
+  return {
+    taxableValue,
+    cgst: scaledCgst,
+    sgst: scaledSgst,
+    igst: scaledIgst,
+    rateBreakdown: [
+      {
+        ratePercent: matchedLine.gstRatePercent,
+        taxableAmount: taxableValue,
+        cgst: scaledCgst,
+        sgst: scaledSgst,
+        igst: scaledIgst,
+      },
+    ],
+  };
+}
+
 async function ensureCreditNoteForRefund(
   order: OrderRow,
   params: { razorpayRefundId: string; amountRefundedPaise: number },
@@ -833,44 +918,12 @@ async function ensureCreditNoteForRefund(
     let returnId: string | null;
 
     if (matchedReturn && matchedIndex >= 0) {
-      const matchedLine = gst.lines[matchedIndex];
-
-      const itemFraction =
-        matchedLine.lineTotal > 0
-          ? Math.min(1, params.amountRefundedPaise / matchedLine.lineTotal)
-          : 0;
-
-      const scaledTaxable = Math.round(matchedLine.taxableAmount * itemFraction);
-      const scaledCgst = Math.round(matchedLine.cgst * itemFraction);
-      const scaledSgst = Math.round(matchedLine.sgst * itemFraction);
-      const scaledIgst = Math.round(matchedLine.igst * itemFraction);
-
-      // Ideal total is the item's own real discounted value (capped at the
-      // refunded amount, for a genuinely partial refund) — NOT the full
-      // refunded amount when that exceeds what was actually taxed. The
-      // raw-vs-discounted gap markReturnQc can create is a legitimate
-      // over-refund to the customer, not a GST reversal, so it's excluded
-      // here rather than force-reconciled away like the fallback path does.
-      const idealTotal = Math.min(
-        params.amountRefundedPaise,
-        matchedLine.discountedLineTotal,
-      );
-      const roundedTotal = scaledTaxable + scaledCgst + scaledSgst + scaledIgst;
-      const drift = idealTotal - roundedTotal;
-
-      taxableValue = scaledTaxable + drift;
-      cgst = scaledCgst;
-      sgst = scaledSgst;
-      igst = scaledIgst;
-      rateBreakdown = [
-        {
-          ratePercent: matchedLine.gstRatePercent,
-          taxableAmount: taxableValue,
-          cgst,
-          sgst,
-          igst,
-        },
-      ];
+      const scaled = scaleGstForRefundedItem(gst.lines[matchedIndex], params.amountRefundedPaise);
+      taxableValue = scaled.taxableValue;
+      cgst = scaled.cgst;
+      sgst = scaled.sgst;
+      igst = scaled.igst;
+      rateBreakdown = scaled.rateBreakdown;
       needsReview = false;
       returnId = matchedReturn.returnId;
     } else {
@@ -929,6 +982,90 @@ async function ensureCreditNoteForRefund(
         needsReview,
       })
       .onConflictDoNothing({ target: creditNotes.razorpayRefundId });
+  });
+}
+
+/**
+ * Counterpart to ensureCreditNoteForRefund for a manually-refunded COD
+ * return (lib/actions/admin/returns.ts's recordCodRefundSent) — there's no
+ * real Razorpay refund to key off, so razorpayRefundId is null on the
+ * inserted row (legal per credit_notes' partial unique index). Always uses
+ * the "precise match" GST attribution: unlike a dashboard refund, a COD
+ * manual refund always has a known return + order item (the caller already
+ * holds both), so there's no fallback/needsReview case here.
+ *
+ * Idempotency is NOT this function's job. recordCodRefundSent's own
+ * refund_pending -> refunded transition (a locked read + explicit status
+ * check, same pattern markReturnQc uses for its own refund) is what
+ * guarantees this only ever runs once per return — the partial unique index
+ * allows unlimited NULLs, so it does nothing to prevent a double-insert on
+ * its own, unlike the real-refund path's index on a real razorpayRefundId.
+ */
+export async function insertCodRefundCreditNote(params: {
+  orderId: string;
+  returnId: string;
+  orderItemId: string;
+  amountRefundedPaise: number;
+}): Promise<void> {
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.id, params.orderId))
+    .limit(1);
+  if (!order) {
+    throw new Error(`Order ${params.orderId} not found for COD refund credit note`);
+  }
+
+  const financialYear = currentFinancialYear();
+  const creditNoteSeqName = creditNoteSequenceName(financialYear);
+  const creditNotePrefix = `CN/${financialYear}/`;
+  await ensureCreditNoteSequence(creditNoteSeqName, creditNotePrefix);
+
+  const interState = isInterStateOrder(
+    (order.shippingAddress as { state?: string })?.state ?? "",
+  );
+
+  const allItems = await db
+    .select({
+      id: orderItems.id,
+      unitPrice: orderItems.unitPriceSnapshot,
+      quantity: orderItems.quantity,
+      lineTotal: orderItems.lineTotal,
+    })
+    .from(orderItems)
+    .where(eq(orderItems.orderId, order.id));
+
+  const gst = calculateOrderGst(
+    allItems.map((i) => ({
+      unitPrice: i.unitPrice,
+      quantity: i.quantity,
+      lineTotal: i.lineTotal,
+    })),
+    order.discount,
+    interState,
+  );
+
+  const matchedIndex = allItems.findIndex((i) => i.id === params.orderItemId);
+  if (matchedIndex < 0) {
+    throw new Error(
+      `Order item ${params.orderItemId} not found on order ${order.id} for COD refund credit note`,
+    );
+  }
+
+  const scaled = scaleGstForRefundedItem(gst.lines[matchedIndex], params.amountRefundedPaise);
+
+  await db.insert(creditNotes).values({
+    orderId: order.id,
+    returnId: params.returnId,
+    razorpayRefundId: null,
+    creditNoteNumber: sql`${creditNotePrefix} || lpad(nextval('${sql.raw(creditNoteSeqName)}')::text, 5, '0')`,
+    refundedAmount: params.amountRefundedPaise,
+    taxableValue: scaled.taxableValue,
+    cgst: scaled.cgst,
+    sgst: scaled.sgst,
+    igst: scaled.igst,
+    rateBreakdown: scaled.rateBreakdown,
+    needsReview: false,
   });
 }
 
@@ -1224,19 +1361,44 @@ export async function applyDelhiveryStatus(
   const newlyDelivered = next === "delivered" && order.fulfillmentStatus !== "delivered";
   const newlyReturned = next === "returned" && order.fulfillmentStatus !== "returned";
 
-  await db
-    .update(orders)
-    .set({
-      fulfillmentStatus: next,
-      updatedAt: new Date(),
-      // coalesce, not an unconditional set — Delhivery can push "delivered"
-      // more than once (retries), and a repeat push must not push the
-      // return window's start date forward.
-      ...(next === "delivered"
-        ? { deliveredAt: sql`coalesce(${orders.deliveredAt}, now())` }
-        : {}),
-    })
-    .where(eq(orders.awbNumber, awb));
+  // Whether THIS call is the one that flips a COD order's cash-collected
+  // status — a courier "Delivered" scan is our proxy for "cash was
+  // collected" (see lib/checkout/cod.ts's design notes), the same way a
+  // Razorpay capture is trusted as "paid" without waiting for bank
+  // settlement. Computed from a guarded conditional UPDATE inside the same
+  // transaction as the fulfillment write below, not from the `order`
+  // snapshot read above — that snapshot can be stale under concurrency
+  // (the real-time webhook and the 5-minute sync cron can both observe the
+  // same delivery near-simultaneously), and a stale-snapshot decision here
+  // is exactly the class of bug markOrderPaid's own comment warns about:
+  // it would risk both calls believing they need to run the paid-order side
+  // effects (coupon usage) and double-counting a redemption.
+  let codJustCollected = false;
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(orders)
+      .set({
+        fulfillmentStatus: next,
+        updatedAt: new Date(),
+        // coalesce, not an unconditional set — Delhivery can push "delivered"
+        // more than once (retries), and a repeat push must not push the
+        // return window's start date forward.
+        ...(next === "delivered"
+          ? { deliveredAt: sql`coalesce(${orders.deliveredAt}, now())` }
+          : {}),
+      })
+      .where(eq(orders.awbNumber, awb));
+
+    if (newlyDelivered && order.paymentMethod === "cod") {
+      const flipped = await tx
+        .update(orders)
+        .set({ paymentStatus: "paid" })
+        .where(and(eq(orders.awbNumber, awb), eq(orders.paymentStatus, "cod_pending")))
+        .returning({ id: orders.id });
+      codJustCollected = flipped.length > 0;
+    }
+  });
 
   if (newlyDelivered) {
     after(() =>
@@ -1248,6 +1410,58 @@ export async function applyDelhiveryStatus(
         bodyValues: [firstNameFromAddress(order.shippingAddress), order.orderNumber],
       }),
     );
+  }
+
+  // Coupon usage is spent here for COD — the exact same "only once revenue
+  // is real" point the payment.captured webhook spends it at for prepaid
+  // (lib/db/queries/orders.ts's incrementCouponUsage/checkCouponPerCustomerOverage
+  // doc comments) — never at order placement, so an abandoned or
+  // never-collected COD order can't exhaust a coupon's budget. Deferred via
+  // after() for the same P99-response-time reason the notifications above
+  // are — this must never slow down the webhook's own response to Delhivery.
+  if (codJustCollected && order.couponCode) {
+    after(async () => {
+      try {
+        const counted = await incrementCouponUsage(order.couponCode!);
+        if (!counted) {
+          console.warn(
+            "[delhivery status sync] coupon usage limit already reached, not counted:",
+            order.couponCode,
+            order.orderNumber,
+          );
+          await alertAdminSuspiciousActivity({
+            event: "Coupon redeemed past its usage limit",
+            detail: `Order ${order.orderNumber} (COD) had its cash collection confirmed with coupon "${order.couponCode}", but the coupon's usage limit was already reached by other concurrent redemptions — this redemption's discount was still honored (already applied at checkout), just not counted toward the limit. Check /studio/coupons.`,
+          }).catch((err) => {
+            console.error("[delhivery status sync] over-redemption alert failed:", err);
+          });
+        }
+      } catch (err) {
+        console.error("[delhivery status sync] coupon usage increment failed:", err);
+      }
+
+      if (order.customerId) {
+        try {
+          const overage = await checkCouponPerCustomerOverage(order.customerId, order.couponCode!);
+          if (overage?.overLimit) {
+            console.warn(
+              "[delhivery status sync] coupon per-customer limit exceeded:",
+              order.couponCode,
+              order.orderNumber,
+              overage,
+            );
+            await alertAdminSuspiciousActivity({
+              event: "Coupon redeemed past its per-customer limit",
+              detail: `Order ${order.orderNumber} (COD) confirmed with coupon "${order.couponCode}" — this customer has now redeemed it ${overage.timesUsed} time(s), over their per-customer limit of ${overage.limit}. Each redemption's discount was already honored on its own order total/invoice and is not reversed. Check /studio/coupons and /studio/orders.`,
+            }).catch((err) => {
+              console.error("[delhivery status sync] per-customer overage alert failed:", err);
+            });
+          }
+        } catch (err) {
+          console.error("[delhivery status sync] coupon per-customer overage check failed:", err);
+        }
+      }
+    });
   }
 
   // RTO — see the identical comment previously inline in the webhook route
@@ -1407,6 +1621,9 @@ export function buildInvoiceData(
     subtotal: order.subtotal,
     discount: order.discount,
     shippingFee: order.shippingFee,
+    codFee: order.codFee,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
     isInterState: interState,
     rateBreakdown: gst.rateBreakdown,
     taxableAmount: gst.taxableAmount,

@@ -248,22 +248,31 @@ function INR(paise: number): string {
 }
 
 function orderReceiptHtml(data: Record<string, unknown>): string {
-  const order = data.order as { orderNumber: string; total: number } | undefined;
+  const order = data.order as
+    | { orderNumber: string; total: number; paymentMethod?: string }
+    | undefined;
   const invoiceNumber = data.invoiceNumber as string | undefined;
   const orderNumber = order?.orderNumber ?? "";
   const total = order?.total ? INR(order.total) : "";
+  const isCod = order?.paymentMethod === "cod";
 
   const table = detailsTable(`
     ${detailRow("Order Number", orderNumber)}
     ${invoiceNumber ? detailRow("Invoice", invoiceNumber) : ""}
-    ${detailRow("Total Paid", total, true)}
+    ${detailRow(isCod ? "Amount Due on Delivery" : "Total Paid", total, true)}
   `);
 
   return shell({
-    preheader: `Order ${orderNumber} confirmed — your invoice is attached.`,
+    preheader: isCod
+      ? `Order ${orderNumber} confirmed — pay ${total} cash on delivery.`
+      : `Order ${orderNumber} confirmed — your invoice is attached.`,
     bodyHtml: `
       ${heading("Thank you for your order")}
-      ${lead("Your order is confirmed and being prepared with care. We'll let you know the moment it's on its way.")}
+      ${lead(
+        isCod
+          ? `Your order is confirmed and being prepared with care. Please keep ${total} ready in cash for the courier at delivery.`
+          : "Your order is confirmed and being prepared with care. We'll let you know the moment it's on its way.",
+      )}
       ${table}
       ${bodyText(`Your tax invoice is attached as a PDF. You can view your order anytime at
         <a href="https://shopaarna.in/account" class="e-link" style="color:${GOLD_SOFT};text-decoration:none;">shopaarna.in/account</a>.`)}

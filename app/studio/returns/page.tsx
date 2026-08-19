@@ -11,6 +11,7 @@ import { ReturnStatusSelect } from "@/components/admin/return-status-select";
 import { ReturnPhotoGrid } from "@/components/admin/return-photo-grid";
 import { ReturnQcTrigger } from "@/components/admin/return-qc-trigger";
 import { ShipExchangeTrigger } from "@/components/admin/ship-exchange-trigger";
+import { RecordCodRefundTrigger } from "@/components/admin/record-cod-refund-trigger";
 import { REJECT_REASONS } from "@/lib/returns/reject-reasons";
 import { getAdminReturns } from "@/lib/actions/admin/returns";
 import { formatINR } from "@/lib/utils";
@@ -23,6 +24,7 @@ const STATUSES = [
   "rejected",
   "picked",
   "received",
+  "refund_pending",
   "refunded",
   "exchange_shipped",
   "exchange_delivered",
@@ -218,6 +220,11 @@ export default async function AdminReturnsPage({
                         >
                           {r.type}
                         </span>
+                        {r.paymentMethod === "cod" ? (
+                          <span className="rounded-full border border-cocoa/25 bg-cocoa/6 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-cocoa">
+                            COD
+                          </span>
+                        ) : null}
                         <Link
                           href={`/studio/orders/${r.orderId}`}
                           className="soft-link text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/60"
@@ -327,6 +334,10 @@ export default async function AdminReturnsPage({
                     />
                   ) : null}
 
+                  {r.status === "refund_pending" ? (
+                    <RecordCodRefundTrigger returnId={r.id} refundUpiId={r.refundUpiId} />
+                  ) : null}
+
                   {r.type === "exchange" && r.status === "refunded" ? (
                     <ShipExchangeTrigger returnId={r.id} />
                   ) : null}
@@ -356,7 +367,10 @@ export default async function AdminReturnsPage({
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-cocoa/8 pt-3 text-xs text-charcoal/55">
                     <p>Raised {fmtDateTime(r.createdAt)}</p>
                     {r.resolvedAt ? (
-                      <p>Resolved {fmtDateTime(r.resolvedAt)}</p>
+                      <p>
+                        Resolved {fmtDateTime(r.resolvedAt)}
+                        {r.codRefundReference ? ` · ref ${r.codRefundReference}` : ""}
+                      </p>
                     ) : null}
                   </div>
                 </AdminCard>

@@ -340,6 +340,12 @@ export interface ReturnRequestInput {
   desiredVariantId?: string;
   /** Cloudinary URLs already uploaded via POST /api/uploads/return-photo. */
   photos?: string[];
+  /** COD returns only — where the manual refund gets sent (see
+   *  lib/actions/admin/returns.ts's recordCodRefundSent). Not required at
+   *  request time; an admin can always follow up if it's missing before
+   *  actually sending the refund. Ignored for type "exchange" (nothing to
+   *  refund there). */
+  upiId?: string;
 }
 
 export async function requestReturn(input: ReturnRequestInput) {
@@ -436,6 +442,7 @@ export async function requestReturn(input: ReturnRequestInput) {
         type,
         desiredVariantId,
         photos: photos ?? [],
+        refundUpiId: type === "return" && input.upiId ? input.upiId.trim() : null,
       })
       .returning();
   } catch (err) {
@@ -496,6 +503,12 @@ export async function getMyReturns() {
       rejectionReason: returns.rejectionReason,
       adminNote: returns.adminNote,
       qcOutcome: returns.qcOutcome,
+      // Both COD-refund-specific — paymentMethod is what account-returns-view
+      // uses to pick "refunded via UPI" vs "refunded to original payment
+      // method" messaging; refundUpiId lets it echo back where a pending
+      // refund is actually headed.
+      paymentMethod: orders.paymentMethod,
+      refundUpiId: returns.refundUpiId,
       // Outbound replacement shipment AWB — null until an admin ships it.
       // Filtered here, at the query itself (not left to callers to
       // remember), so the internal "PENDING" claim sentinel
@@ -524,6 +537,9 @@ export interface ReturnableItem {
   variantLabel: string | null;
   quantity: number;
   lineTotal: number;
+  /** Lets the return/exchange modal conditionally show the UPI-ID field —
+   *  only meaningful for a "return" (never "exchange", nothing to refund). */
+  paymentMethod: "prepaid" | "cod";
 }
 
 /**
@@ -546,6 +562,7 @@ export async function getReturnableItems(): Promise<ReturnableItem[]> {
       variantLabel: orderItems.variantLabelSnapshot,
       quantity: orderItems.quantity,
       lineTotal: orderItems.lineTotal,
+      paymentMethod: orders.paymentMethod,
       deliveredAt: orders.deliveredAt,
       placedAt: orders.placedAt,
     })

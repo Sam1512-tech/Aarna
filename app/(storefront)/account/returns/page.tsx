@@ -27,6 +27,8 @@ export default async function AccountReturnsPage() {
         createdAt: r.createdAt,
         outboundAwb: r.outboundAwb,
         reversePickupAwb: r.reversePickupAwb,
+        paymentMethod: r.paymentMethod,
+        refundUpiId: r.refundUpiId,
       }))}
       eligibleItems={eligibleItems}
     />

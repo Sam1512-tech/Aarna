@@ -41,8 +41,11 @@ async function delhiveryFetch<T>(path: string, init?: RequestInit): Promise<T> {
 // ── Pincode serviceability ─────────────────────────────────────────────────
 
 export interface ServiceabilityResult {
-  serviceable: boolean; // prepaid serviceable — Aarna is prepaid-only
+  serviceable: boolean; // prepaid serviceable
   prepaid: boolean;
+  // Independent from prepaid serviceability — a pincode can be prepaid-only,
+  // so this must be checked separately before ever offering COD there.
+  codServiceable: boolean;
   pickup: boolean;
   district?: string;
   stateCode?: string;
@@ -68,10 +71,13 @@ export async function checkServiceability(
     `/c/api/pin-codes/json/?filter_codes=${encodeURIComponent(pincode)}`,
   );
   const pc = data.delivery_codes?.[0]?.postal_code;
-  if (!pc) return { serviceable: false, prepaid: false, pickup: false };
+  if (!pc) {
+    return { serviceable: false, prepaid: false, codServiceable: false, pickup: false };
+  }
   return {
     serviceable: pc.pre_paid === "Y",
     prepaid: pc.pre_paid === "Y",
+    codServiceable: pc.cod === "Y",
     pickup: pc.pickup === "Y",
     district: pc.district,
     stateCode: pc.state_code,
@@ -104,6 +110,13 @@ export interface CreateShipmentInput {
   phone: string;
   totalAmount: number; // in rupees
   weightGrams: number;
+  /** Defaults to "Prepaid" for callers that don't pass it (createExchangeShipment
+   *  always passes "Prepaid" explicitly — a replacement swap never itself
+   *  collects cash, regardless of the original order's payment method). */
+  paymentMode?: "Prepaid" | "COD";
+  /** Rupees — required when paymentMode is "COD", the amount the courier
+   *  collects at the door. Ignored for "Prepaid". */
+  codAmount?: number;
 }
 
 export async function createShipment(
@@ -111,6 +124,8 @@ export async function createShipment(
 ): Promise<{ waybill: string }> {
   const pickupName = process.env.DELHIVERY_PICKUP_NAME;
   if (!pickupName) throw new Error("DELHIVERY_PICKUP_NAME not set.");
+
+  const paymentMode = input.paymentMode ?? "Prepaid";
 
   // Delhivery's create endpoint is form-encoded: `format=json&data=<JSON>`.
   const payload = {
@@ -126,9 +141,10 @@ export async function createShipment(
         state: input.state,
         country: "India",
         phone: input.phone,
-        payment_mode: "Prepaid", // Aarna is prepaid-only (no COD)
+        payment_mode: paymentMode,
         total_amount: input.totalAmount,
         weight: input.weightGrams,
+        ...(paymentMode === "COD" ? { cod_amount: input.codAmount } : {}),
         // TODO(backend): add per-item HSN/product lines once the warehouse is live.
       },
     ],
