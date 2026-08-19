@@ -637,7 +637,20 @@ export async function recordRefund(params: {
         razorpayRefundId: params.razorpayRefundId,
         amountPaise: params.amountRefundedPaise,
       })
-      .onConflictDoNothing({ target: orderRefundEvents.razorpayRefundId })
+      .onConflictDoNothing({
+        target: orderRefundEvents.razorpayRefundId,
+        // razorpayRefundId is now nullable (a COD manual refund has none —
+        // see recordCodRefundSent) with a partial unique index instead of a
+        // plain constraint. Bare `target: column` alone made Postgres
+        // unable to infer an arbiter index at all (a partial index isn't
+        // auto-selected the way a plain unique constraint is), which broke
+        // EVERY call to this insert, not just genuine duplicates — found
+        // live via a real conflicting call throwing "there is no unique or
+        // exclusion constraint matching the ON CONFLICT specification".
+        // This `where` mirrors the index's own predicate, same fix already
+        // used correctly for carts.customerId's partial index.
+        where: sql`${orderRefundEvents.razorpayRefundId} IS NOT NULL`,
+      })
       .returning({ id: orderRefundEvents.id });
 
     if (claimed.length === 0) {
@@ -981,7 +994,16 @@ async function ensureCreditNoteForRefund(
         rateBreakdown,
         needsReview,
       })
-      .onConflictDoNothing({ target: creditNotes.razorpayRefundId });
+      .onConflictDoNothing({
+        target: creditNotes.razorpayRefundId,
+        // Same fix as orderRefundEvents' insert above, same root cause:
+        // razorpayRefundId's plain unique constraint became a partial
+        // unique index (nullable, for a manually-refunded COD credit note
+        // — see insertCodRefundCreditNote), and a bare `target: column`
+        // can't be resolved to a partial index without also stating its
+        // predicate here.
+        where: sql`${creditNotes.razorpayRefundId} IS NOT NULL`,
+      });
   });
 }
 
