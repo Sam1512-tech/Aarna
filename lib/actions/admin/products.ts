@@ -18,6 +18,7 @@ const {
   cartItems,
   orderItems,
   returns,
+  inventoryMovements,
 } = schema;
 
 /**
@@ -693,7 +694,6 @@ export async function updateVariant(
     patch.sku = sku;
   }
   if (input.price !== undefined) patch.price = validatePrice(input.price, "Variant price");
-  if (input.stock !== undefined) patch.stock = Math.max(0, input.stock);
   if (input.weightGrams !== undefined) patch.weightGrams = input.weightGrams;
   if (input.isActive !== undefined) patch.isActive = input.isActive;
 
@@ -710,13 +710,45 @@ export async function updateVariant(
     );
   }
 
+  // Stock is edited on this same form alongside price/SKU/etc, but a stock
+  // change must leave the same audit trail as the dedicated Adjust Stock
+  // action on /studio/inventory — otherwise a correction made from this
+  // screen is invisible to inventory_movements, which the whole inventory
+  // system (including physical stock-take reconciliation) treats as the
+  // source of truth. Row-locked so a concurrent adjustStock() on the same
+  // variant can't read the same stale stock and have one write clobber the
+  // other, mirroring adjustStock's own locking pattern.
   let updated: typeof productVariants.$inferSelect;
   try {
-    [updated] = await db
-      .update(productVariants)
-      .set(patch)
-      .where(eq(productVariants.id, variantId))
-      .returning();
+    updated = await db.transaction(async (tx) => {
+      const [locked] = await tx
+        .select({ stock: productVariants.stock })
+        .from(productVariants)
+        .where(eq(productVariants.id, variantId))
+        .for("update");
+      if (!locked) throw new ActionError("Variant not found");
+
+      if (input.stock !== undefined) {
+        const newStock = Math.max(0, input.stock);
+        const delta = newStock - locked.stock;
+        patch.stock = newStock;
+        if (delta !== 0) {
+          await tx.insert(inventoryMovements).values({
+            variantId,
+            delta,
+            reason: "adjustment",
+            note: "Edited via product form (stock field)",
+          });
+        }
+      }
+
+      const [row] = await tx
+        .update(productVariants)
+        .set(patch)
+        .where(eq(productVariants.id, variantId))
+        .returning();
+      return row;
+    });
   } catch (err) {
     if (isUniqueViolation(err, "variant_product_size_color_idx")) {
       throw new ActionError(
@@ -732,6 +764,7 @@ export async function updateVariant(
     .where(eq(products.id, updated.productId))
     .limit(1);
   revalidateProductConsumers(product[0]?.slug);
+  if (input.stock !== undefined) revalidatePath("/studio/inventory");
   await logAdminAction(admin.id, "variant.update", "product_variant", variantId, {
     changes: input,
   });
