@@ -340,22 +340,25 @@ function Slide({
           only when the admin has set a destination on this banner (ctaHref);
           a missing label falls back to a sensible default so a slide never
           ships with a broken button. A left-to-right scrim (charcoal fading
-          into transparent across the left ~60%) keeps the copy legible on
-          any photo without dimming the rest of the image. */}
+          into transparent) keeps the copy legible on any photo without
+          dimming the rest of the image — wider on mobile (~88%) than on
+          larger screens (60%) since the text column itself is unconstrained
+          on mobile's narrower stage and can otherwise run past a narrower
+          scrim into the unshaded photo (e.g. a model's face on the right). */}
       {banner.ctaHref ? (
         <div className="pointer-events-none absolute inset-0 flex items-center">
           <div
             aria-hidden="true"
-            className="absolute inset-y-0 left-0 w-3/5 bg-gradient-to-r from-charcoal/55 via-charcoal/20 to-transparent"
+            className="absolute inset-y-0 left-0 w-[88%] bg-gradient-to-r from-charcoal/55 via-charcoal/20 to-transparent sm:w-3/5"
           />
-          <div className="relative flex w-full flex-col items-start gap-5 px-6 py-10 sm:gap-6 sm:px-10 md:max-w-[620px] md:px-14 lg:px-20">
+          <div className="relative flex w-full max-w-[85%] flex-col items-start gap-5 px-6 py-10 sm:max-w-none sm:gap-6 sm:px-10 md:max-w-[620px] md:px-14 lg:px-20">
             {banner.title ? (
               <p className="text-xs font-medium uppercase tracking-[0.32em] text-cream/90 drop-shadow-[0_2px_10px_rgba(43,38,35,0.5)] sm:text-sm">
                 {banner.title}
               </p>
             ) : null}
             {banner.subtitle ? (
-              <h2 className="max-w-xl font-display text-5xl leading-[1.02] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.5)] sm:text-6xl lg:text-7xl">
+              <h2 className="max-w-xl font-display text-4xl leading-[1.05] text-cream drop-shadow-[0_4px_18px_rgba(43,38,35,0.5)] sm:text-6xl sm:leading-[1.02] lg:text-7xl">
                 {banner.subtitle}
               </h2>
             ) : null}
