@@ -2,9 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Feather, Infinity, ShieldCheck, Sparkles } from "lucide-react";
 import { HomepageCarousel } from "@/components/storefront/homepage-carousel";
-import { TwoVideoSection } from "@/components/storefront/two-video-section";
 import { ScrollRail } from "@/components/storefront/scroll-rail";
-import { getActiveBanners, getActiveHomepageVideoSlots } from "@/lib/actions/banners";
+import { getActiveBanners } from "@/lib/actions/banners";
 import {
   getCategories,
   getHomepageFeaturedCollection,
@@ -72,7 +71,7 @@ export default async function HomePage() {
   // the build (see lib/db/safe-query.ts). Every section already renders a
   // graceful empty state, so a degraded homepage that self-heals on the next
   // revalidate is an acceptable floor; a failed deploy is not.
-  const [categories, featured, arrivalPool, banners, videoSlots] = await Promise.all([
+  const [categories, featured, arrivalPool, banners] = await Promise.all([
     safeDbRead(getCategories(), {
       timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
       fallback: [],
@@ -93,11 +92,6 @@ export default async function HomePage() {
       fallback: [],
       label: "homepage banners",
     }),
-    safeDbRead(getActiveHomepageVideoSlots(), {
-      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
-      fallback: { left: null, right: null },
-      label: "homepage video slots",
-    }),
   ]);
   const products = featured?.products.length
     ? featured.products
@@ -116,9 +110,7 @@ export default async function HomePage() {
     ctaLabel: b.ctaLabel,
     ctaHref: b.ctaHref,
   }));
-  // Photos drive the hero banner under the nav. The "made to live in"
-  // section is its own fixed two-video layout (lib/actions/admin/homepage-video-slots.ts),
-  // not part of the banners rotation.
+  // Photos drive the hero banner under the nav.
   const photoBanners = carouselBanners.filter((b) => !isVideoUrl(b.imageUrl));
 
   const organizationLd = buildOrganizationLd();
@@ -198,18 +190,6 @@ export default async function HomePage() {
               </p>
             </div>
           )}
-        </section>
-
-        {/* "Made to live in" and "Versatility" both sit on the same cream
-            background — their default py values used to stack (96 + 96 =
-            192px empty between them). Tightened to py-14 on both so the
-            two feel like one rhythmic cream chapter, then the Featured
-            collection below gets a proper color break. */}
-        <section className="px-5 py-14">
-          <TwoVideoSection left={videoSlots.left} right={videoSlots.right} />
-          <h2 className="mt-9 font-display text-[44px] leading-[1.05] text-maroon">
-            Made to live in.
-          </h2>
         </section>
 
         <section className="bg-cream px-5 py-14 text-center">
@@ -311,20 +291,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Made to live in → Versatility → Wardrobe paths are three consecutive
-          cream sections. Consecutive same-colour sections stack their py
-          values, so the empty runs between them used to be 240px+ on md.
-          Tightened all three to py-16/py-20 for a calmer rhythm — the color
-          break to the beige Featured collection below keeps its full pad. */}
-      <section className="bg-cream px-6 py-16 md:py-20">
-        <div className="mx-auto max-w-7xl">
-          <TwoVideoSection left={videoSlots.left} right={videoSlots.right} />
-          <h2 className="mt-10 max-w-3xl font-display text-[56px] leading-[1.05] text-maroon md:text-[72px]">
-            Made to live in.
-          </h2>
-        </div>
-      </section>
-
+      {/* Versatility → Wardrobe paths are two consecutive cream sections.
+          Consecutive same-colour sections stack their py values, so the
+          empty run between them used to be 240px+ on md. Tightened both to
+          py-16/py-20 for a calmer rhythm — the color break to the beige
+          Featured collection below keeps its full pad. */}
       <section className="bg-cream px-6 py-16 md:py-20">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-cocoa">
