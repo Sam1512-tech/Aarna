@@ -11,7 +11,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { isVideoUrl } from "@/lib/media";
+import { isVideoUrl, optimizedVideoUrl, videoPosterUrl } from "@/lib/media";
 
 // Minimal shape — keeps the component decoupled from the Drizzle Banner type
 // and easy to mock. The server page maps DB rows into this shape.
@@ -400,7 +400,8 @@ function Media({
           if (isActive) registerVideo(el);
         }}
         className="h-full w-full object-cover"
-        src={src}
+        src={optimizedVideoUrl(src)}
+        poster={videoPosterUrl(src)}
         muted
         playsInline
         loop={false}

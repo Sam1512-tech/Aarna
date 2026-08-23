@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { PublicVideoSlot } from "@/lib/actions/banners";
+import { optimizedVideoUrl, videoPosterUrl } from "@/lib/media";
 
 interface TwoVideoSectionProps {
   left: PublicVideoSlot | null;
@@ -53,7 +54,8 @@ function VideoPanel({
       {slot?.videoUrl ? (
         <video
           className="absolute inset-0 h-full w-full object-cover"
-          src={slot.videoUrl}
+          src={optimizedVideoUrl(slot.videoUrl)}
+          poster={videoPosterUrl(slot.videoUrl)}
           muted
           loop
           autoPlay

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { isVideoUrl, videoPosterUrl } from "@/lib/media";
+import { isVideoUrl, optimizedVideoUrl, videoPosterUrl } from "@/lib/media";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -722,7 +722,7 @@ function Gallery({
               >
                 {isVideoUrl(img.url) ? (
                   <video
-                    src={img.url}
+                    src={optimizedVideoUrl(img.url)}
                     poster={videoPosterUrl(img.url)}
                     autoPlay
                     muted
@@ -754,7 +754,7 @@ function Gallery({
           {isVideoUrl(active.url) ? (
             <video
               key={active.id}
-              src={active.url}
+              src={optimizedVideoUrl(active.url)}
               poster={videoPosterUrl(active.url)}
               autoPlay
               muted
