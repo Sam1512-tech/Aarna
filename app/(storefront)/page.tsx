@@ -10,7 +10,7 @@ import {
   getNewArrivals,
 } from "@/lib/actions/products";
 import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
-import { isVideoUrl, videoPosterUrl } from "@/lib/media";
+import { isVideoUrl, optimizedImageUrl, videoPosterUrl } from "@/lib/media";
 import { buildOrganizationLd, buildWebSiteLd, safeJsonLd } from "@/lib/seo/schemas";
 import type { Product } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -165,10 +165,14 @@ export default async function HomePage() {
                     {tileImage ? (
                       <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] shadow-[0_18px_48px_rgba(43,38,35,0.08)]">
                         <Image
-                          src={tileImage}
+                          src={optimizedImageUrl(tileImage)}
                           alt={category.name}
                           fill
-                          sizes="(min-width: 768px) 50vw, 100vw"
+                          // Always a 2-up grid here (grid-cols-2, unconditional,
+                          // above), so the tile is ~50vw at every width this
+                          // md:hidden block ever renders at — not the 100vw the
+                          // old hint claimed, which just over-fetched.
+                          sizes="50vw"
                           className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                         />
                       </div>
@@ -232,7 +236,7 @@ export default async function HomePage() {
                   {product?.image ? (
                     <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] bg-cream">
                       <Image
-                        src={videoPosterUrl(product.image.url)}
+                        src={optimizedImageUrl(videoPosterUrl(product.image.url))}
                         alt={product.image.altText ?? product.title}
                         fill
                         sizes="250px"
@@ -359,10 +363,21 @@ export default async function HomePage() {
                   {category.imageUrl ? (
                     <div className="relative aspect-[4/5] overflow-hidden shadow-[0_18px_55px_rgba(43,38,35,0.07)]">
                       <Image
-                        src={category.imageUrl}
+                        src={optimizedImageUrl(category.imageUrl)}
                         alt={category.name}
                         fill
-                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                        // Must track the grid-cols logic above exactly — at
+                        // launch there are only 2 categories (sm:grid-cols-2,
+                        // no lg: override), so this was claiming 25vw at
+                        // desktop while the tile actually rendered at ~50vw,
+                        // serving a genuinely under-resolved (blurry) image.
+                        sizes={
+                          categories.length >= 4
+                            ? "(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                            : categories.length === 3
+                              ? "(min-width: 640px) 33vw, 100vw"
+                              : "(min-width: 640px) 50vw, 100vw"
+                        }
                         className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                       />
                     </div>
@@ -411,7 +426,7 @@ export default async function HomePage() {
                     {product.image ? (
                       <div className="relative aspect-[3/4] overflow-hidden bg-cream">
                         <Image
-                          src={videoPosterUrl(product.image.url)}
+                          src={optimizedImageUrl(videoPosterUrl(product.image.url))}
                           alt={product.image.altText ?? product.title}
                           fill
                           sizes="(min-width: 1024px) 25vw, 50vw"

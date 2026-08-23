@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { isVideoUrl, optimizedVideoUrl, videoPosterUrl } from "@/lib/media";
+import { isVideoUrl, optimizedImageUrl, optimizedVideoUrl, videoPosterUrl } from "@/lib/media";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -692,7 +692,7 @@ function Gallery({
               }`}
             >
               <Image
-                src={videoPosterUrl(img.url)}
+                src={optimizedImageUrl(videoPosterUrl(img.url))}
                 alt={img.altText ?? altFallback}
                 fill
                 sizes="80px"
@@ -732,7 +732,7 @@ function Gallery({
                   />
                 ) : (
                   <Image
-                    src={img.url}
+                    src={optimizedImageUrl(img.url)}
                     alt={img.altText ?? altFallback}
                     fill
                     sizes="88vw"
@@ -770,7 +770,7 @@ function Gallery({
               onMouseLeave={() => setHoverPos(null)}
             >
               <Image
-                src={active.url}
+                src={optimizedImageUrl(active.url)}
                 alt={active.altText ?? altFallback}
                 fill
                 sizes="(min-width: 1280px) 550px, (min-width: 1024px) 46vw, 100vw"
@@ -782,7 +782,7 @@ function Gallery({
                   reveals fabric/stitching detail with no click needed and
                   no full-screen view ever opening. */}
               <Image
-                src={active.url}
+                src={optimizedImageUrl(active.url)}
                 alt=""
                 aria-hidden="true"
                 fill
