@@ -13,6 +13,7 @@ import {
 } from "@/lib/actions/admin/orders";
 import { formatINR } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/action-error";
+import { optimizedImageUrl } from "@/lib/media";
 
 type FulfillmentStatus =
   | "pending"
@@ -279,7 +280,7 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-cocoa/6">
                   {item.imageUrl ? (
                     <Image
-                      src={item.imageUrl}
+                      src={optimizedImageUrl(item.imageUrl)}
                       alt={item.productTitle}
                       fill
                       sizes="64px"

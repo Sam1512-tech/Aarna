@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { videoPosterUrl } from "@/lib/media";
+import { optimizedImageUrl, videoPosterUrl } from "@/lib/media";
 import type { Product, ProductImage } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import { WishlistHeartButton } from "@/components/storefront/wishlist-heart-button";
@@ -58,7 +58,7 @@ export function ProductCard({ product, wished, onToggleWish }: ProductCardProps)
       <div className="relative aspect-[3/4] overflow-hidden rounded-[18px] bg-cream shadow-[0_14px_40px_rgba(43,38,35,0.06)]">
         {product.image?.url ? (
           <Image
-            src={product.image.url}
+            src={optimizedImageUrl(product.image.url)}
             alt={product.image.altText ?? product.title}
             fill
             sizes="(min-width: 1280px) 320px, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"

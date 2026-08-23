@@ -18,6 +18,7 @@ import {
   setStoredCoupon,
 } from "@/lib/cart/coupon-storage";
 import { useCartCount } from "@/store/cart-count";
+import { optimizedImageUrl } from "@/lib/media";
 import type { CartLine, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
@@ -440,7 +441,7 @@ function CartItemCard({
       >
         {line.imageUrl ? (
           <Image
-            src={line.imageUrl}
+            src={optimizedImageUrl(line.imageUrl)}
             alt={line.productTitle}
             fill
             sizes="96px"

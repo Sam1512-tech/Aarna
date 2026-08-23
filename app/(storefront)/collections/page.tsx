@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getCollections } from "@/lib/actions/products";
 import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
+import { optimizedImageUrl } from "@/lib/media";
 
 export const metadata: Metadata = {
   title: "Collections",
@@ -40,7 +41,7 @@ export default async function CollectionsPage() {
                 {collection.heroImageUrl ? (
                   <div className="relative aspect-[4/5] overflow-hidden shadow-[0_18px_55px_rgba(43,38,35,0.07)]">
                     <Image
-                      src={collection.heroImageUrl}
+                      src={optimizedImageUrl(collection.heroImageUrl)}
                       alt={collection.name}
                       fill
                       sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"

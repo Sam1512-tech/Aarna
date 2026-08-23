@@ -59,3 +59,32 @@ export function optimizedVideoUrl(url: string): string {
   if (url.startsWith(VIDEO_TRANSFORM, cut)) return url;
   return `${url.slice(0, cut)}${VIDEO_TRANSFORM}/${url.slice(cut)}`;
 }
+
+// No width cap here (unlike video) — next/image already generates its own
+// responsive srcset from whatever this returns, using each call site's own
+// `sizes` hint, and the product gallery's hover-magnify layer needs real
+// resolution to zoom into. This only bounds format + compression, so a
+// Vercel image-cache miss can't still pull an untouched multi-MB original
+// from Cloudinary — the same gap that let the video incident happen, one
+// layer further back.
+const IMAGE_TRANSFORM = "f_auto,q_auto";
+
+/**
+ * Applies Cloudinary's automatic format + quality optimization to an image
+ * delivery URL — mirrors optimizedVideoUrl(). Only touches genuine
+ * Cloudinary "/image/upload/" URLs (local /brand/*.png assets and anything
+ * else pass through unchanged), and won't double-stack an already-optimized
+ * URL. Apply this at every Cloudinary <Image src> in the app, not just new
+ * uploads — since it rewrites the URL at render time rather than requiring
+ * anything to be reprocessed in Cloudinary itself, it covers content
+ * already on the site exactly the same way it covers anything uploaded
+ * from here on.
+ */
+export function optimizedImageUrl(url: string): string {
+  const marker = "/image/upload/";
+  const idx = url.indexOf(marker);
+  if (idx === -1) return url;
+  const cut = idx + marker.length;
+  if (url.startsWith(IMAGE_TRANSFORM, cut)) return url;
+  return `${url.slice(0, cut)}${IMAGE_TRANSFORM}/${url.slice(cut)}`;
+}

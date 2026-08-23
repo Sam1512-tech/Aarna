@@ -14,6 +14,7 @@ import {
   slugify,
 } from "@/components/admin/admin-form";
 import { CloudinaryImagePicker } from "@/components/admin/cloudinary-image-picker";
+import { optimizedImageUrl } from "@/lib/media";
 import {
   addProductImage,
   createVariant,
@@ -854,7 +855,7 @@ function ImagesSection({
           {images.map((img) => (
             <div key={img.id} className="group relative overflow-hidden rounded-xl border border-cocoa/12 bg-cream">
               <div className="relative aspect-square">
-                <Image src={img.url} alt={img.altText || "product image"} fill sizes="200px" className="object-cover" />
+                <Image src={optimizedImageUrl(img.url)} alt={img.altText || "product image"} fill sizes="200px" className="object-cover" />
               </div>
               <button type="button" onClick={() => handleRemove(img.id)} disabled={pending}
                 aria-label="Remove image"

@@ -25,6 +25,7 @@ import {
   removeFromWishlist,
 } from "@/lib/actions/account";
 import { formatINR } from "@/lib/utils";
+import { optimizedImageUrl } from "@/lib/media";
 
 interface SearchProduct {
   id: string;
@@ -407,7 +408,7 @@ export function SearchView({
                       <div className="relative aspect-[4/5] overflow-hidden rounded-[20px] shadow-[0_16px_44px_rgba(43,38,35,0.07)] transition duration-500 group-hover:scale-[1.01]">
                         {c.imageUrl ? (
                           <Image
-                            src={c.imageUrl}
+                            src={optimizedImageUrl(c.imageUrl)}
                             alt={c.name}
                             fill
                             sizes="(min-width: 640px) 230px, 50vw"
@@ -537,7 +538,7 @@ function ProductCard({
         >
           {product.image?.url ? (
             <Image
-              src={product.image.url}
+              src={optimizedImageUrl(product.image.url)}
               alt={product.image.altText ?? product.title}
               fill
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"

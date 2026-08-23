@@ -11,7 +11,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { isVideoUrl, optimizedVideoUrl, videoPosterUrl } from "@/lib/media";
+import { isVideoUrl, optimizedImageUrl, optimizedVideoUrl, videoPosterUrl } from "@/lib/media";
 
 // Minimal shape — keeps the component decoupled from the Drizzle Banner type
 // and easy to mock. The server page maps DB rows into this shape.
@@ -415,7 +415,7 @@ function Media({
   }
   return (
     <Image
-      src={src}
+      src={optimizedImageUrl(src)}
       alt={alt}
       fill
       priority={eager}
