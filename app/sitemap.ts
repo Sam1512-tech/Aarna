@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://shopaarna.in";
 
@@ -24,26 +25,40 @@ export const revalidate = 3600;
  * Excludes admin, account, cart, checkout, auth (handled by robots.txt).
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [products, categories, collections] = await Promise.all([
-    db
-      .select({
-        slug: schema.products.slug,
-        updatedAt: schema.products.updatedAt,
-      })
-      .from(schema.products)
-      .where(eq(schema.products.status, "active")),
-    db
-      .select({
-        slug: schema.categories.slug,
-      })
-      .from(schema.categories),
-    db
-      .select({
-        slug: schema.collections.slug,
-      })
-      .from(schema.collections)
-      .where(eq(schema.collections.isActive, true)),
-  ]);
+  // Wrapped as one unit (same shape as the homepage's own 5-query
+  // Promise.all) so a Supabase pooler hiccup degrades to "sitemap without
+  // the DB-backed URLs this run" instead of failing the whole `next build`
+  // — live-reproduced during this exact change: an unrelated PDP fix's
+  // build hit a genuine `canceling statement due to statement timeout` here,
+  // the one static-generation DB read in the app that PR #248's original
+  // safeDbRead sweep didn't cover.
+  const [products, categories, collections] = await safeDbRead(
+    Promise.all([
+      db
+        .select({
+          slug: schema.products.slug,
+          updatedAt: schema.products.updatedAt,
+        })
+        .from(schema.products)
+        .where(eq(schema.products.status, "active")),
+      db
+        .select({
+          slug: schema.categories.slug,
+        })
+        .from(schema.categories),
+      db
+        .select({
+          slug: schema.collections.slug,
+        })
+        .from(schema.collections)
+        .where(eq(schema.collections.isActive, true)),
+    ]),
+    {
+      timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+      fallback: [[], [], []],
+      label: "sitemap products/categories/collections",
+    },
+  );
 
   const now = new Date();
 
