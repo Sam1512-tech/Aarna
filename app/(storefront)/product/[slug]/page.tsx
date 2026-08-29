@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import Link from "next/link";
 import { ProductCard, toProductCardData } from "@/components/storefront/product-card";
 import { ProductDetailView } from "@/components/storefront/product-detail-view";
 import { ProductReviews } from "@/components/storefront/product-reviews";
-import { getProductBySlug, getRelatedProducts } from "@/lib/actions/products";
+import {
+  getProductBySlug,
+  getProducts,
+  getRelatedProducts,
+} from "@/lib/actions/products";
 import { getApprovedReviews } from "@/lib/actions/reviews";
 import { safeDbRead, SAFE_DB_READ_TIMEOUT_MS } from "@/lib/db/safe-query";
 import { productMetadata } from "@/lib/seo/metadata";
@@ -16,6 +21,43 @@ import type { ProductWithVariants } from "@/lib/types";
 // transient Supabase pooler hang would tell crawlers a real, live product
 // page permanently doesn't exist).
 const TIMED_OUT = Symbol("product-lookup-timed-out");
+
+// True only while `next build` is running (not in a live request handling
+// the exact same code path) — the one place this route needs to tell the
+// two apart, see the TIMED_OUT branch in the page component below.
+const IS_BUILD_PHASE = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
+
+// Without generateStaticParams(), every single PDP visit — not just the
+// first — rebuilds the page from scratch (confirmed: plain SSR, verified
+// live via `Cache-Control: private, no-store` on every request even with
+// `revalidate` set). Listing real slugs here is what actually switches this
+// route onto Next's ISR/caching path at all: the first request for a given
+// product renders it live, everyone else gets the cached copy for up to
+// `revalidate` seconds — turning "every visitor redoes the full DB work"
+// into "the first visitor in a given minute does it" — the exact gap an
+// Instagram-driven traffic spike exposed as real Vercel cost, and the one
+// PDP-shaped gap the Jul 22 cart-badge decoupling work flagged and
+// deliberately deferred.
+//
+// getProducts() (same query the shop page already uses) is already scoped
+// to status="active", so draft products are correctly left out of the list
+// — Next still renders them on demand via a direct link (default
+// dynamicParams behavior), just not pre-built speculatively. Wrapped in
+// safeDbRead with an empty-array fallback so a pooler hiccup here degrades
+// to "nothing pre-built this deploy, everything falls back to on-demand"
+// rather than failing the build — the exact class PR #248 already exists to
+// prevent, just newly reachable now that this route calls generateStaticParams
+// at all.
+export async function generateStaticParams() {
+  const { items } = await safeDbRead(getProducts({ pageSize: 60 }), {
+    timeoutMs: SAFE_DB_READ_TIMEOUT_MS,
+    fallback: { items: [], total: 0, page: 1, pageSize: 60 },
+    label: "PDP generateStaticParams",
+  });
+  return items.map((product) => ({ slug: product.slug }));
+}
+
+export const revalidate = 60;
 
 export async function generateMetadata({
   params,
@@ -61,6 +103,16 @@ export default async function ProductDetailPage({
     },
   );
   if (product === TIMED_OUT) {
+    if (IS_BUILD_PHASE) {
+      // Only reachable here at all because this route now calls
+      // generateStaticParams() — nothing in this specific render is being
+      // served to a real visitor, so a transient pooler hiccup during
+      // `next build`'s trial render must not fail the whole deploy the way
+      // it correctly does for a genuinely live request below. This slug
+      // simply isn't eagerly built this deploy; it falls back to rendering
+      // on demand (ISR) the first time someone actually requests it.
+      return null;
+    }
     // A real, bounded error (renders the app's error boundary, HTTP 500) —
     // not notFound(), which would falsely tell a crawler this page is gone.
     throw new Error(`Product lookup timed out for slug "${slug}"`);
