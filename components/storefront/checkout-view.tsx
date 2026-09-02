@@ -14,6 +14,7 @@ import { applyCoupon } from "@/lib/actions/cart";
 import { clearStoredCoupon, getStoredCoupon } from "@/lib/cart/coupon-storage";
 import { COD_CONVENIENCE_FEE_PAISE } from "@/lib/checkout/cod";
 import { fetchIndiaPostal } from "@/lib/checkout/india-postal";
+import { INDIA_STATES } from "@/lib/checkout/india-states";
 import type { AddressRow, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/action-error";
@@ -714,8 +715,9 @@ export function CheckoutView({ cart, prefill, addresses }: CheckoutViewProps) {
                   {...register("city")}
                   autoComplete="address-level2"
                 />
-                <Field
+                <SelectField
                   label="State"
+                  options={INDIA_STATES}
                   {...register("state")}
                   autoComplete="address-level1"
                 />
@@ -1074,6 +1076,42 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
     </label>
   );
 });
+
+interface SelectFieldProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  label: string;
+  options: readonly string[];
+}
+// Same look as Field, rendering a <select> instead — used for State so a
+// customer picks a real state rather than typing one, closing off typos at
+// the source instead of only catching them after the fact (see
+// initCheckout's pincode/state cross-check). The postal-lookup auto-fill
+// still calls setValue("state", ...) exactly as before; that only fails to
+// visually reflect in this dropdown if the postal API ever returns a state
+// spelling outside INDIA_STATES, which doesn't affect what's actually
+// submitted (the underlying form value is still set correctly either way).
+const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
+  function SelectField({ label, options, ...rest }, ref) {
+    return (
+      <label className="block">
+        <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
+          {label}
+        </span>
+        <select
+          ref={ref}
+          {...rest}
+          className="mt-2 block w-full rounded-xl border border-cocoa/18 bg-cream px-4 py-3 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
+        >
+          <option value="">Select state</option>
+          {options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  },
+);
 
 function Row({
   label,
