@@ -11,6 +11,7 @@ import { ReturnStatusSelect } from "@/components/admin/return-status-select";
 import { ReturnPhotoGrid } from "@/components/admin/return-photo-grid";
 import { ReturnQcTrigger } from "@/components/admin/return-qc-trigger";
 import { ShipExchangeTrigger } from "@/components/admin/ship-exchange-trigger";
+import { ShipExchangeManuallyTrigger } from "@/components/admin/ship-exchange-manually-trigger";
 import { RecordCodRefundTrigger } from "@/components/admin/record-cod-refund-trigger";
 import { REJECT_REASONS } from "@/lib/returns/reject-reasons";
 import { getAdminReturns } from "@/lib/actions/admin/returns";
@@ -339,7 +340,10 @@ export default async function AdminReturnsPage({
                   ) : null}
 
                   {r.type === "exchange" && r.status === "refunded" ? (
-                    <ShipExchangeTrigger returnId={r.id} />
+                    <>
+                      <ShipExchangeTrigger returnId={r.id} />
+                      <ShipExchangeManuallyTrigger returnId={r.id} />
+                    </>
                   ) : null}
 
                   {r.outboundAwb && r.outboundAwb !== "PENDING" ? (
@@ -349,17 +353,21 @@ export default async function AdminReturnsPage({
                           Replacement {r.status === "exchange_delivered" ? "delivered" : "shipped"}
                         </p>
                         <p className="mt-1 font-mono text-xs tabular-nums text-charcoal/70">
-                          AWB {r.outboundAwb}
+                          {r.outboundAwb.startsWith("MANUAL:")
+                            ? r.outboundAwb.slice("MANUAL:".length)
+                            : `AWB ${r.outboundAwb}`}
                         </p>
                       </div>
-                      <Link
-                        href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(r.outboundAwb)}`}
-                        target="_blank"
-                        rel="noopener"
-                        className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
-                      >
-                        Track shipment
-                      </Link>
+                      {r.outboundAwb.startsWith("MANUAL:") ? null : (
+                        <Link
+                          href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(r.outboundAwb)}`}
+                          target="_blank"
+                          rel="noopener"
+                          className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
+                        >
+                          Track shipment
+                        </Link>
+                      )}
                     </div>
                   ) : null}
 
