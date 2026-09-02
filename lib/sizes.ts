@@ -3,13 +3,12 @@
  * sorted, so an alphabetical DB sort never puts "L" before "S" again
  * (`ORDER BY size ASC` gives L, M, S, XL, XS — alphabetical, not garment
  * order). Matches the admin's size-tag presets
- * (app/admin/products/[id]/product-edit-view.tsx).
+ * (app/studio/products/[id]/product-edit-view.tsx).
  *
- * Aarna's catalog stops at XL — there is no XXL. Sizes outside this list
- * (any custom text an admin types) still sort after the presets, in
- * whatever order they were encountered.
+ * Sizes outside this list (any custom text an admin types) still sort after
+ * the presets, in whatever order they were encountered.
  */
-export const GARMENT_SIZE_ORDER = ["XS", "S", "M", "L", "XL"];
+export const GARMENT_SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL"];
 
 function sizeSortRank(size: string): number {
   const idx = GARMENT_SIZE_ORDER.indexOf(size.trim().toUpperCase());
