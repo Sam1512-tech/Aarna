@@ -11,6 +11,7 @@ import {
 } from "@/lib/actions/account";
 import type { AddressInput, AddressRow } from "@/lib/types";
 import { useModalLock } from "@/hooks/use-modal-lock";
+import { INDIA_STATES } from "@/lib/checkout/india-states";
 
 interface AccountAddressesViewProps {
   addresses: AddressRow[];
@@ -360,10 +361,11 @@ function AddressEditor({
                 value={form.city}
                 onChange={(v) => setForm((f) => ({ ...f, city: v }))}
               />
-              <TextField
+              <SelectField
                 label="State"
                 value={form.state}
                 onChange={(v) => setForm((f) => ({ ...f, state: v }))}
+                options={INDIA_STATES}
               />
             </div>
             <TextField
@@ -456,6 +458,43 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
       />
+    </label>
+  );
+}
+
+// Same look as TextField, for State — closes off the same free-text typo
+// class that let a wrong state get saved here in the first place (this is
+// the address book, so a wrong entry here is exactly what checkout's own
+// "select a saved address" flow would go on to reuse unverified). See
+// checkout-view.tsx's SelectField for the sibling version of this same fix.
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: readonly string[];
+}) {
+  return (
+    <label className="block">
+      <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
+      >
+        <option value="">Select state</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }
