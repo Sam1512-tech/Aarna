@@ -10,6 +10,7 @@ import { Pagination } from "@/components/admin/pagination";
 import { ReturnStatusSelect } from "@/components/admin/return-status-select";
 import { ReturnPhotoGrid } from "@/components/admin/return-photo-grid";
 import { ReturnQcTrigger } from "@/components/admin/return-qc-trigger";
+import { RecordExternalRefundTrigger } from "@/components/admin/record-external-refund-trigger";
 import { ShipExchangeTrigger } from "@/components/admin/ship-exchange-trigger";
 import { RecordCodRefundTrigger } from "@/components/admin/record-cod-refund-trigger";
 import { REJECT_REASONS } from "@/lib/returns/reject-reasons";
@@ -327,11 +328,19 @@ export default async function AdminReturnsPage({
                   ) : null}
 
                   {r.status === "received" ? (
-                    <ReturnQcTrigger
-                      returnId={r.id}
-                      refundAmount={r.refundAmount ?? r.lineTotal}
-                      type={r.type as "return" | "exchange"}
-                    />
+                    <>
+                      <ReturnQcTrigger
+                        returnId={r.id}
+                        refundAmount={r.refundAmount ?? r.lineTotal}
+                        type={r.type as "return" | "exchange"}
+                      />
+                      {r.type === "return" ? (
+                        <RecordExternalRefundTrigger
+                          returnId={r.id}
+                          refundAmount={r.refundAmount ?? r.lineTotal}
+                        />
+                      ) : null}
+                    </>
                   ) : null}
 
                   {r.status === "refund_pending" ? (
