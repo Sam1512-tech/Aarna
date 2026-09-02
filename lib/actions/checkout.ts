@@ -25,6 +25,7 @@ import { ActionError } from "@/lib/action-error";
 import { isValidGstin, normalizeGstin } from "@/lib/gst";
 import { shippingAddressSchema } from "@/lib/checkout/address-schema";
 import { COD_CONVENIENCE_FEE_PAISE } from "@/lib/checkout/cod";
+import { fetchIndiaPostal } from "@/lib/checkout/india-postal";
 
 const { customers, orders, orderItems, productVariants, inventoryMovements, carts, cartItems } = schema;
 
@@ -111,6 +112,32 @@ export async function initCheckout(
     throw new ActionError(
       addressResult.error.issues[0]?.message ?? "Please check your shipping address",
     );
+  }
+
+  // 1b-ii. Cross-check the submitted state against what India Post's own
+  // pincode database says — never trust it just because the client's own
+  // pincode-entry effect (checkout-view.tsx) already tried to auto-fill it.
+  // That auto-fill only runs on fresh pincode entry; a saved address (or a
+  // stale client bundle, or a request that bypasses the form entirely)
+  // reaches here with whatever state happened to be stored, unverified.
+  // Found the hard way on two real orders (AARNA-001108, AARNA-001138, same
+  // customer, both shipping to a genuine Navsari/Gujarat pincode but with
+  // "Karnataka" as the stored state) — both got the wrong invoice tax type
+  // (CGST+SGST instead of IGST) because isInterStateOrder trusted that
+  // unverified value. Same "always overwrite, state is 1:1 with pincode"
+  // rule the client already applies, just enforced server-side so no path
+  // can skip it. Fails open on a lookup hiccup ("unknown") — same reasoning
+  // as checkPincodeServiceability's own failures below: a flaky third-party
+  // API must never block a real checkout. "not_found" (the API positively
+  // confirms the pincode doesn't exist) does still block, same as the
+  // client's own hard-block for that case.
+  let shippingAddress = input.shippingAddress;
+  const postal = await fetchIndiaPostal(shippingAddress.pincode);
+  if (postal.status === "not_found") {
+    throw new ActionError("That pincode doesn't appear to be valid — please check your address");
+  }
+  if (postal.status === "found") {
+    shippingAddress = { ...shippingAddress, state: postal.record.state };
   }
 
   // 1c. Cash on Delivery pincode gate — never trust the client's own read of
@@ -282,12 +309,12 @@ export async function initCheckout(
         orderNumber,
         customerId,
         email: orderEmail,
-        phone: input.shippingAddress.phone,
+        phone: shippingAddress.phone,
         whatsappOptIn: input.whatsappOptIn,
-        shippingAddress: input.shippingAddress,
+        shippingAddress,
         billingAddress: input.billingSameAsShipping
-          ? input.shippingAddress
-          : (input.billingAddress ?? input.shippingAddress),
+          ? shippingAddress
+          : (input.billingAddress ?? shippingAddress),
         subtotal,
         discount,
         shippingFee,

@@ -13,6 +13,7 @@ import { createAddress } from "@/lib/actions/account";
 import { applyCoupon } from "@/lib/actions/cart";
 import { clearStoredCoupon, getStoredCoupon } from "@/lib/cart/coupon-storage";
 import { COD_CONVENIENCE_FEE_PAISE } from "@/lib/checkout/cod";
+import { fetchIndiaPostal } from "@/lib/checkout/india-postal";
 import type { AddressRow, CartState } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/action-error";
@@ -40,46 +41,6 @@ const REQUIRED_FIELDS = [
   "state",
   "pincode",
 ] as const;
-
-// ── India Post postal DB lookup ───────────────────────────────────────────────
-// Free, public, no auth — and known to be flaky (timeouts/5xx/429, or blocked
-// by an ad-blocker/network filter on the customer's side). We only hard-block
-// when the API actually confirms the pincode doesn't exist ("not_found"); any
-// lookup failure ("unknown" — timeout, non-2xx, bad JSON, network error) falls
-// through optimistically instead of rejecting a possibly-valid pincode, same
-// as checkPincodeServiceability already does for its own failures.
-interface PostalRecord {
-  district: string;
-  state: string;
-}
-type PostalLookup =
-  | { status: "found"; record: PostalRecord }
-  | { status: "not_found" }
-  | { status: "unknown" };
-async function fetchIndiaPostal(pincode: string): Promise<PostalLookup> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const res = await fetch(
-      `https://api.postalpincode.in/pincode/${pincode}`,
-      { signal: controller.signal },
-    );
-    clearTimeout(timeoutId);
-    if (!res.ok) return { status: "unknown" };
-    const data = await res.json();
-    const record = Array.isArray(data) ? data[0] : null;
-    if (!record) return { status: "unknown" };
-    if (record.Status !== "Success") return { status: "not_found" };
-    const po = record.PostOffice?.[0];
-    if (!po?.District || !po?.State) return { status: "not_found" };
-    return {
-      status: "found",
-      record: { district: String(po.District), state: String(po.State) },
-    };
-  } catch {
-    return { status: "unknown" };
-  }
-}
 
 interface ShippingForm {
   fullName: string;
