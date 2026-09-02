@@ -739,6 +739,147 @@ export async function recordCodRefundSent(
   return { ok: true };
 }
 
+export interface RecordExternalRefundInput {
+  outcome: "pass" | "fail";
+  /**
+   * Required when outcome is "fail" — the actual amount (in paise) that was
+   * refunded externally. A "pass" always uses the return's own stored
+   * refundAmount (or the item's full line total), the same full-refund
+   * basis a live QC pass would use — mirrors recordCodRefundSent trusting
+   * that same stored amount rather than re-deriving it.
+   */
+  refundAmountPaise?: number;
+  razorpayRefundId?: string;
+  note: string;
+}
+
+/**
+ * Reconciles a return whose refund already happened OUTSIDE markReturnQc —
+ * e.g. issued directly via the Razorpay dashboard instead of through QC.
+ * Never calls Razorpay: doing so would either double-refund or (more
+ * likely) be rejected outright since the payment's already been refunded —
+ * exactly the confusing, hard-to-diagnose failure this project hit on a
+ * real order (AARNA-001126) before this action existed. This only records
+ * what already happened.
+ *
+ * Deliberately a separate action from markReturnQc, not a flag on it — same
+ * "each real side effect owned by one specific action" reasoning as
+ * recordCodRefundSent/createExchangeShipment (see TERMINAL_RETURN_STATUSES'
+ * own comment above): a checkbox buried in the live refund form risks being
+ * mis-clicked on a return that should actually get a real refund, silently
+ * marking it "refunded" without ever refunding the customer. A wholly
+ * separate action + its own clearly-labeled form is much harder to reach by
+ * accident.
+ *
+ * Sends no WhatsApp notification — this is reconciling something that
+ * already happened (often weeks earlier, per the AARNA-001126 precedent),
+ * not a live event; a "your refund has been processed" message today about
+ * an old refund would just confuse the customer.
+ *
+ * Scoped to plain returns only for now — an exchange whose QC failed can
+ * also carry a real refund in principle, but every real case seen so far
+ * has been a plain return; extend this if that combination actually comes
+ * up rather than building for it speculatively now.
+ */
+export async function recordReturnRefundedExternally(
+  returnId: string,
+  input: RecordExternalRefundInput,
+) {
+  const admin = await requireAdmin();
+
+  const note = input.note?.trim() ?? "";
+  if (note.length < 10) {
+    throw new ActionError("A note (min 10 characters) explaining what happened is required");
+  }
+
+  const { row, updated } = await db.transaction(async (tx) => {
+    const [r] = await tx
+      .select({
+        status: returns.status,
+        type: returns.type,
+        refundAmount: returns.refundAmount,
+        lineTotal: orderItems.lineTotal,
+        variantId: orderItems.variantId,
+        quantity: orderItems.quantity,
+        orderNumber: orders.orderNumber,
+      })
+      .from(returns)
+      .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .where(eq(returns.id, returnId))
+      .for("update");
+    if (!r) throw new ActionError("Return not found");
+    if (r.type !== "return") {
+      throw new ActionError(
+        "Exchanges don't have a refund to record this way — use the outbound shipment options instead",
+      );
+    }
+    if (r.status !== "received") {
+      throw new ActionError("This can only be recorded once the item has been received");
+    }
+
+    const baseRefund = r.refundAmount ?? r.lineTotal;
+    let refundAmount: number;
+    if (input.outcome === "pass") {
+      refundAmount = baseRefund;
+    } else {
+      if (
+        input.refundAmountPaise === undefined ||
+        !Number.isFinite(input.refundAmountPaise) ||
+        input.refundAmountPaise < 0 ||
+        input.refundAmountPaise > baseRefund
+      ) {
+        throw new ActionError(
+          `Enter the amount actually refunded, between ₹0 and ₹${(baseRefund / 100).toFixed(2)}`,
+        );
+      }
+      refundAmount = input.refundAmountPaise;
+    }
+
+    const [u] = await tx
+      .update(returns)
+      .set({
+        status: "refunded",
+        qcOutcome: input.outcome,
+        refundAmount,
+        razorpayRefundId: input.razorpayRefundId?.trim() || null,
+        adminNote: note,
+        resolvedAt: new Date(),
+      })
+      .where(eq(returns.id, returnId))
+      .returning();
+
+    return { row: r, updated: u };
+  });
+
+  revalidatePath("/studio/returns");
+  revalidatePath("/account/returns");
+
+  if (input.outcome === "pass") {
+    // Best-effort, same reasoning as every other restock call in this
+    // file: the refund already genuinely happened, a bookkeeping failure
+    // here shouldn't look like the whole reconciliation failed.
+    await applyStockMovement(
+      [{ variantId: row.variantId, quantity: row.quantity }],
+      1,
+      "return",
+      row.orderNumber,
+    ).catch((err) => {
+      console.error(
+        `[returns] restock after recording an external refund failed (return ${returnId}):`,
+        err,
+      );
+    });
+  }
+
+  await logAdminAction(admin.id, "return.record_external_refund", "return", returnId, {
+    outcome: input.outcome,
+    razorpayRefundId: input.razorpayRefundId,
+  });
+
+  return updated;
+}
+
 // ── Exchange outbound shipment ──────────────────────────────────────────────
 
 /**
