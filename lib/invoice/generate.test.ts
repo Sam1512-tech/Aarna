@@ -52,6 +52,30 @@ describe("isInterStateOrder", () => {
     expect(isInterStateOrder("Tamil Nadu")).toBe(true);
     expect(isInterStateOrder("Maharashtra")).toBe(true);
   });
+
+  it("recognizes the standard KA state code — 8 real orders were misclassified before this", () => {
+    // Not a typo — "KA" is the standard ISO 3166-2:IN abbreviation for
+    // Karnataka, and a completely normal thing for a customer to type or an
+    // address-autofill to fill in. A direct check of production data found
+    // 8 real orders charged IGST instead of CGST+SGST because of this.
+    expect(isInterStateOrder("KA")).toBe(false);
+    expect(isInterStateOrder("ka")).toBe(false);
+    expect(isInterStateOrder(" Ka ")).toBe(false);
+  });
+
+  it("recognizes real typos seen in production (Karnatka, Karanataka)", () => {
+    expect(isInterStateOrder("Karnatka")).toBe(false);
+    expect(isInterStateOrder("Karanataka")).toBe(false);
+  });
+
+  it("does not fuzzy-match — a short code for a different state must still be inter-state", () => {
+    // Guards the fixed-allowlist design choice: this must never become a
+    // lenient/fuzzy check that could accidentally treat a different state's
+    // own abbreviation or a longer name as Karnataka.
+    expect(isInterStateOrder("KL")).toBe(true); // Kerala
+    expect(isInterStateOrder("MH")).toBe(true); // Maharashtra
+    expect(isInterStateOrder("Karnataka Adjacent")).toBe(true);
+  });
 });
 
 describe("calculateOrderGst", () => {

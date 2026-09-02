@@ -84,14 +84,26 @@ export function creditNoteSequenceName(financialYear: string): string {
  * state stored as "Karnātaka" (probably an address-autofill artifact), and
  * a plain lowercase compare silently treated it as inter-state, charging
  * IGST instead of CGST+SGST on that customer's invoice.
+ *
+ * That diacritic fix didn't cover every real variant, though: a direct
+ * check of production data found 11 more orders charged IGST instead of
+ * CGST+SGST because their state was entered as "KA" (8 orders — a
+ * completely standard state abbreviation, not a typo), "Karanataka" (2),
+ * or "Karnatka" (1) — none of which a diacritic-stripped exact match
+ * against "karnataka" ever recognized. See KARNATAKA_VARIANTS below — a
+ * fixed allowlist of confirmed-real variants rather than fuzzy matching, so
+ * this can't accidentally start matching a genuinely different state the
+ * way a lenient edit-distance check could.
  */
+const KARNATAKA_VARIANTS = new Set(["karnataka", "ka", "karnatka", "karanataka"]);
+
 export function isInterStateOrder(customerState: string): boolean {
   const normalized = customerState
     .trim()
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-  return normalized !== "karnataka";
+  return !KARNATAKA_VARIANTS.has(normalized);
 }
 
 export interface GstLineInput {
