@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Banknote, Check, Lock, MapPin, Plus, ShieldCheck, Truck } from "lucide-react";
+import { ArrowRight, Banknote, Check, ChevronDown, Lock, MapPin, Plus, ShieldCheck, Truck } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
@@ -1096,18 +1096,30 @@ const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
         <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/65">
           {label}
         </span>
-        <select
-          ref={ref}
-          {...rest}
-          className="mt-2 block w-full rounded-xl border border-cocoa/18 bg-cream px-4 py-3 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
-        >
-          <option value="">Select state</option>
-          {options.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
+        <span className="relative mt-2 block">
+          <select
+            ref={ref}
+            {...rest}
+            // appearance-none — a native <select> renders a bit shorter than
+            // a same-padded <input> in every major browser (its own default
+            // sizing, not something the shared padding classes control), so
+            // this is the one native <select> in the form that needs its own
+            // arrow drawn back in below rather than reusing Field's classes
+            // as-is.
+            className="block w-full appearance-none rounded-xl border border-cocoa/18 bg-cream px-4 py-3 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
+          >
+            <option value="">Select state</option>
+            {options.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-charcoal/45"
+            aria-hidden="true"
+          />
+        </span>
       </label>
     );
   },

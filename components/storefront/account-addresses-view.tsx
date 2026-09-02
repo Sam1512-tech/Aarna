@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, MapPin, Pencil, Plus, Star, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, MapPin, Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -483,18 +483,28 @@ function SelectField({
       <span className="block text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
         {label}
       </span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 block w-full rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
-      >
-        <option value="">Select state</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
+      <span className="relative mt-1.5 block">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          // appearance-none — a native <select> renders a bit shorter than a
+          // same-padded <input> in every major browser (its own default
+          // sizing, not something the shared padding classes control), so
+          // this needs its own arrow drawn back in below.
+          className="block w-full appearance-none rounded-xl border border-cocoa/20 bg-cream px-4 py-2.5 text-base text-charcoal outline-none transition duration-500 focus:border-cocoa"
+        >
+          <option value="">Select state</option>
+          {options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-charcoal/45"
+          aria-hidden="true"
+        />
+      </span>
     </label>
   );
 }
