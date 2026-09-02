@@ -250,7 +250,7 @@ function BasicsForm({
 // tag under one size never touches any other size's tags. A size only becomes
 // a real DB row once it has at least one tag (a variant needs a sku+price).
 
-const PRESET_SIZES = ["XS", "S", "M", "L", "XL"];
+const PRESET_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
 function VariantsSection({
   productId,

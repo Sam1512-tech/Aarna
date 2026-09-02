@@ -24,6 +24,7 @@ const CHART: Row[] = [
   { size: "M", bust: 36, waist: 30, hip: 40 },
   { size: "L", bust: 38, waist: 32, hip: 42 },
   { size: "XL", bust: 40, waist: 34, hip: 44 },
+  { size: "XXL", bust: 42, waist: 36, hip: 46 },
 ];
 
 interface SizeGuideModalProps {
@@ -124,7 +125,7 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
                   model height
                 </p>
                 <p className="mt-0.5 text-sm text-charcoal/85">
-                  5&apos;6&quot; · Wearing S
+                  5&apos;6&quot; · Wearing XS
                 </p>
               </div>
             </div>
