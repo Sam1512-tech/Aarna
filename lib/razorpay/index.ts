@@ -95,6 +95,34 @@ export async function createRefund(
 }
 
 /**
+ * The Node SDK doesn't throw a real `Error` on an API-level rejection — it
+ * throws a plain object shaped `{ statusCode, error: { code, description,
+ * ... } }` (confirmed by reading node_modules/razorpay/dist/api.js's
+ * `normalizeError`, not guessed). That plain object has no `.message`, so it
+ * can't be told apart from a genuinely unexpected failure by callers that
+ * only check `instanceof Error` — this narrows the specific shape so a
+ * caller can recover Razorpay's own human-readable rejection reason
+ * (e.g. "The refund amount exceeds the amount that could be refunded")
+ * instead of it silently becoming an undiagnosable generic error. Returns
+ * undefined for anything that doesn't match — a real network failure, a
+ * timeout, or any other shape stays exactly as unrecognized/masked as it is
+ * today; only a genuine Razorpay API rejection is affected.
+ */
+export function razorpayApiErrorDetail(
+  err: unknown,
+): { code?: string; description: string } | undefined {
+  if (typeof err !== "object" || err === null || !("error" in err)) {
+    return undefined;
+  }
+  const inner = (err as { error: unknown }).error;
+  if (typeof inner !== "object" || inner === null) return undefined;
+  const description = (inner as { description?: unknown }).description;
+  if (typeof description !== "string") return undefined;
+  const code = (inner as { code?: unknown }).code;
+  return { code: typeof code === "string" ? code : undefined, description };
+}
+
+/**
  * Real order status straight from Razorpay — used by the stale-order cleanup
  * cron to double-check a "pending"/"failed" order in our own DB wasn't
  * actually paid before permanently deleting it (e.g. a payment.captured

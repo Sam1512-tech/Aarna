@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { requestReversePickup, fetchWaybill, createShipment } from "@/lib/delhivery";
-import { createRefund } from "@/lib/razorpay";
+import { createRefund, razorpayApiErrorDetail } from "@/lib/razorpay";
 import { insertCodRefundCreditNote } from "@/lib/db/queries/orders";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
 import {
@@ -463,10 +463,27 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
     let codRefundPending = false;
     if (computedRefund > 0) {
       if (r.razorpayPaymentId) {
-        const refund = await createRefund(r.razorpayPaymentId, computedRefund, {
-          returnId,
-          orderNumber: r.orderNumber,
-        });
+        let refund: Awaited<ReturnType<typeof createRefund>>;
+        try {
+          refund = await createRefund(r.razorpayPaymentId, computedRefund, {
+            returnId,
+            orderNumber: r.orderNumber,
+          });
+        } catch (err) {
+          // Surface Razorpay's own rejection reason (safe to show — it's
+          // their explanation of why THIS refund was refused, not internal
+          // system detail) instead of letting it fall through as a generic,
+          // undiagnosable "Couldn't submit QC". Anything that isn't a
+          // recognized API-rejection shape (a network failure, a timeout)
+          // rethrows unchanged and stays masked, same as before this fix.
+          const detail = razorpayApiErrorDetail(err);
+          if (detail) {
+            throw new ActionError(
+              `Razorpay refused this refund${detail.code ? ` (${detail.code})` : ""}: ${detail.description}`,
+            );
+          }
+          throw err;
+        }
         razorpayRefundId = refund.id;
       } else if (r.paymentMethod === "cod") {
         codRefundPending = true;

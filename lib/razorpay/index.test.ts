@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { verifyPaymentSignature } from "./index";
+import { razorpayApiErrorDetail, verifyPaymentSignature } from "./index";
 
 const ORIGINAL_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
@@ -66,5 +66,43 @@ describe("verifyPaymentSignature", () => {
         razorpaySignature: "anything",
       }),
     ).toThrow("RAZORPAY_KEY_SECRET not set.");
+  });
+});
+
+describe("razorpayApiErrorDetail", () => {
+  it("extracts code + description from the Node SDK's real rejection shape", () => {
+    // Exact shape node_modules/razorpay/dist/api.js's normalizeError throws
+    // on an API-level rejection — a plain object, not an Error instance.
+    const sdkError = {
+      statusCode: 400,
+      error: {
+        code: "BAD_REQUEST_ERROR",
+        description: "The refund amount exceeds the amount that could be refunded.",
+      },
+    };
+    expect(razorpayApiErrorDetail(sdkError)).toEqual({
+      code: "BAD_REQUEST_ERROR",
+      description: "The refund amount exceeds the amount that could be refunded.",
+    });
+  });
+
+  it("omits code when the SDK doesn't include one, but keeps the description", () => {
+    expect(razorpayApiErrorDetail({ error: { description: "Something went wrong." } })).toEqual({
+      code: undefined,
+      description: "Something went wrong.",
+    });
+  });
+
+  it("returns undefined for a real Error instance (network failure, unrelated bug)", () => {
+    expect(razorpayApiErrorDetail(new Error("connect ECONNREFUSED"))).toBeUndefined();
+  });
+
+  it("returns undefined for null, primitives, and shapes missing a description", () => {
+    expect(razorpayApiErrorDetail(null)).toBeUndefined();
+    expect(razorpayApiErrorDetail(undefined)).toBeUndefined();
+    expect(razorpayApiErrorDetail("plain string error")).toBeUndefined();
+    expect(razorpayApiErrorDetail({ statusCode: 500 })).toBeUndefined();
+    expect(razorpayApiErrorDetail({ error: { code: "X" } })).toBeUndefined();
+    expect(razorpayApiErrorDetail({ error: "not an object" })).toBeUndefined();
   });
 });
