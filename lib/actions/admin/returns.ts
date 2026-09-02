@@ -954,3 +954,129 @@ export async function createExchangeShipment(returnId: string) {
     throw err;
   }
 }
+
+// A manually-recorded outbound reference is stored in the same outboundAwb
+// column a real Delhivery waybill uses (no schema change — same pragmatic
+// reuse this table already does for codRefundReference), tagged with this
+// prefix so the admin UI can tell the two apart and never render a
+// Delhivery tracking link for a shipment Delhivery never actually booked.
+const MANUAL_SHIPMENT_PREFIX = "MANUAL:";
+
+/**
+ * Records an exchange's replacement as shipped by some means outside
+ * Delhivery — e.g. an in-city order handed to Porter or another local
+ * courier, or delivered in person. Same moment as createExchangeShipment
+ * (a passed exchange, still owed its outbound shipment) and the same
+ * guards/atomic-claim pattern, just without ever calling Delhivery: nothing
+ * here should differ from a real Delhivery-booked shipment except which
+ * carrier actually delivered it and that outboundAwb holds a plain
+ * reference instead of a real waybill.
+ */
+export async function markExchangeShippedManually(
+  returnId: string,
+  input: { carrier: string; trackingReference?: string },
+) {
+  const admin = await requireAdmin();
+
+  const carrier = input.carrier.trim();
+  if (!carrier) {
+    throw new ActionError("Carrier / method is required (e.g. Porter, hand-delivered)");
+  }
+
+  const [row] = await db
+    .select({
+      status: returns.status,
+      type: returns.type,
+      outboundAwb: returns.outboundAwb,
+      desiredVariantId: returns.desiredVariantId,
+      orderNumber: orders.orderNumber,
+      quantity: orderItems.quantity,
+    })
+    .from(returns)
+    .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
+    .innerJoin(orders, eq(orders.id, orderItems.orderId))
+    .where(eq(returns.id, returnId))
+    .limit(1);
+  if (!row) throw new ActionError("Return not found");
+
+  if (row.type !== "exchange") {
+    throw new ActionError("Only exchanges have an outbound shipment to record");
+  }
+  if (row.status !== "refunded") {
+    throw new ActionError(
+      `Cannot record a shipment while the request is "${row.status}" — QC must pass first`,
+    );
+  }
+  if (row.outboundAwb) {
+    throw new ActionError(`Shipment already exists (${row.outboundAwb})`);
+  }
+  if (!row.desiredVariantId) {
+    throw new ActionError("No replacement variant was chosen for this exchange");
+  }
+
+  const [desired] = await db
+    .select({ stock: productVariants.stock })
+    .from(productVariants)
+    .where(eq(productVariants.id, row.desiredVariantId))
+    .limit(1);
+  if (!desired || desired.stock <= 0) {
+    // Same re-check createExchangeShipment does — the desired size/colour
+    // can still have sold out between QC passing and this being recorded,
+    // manual courier or not.
+    throw new ActionError(
+      "The requested replacement size/colour is out of stock — restock it before recording this shipment.",
+    );
+  }
+
+  const reference = `${MANUAL_SHIPMENT_PREFIX}${carrier}${
+    input.trackingReference?.trim() ? ` · ${input.trackingReference.trim()}` : ""
+  }`;
+
+  // Same atomic-claim shape as createExchangeShipment's final write — only
+  // a request still genuinely unshipped and still QC-passed claims it, so
+  // this can't race a concurrent createExchangeShipment/
+  // markExchangeShippedManually call for the same return.
+  const [updated] = await db
+    .update(returns)
+    .set({ outboundAwb: reference, status: "exchange_shipped", resolvedAt: new Date() })
+    .where(
+      and(
+        eq(returns.id, returnId),
+        isNull(returns.outboundAwb),
+        eq(returns.status, "refunded"),
+      ),
+    )
+    .returning();
+
+  if (!updated) {
+    throw new ActionError(
+      "This request's status changed while your update was in progress — refresh and try again",
+    );
+  }
+
+  // Best-effort, same reasoning as createExchangeShipment: the replacement
+  // has genuinely already left the building by the time an admin is
+  // recording this, so a bookkeeping failure here shouldn't look like the
+  // whole action failed.
+  await applyStockMovement(
+    [{ variantId: row.desiredVariantId, quantity: row.quantity }],
+    -1,
+    "sale",
+    row.orderNumber,
+  ).catch((err) => {
+    console.error(
+      `[returns] stock decrement for manual exchange shipment failed (return ${returnId}, variant ${row.desiredVariantId}):`,
+      err,
+    );
+  });
+
+  revalidatePath("/studio/returns");
+  revalidatePath("/account/returns");
+
+  await logAdminAction(admin.id, "return.ship_exchange_manual", "return", returnId, {
+    carrier,
+    trackingReference: input.trackingReference,
+  });
+
+  return updated;
+}
