@@ -28,6 +28,8 @@ export default async function AdminDashboardPage() {
   const totalOrders = stats?.totalOrders ?? 0;
   const paidOrders = stats?.paidOrders ?? 0;
   const revenue = stats?.totalRevenue ?? 0;
+  const prepaidRevenue = stats?.prepaidRevenue ?? 0;
+  const codRevenue = stats?.codRevenue ?? 0;
   const counts = stats?.byFulfillmentStatus ?? null;
 
   return (
@@ -57,7 +59,12 @@ export default async function AdminDashboardPage() {
           Icon={IndianRupee}
           label="Revenue"
           value={formatINR(revenue)}
-          hint={`From ${paidOrders} paid ${paidOrders === 1 ? "order" : "orders"}`}
+          // Split by payment method, not just a paid-order count — COD cash
+          // is real revenue but never passes through Razorpay, so lumping
+          // it into one number made this look wrong next to Razorpay's own
+          // dashboard (which only ever shows the "online" slice). Checking
+          // this figure against Razorpay: compare its "online" half only.
+          hint={`${formatINR(prepaidRevenue)} online · ${formatINR(codRevenue)} COD`}
         />
         <KpiCard
           Icon={AlertTriangle}

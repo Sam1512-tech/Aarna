@@ -957,6 +957,7 @@ export async function getOrderStats(daysBack = 30) {
       id: orders.id,
       fulfillmentStatus: orders.fulfillmentStatus,
       paymentStatus: orders.paymentStatus,
+      paymentMethod: orders.paymentMethod,
       total: orders.total,
       createdAt: orders.createdAt,
     })
@@ -979,9 +980,20 @@ export async function getOrderStats(daysBack = 30) {
   // which zeroed out a refund-touched order's ENTIRE value — including the
   // portion the customer never got back — understating real kept revenue on
   // every partially-refunded order, not just the refunded slice of it.
+  //
+  // A COD order also reaches "paid" here (via applyDelhiveryStatus on
+  // confirmed delivery — see order_payment_status's own comment) even
+  // though that money is cash collected by the courier, never a Razorpay
+  // capture. Split out separately (prepaidRevenue/codRevenue below) rather
+  // than silently folded into one number — found the hard way when this
+  // combined total didn't match Razorpay's own dashboard and the gap turned
+  // out to be exactly the COD cash total, not a real discrepancy.
   let grossCaptured = 0;
+  let grossPrepaid = 0;
+  let grossCod = 0;
   let paidCount = 0;
   const capturedOrderIds: string[] = [];
+  const codOrderIds = new Set<string>();
 
   for (const row of rows) {
     counts[row.fulfillmentStatus] += 1;
@@ -989,6 +1001,12 @@ export async function getOrderStats(daysBack = 30) {
     if (["paid", "refunded", "partially_refunded"].includes(row.paymentStatus)) {
       grossCaptured += row.total;
       capturedOrderIds.push(row.id);
+      if (row.paymentMethod === "cod") {
+        grossCod += row.total;
+        codOrderIds.add(row.id);
+      } else {
+        grossPrepaid += row.total;
+      }
     }
   }
 
@@ -999,12 +1017,18 @@ export async function getOrderStats(daysBack = 30) {
   // order id instead of independently re-filtering by refund date avoids a
   // latent boundary mismatch between the two date columns.
   let totalRefunded = 0;
+  let prepaidRefunded = 0;
+  let codRefunded = 0;
   if (capturedOrderIds.length > 0) {
     const refundRows = await db
-      .select({ amountPaise: orderRefundEvents.amountPaise })
+      .select({ amountPaise: orderRefundEvents.amountPaise, orderId: orderRefundEvents.orderId })
       .from(orderRefundEvents)
       .where(inArray(orderRefundEvents.orderId, capturedOrderIds));
-    totalRefunded = refundRows.reduce((sum, r) => sum + r.amountPaise, 0);
+    for (const r of refundRows) {
+      totalRefunded += r.amountPaise;
+      if (codOrderIds.has(r.orderId)) codRefunded += r.amountPaise;
+      else prepaidRefunded += r.amountPaise;
+    }
   }
 
   return {
@@ -1012,6 +1036,11 @@ export async function getOrderStats(daysBack = 30) {
     totalOrders: rows.length,
     paidOrders: paidCount,
     totalRevenue: grossCaptured - totalRefunded,
+    // Compare prepaidRevenue against Razorpay's own dashboard — that's the
+    // only slice of totalRevenue that ever actually passes through
+    // Razorpay. codRevenue (cash collected by the courier) never will.
+    prepaidRevenue: grossPrepaid - prepaidRefunded,
+    codRevenue: grossCod - codRefunded,
     byFulfillmentStatus: counts,
   };
 }
