@@ -33,11 +33,11 @@ export default async function AdminDashboardPage() {
 
   const totalOrders = stats?.totalOrders ?? 0;
   const paidOrders = stats?.paidOrders ?? 0;
-  const revenue = stats?.totalRevenue ?? 0;
   const counts = stats?.byFulfillmentStatus ?? null;
+  const allTimeRevenue = allTimeStats?.totalRevenue ?? 0;
   const allTimePrepaidRevenue = allTimeStats?.prepaidRevenue ?? 0;
   const allTimeCodRevenue = allTimeStats?.codRevenue ?? 0;
-  const allTimeRevenue = allTimeStats?.totalRevenue ?? 0;
+  const allTimePaidOrders = allTimeStats?.paidOrders ?? 0;
 
   return (
     <div>
@@ -64,9 +64,19 @@ export default async function AdminDashboardPage() {
         />
         <KpiCard
           Icon={IndianRupee}
-          label="Revenue"
-          value={formatINR(revenue)}
-          hint={`From ${paidOrders} paid ${paidOrders === 1 ? "order" : "orders"}`}
+          // Deliberately all-time, not scoped to DAYS like the other three
+          // cards on this row — Razorpay's own dashboard (per the merchant)
+          // shows a lifetime total with no date filter, so a rolling window
+          // here could never be checked against it. Labeled explicitly so
+          // it doesn't read as inconsistent with "Orders" right next to it,
+          // which is still a DAYS-day count.
+          label="Revenue (all time)"
+          value={formatINR(allTimeRevenue)}
+          // Online is the only slice Razorpay ever sees — COD cash is
+          // collected by the courier, never a Razorpay capture (see
+          // order_payment_status's own schema comment). This is what to
+          // compare against Razorpay's dashboard, not the total above.
+          hint={`${formatINR(allTimePrepaidRevenue)} online · ${formatINR(allTimeCodRevenue)} COD · ${allTimePaidOrders} paid orders`}
         />
         <KpiCard
           Icon={AlertTriangle}
@@ -87,52 +97,6 @@ export default async function AdminDashboardPage() {
           tone={pendingReviews > 0 ? "warn" : "ok"}
         />
       </div>
-
-      {/* All-time revenue — deliberately separate from the KPI cards above,
-          which are all scoped to the last DAYS days. Razorpay's own
-          dashboard (per the merchant) shows a lifetime total with no date
-          filter, so a rolling window can never be checked against it —
-          this section exists specifically for that comparison. */}
-      {allTimeStats ? (
-        <section className="mt-10 rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_10px_28px_rgba(43,38,35,0.04)]">
-          <div className="border-b border-cocoa/10 pb-4">
-            <h2 className="font-display text-2xl uppercase text-maroon">
-              All-time revenue
-            </h2>
-            <p className="mt-1 text-xs text-charcoal/55">
-              To check against Razorpay&apos;s own dashboard (a lifetime
-              total, no date filter), compare its number to Online here —
-              Razorpay never sees COD cash, so it won&apos;t match Total.
-            </p>
-          </div>
-          <div className="mt-5 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
-                Online (Razorpay)
-              </p>
-              <p className="mt-1 font-display text-2xl text-maroon tabular-nums">
-                {formatINR(allTimePrepaidRevenue)}
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
-                COD (cash collected)
-              </p>
-              <p className="mt-1 font-display text-2xl text-maroon tabular-nums">
-                {formatINR(allTimeCodRevenue)}
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
-                Total
-              </p>
-              <p className="mt-1 font-display text-2xl text-maroon tabular-nums">
-                {formatINR(allTimeRevenue)}
-              </p>
-            </div>
-          </div>
-        </section>
-      ) : null}
 
       {/* Fulfillment breakdown */}
       {counts ? (
