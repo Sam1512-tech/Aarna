@@ -946,11 +946,20 @@ export async function regenerateInvoicePdfBatch(orderIds: string[]): Promise<Buf
 
 // ── Stats (for admin dashboard) ──────────────────────────────────────────────
 
-export async function getOrderStats(daysBack = 30) {
+// daysBack: null means no date filter at all (all-time) — needed
+// specifically so prepaidRevenue can be checked against Razorpay's own
+// dashboard, which (per the merchant's own account) shows a lifetime total
+// with no date range, not a rolling window. The default 30-day call and an
+// all-time call are two genuinely different questions ("how's the last
+// month going" vs "does our online total reconcile with Razorpay"), not the
+// same number at two window sizes — keep both, don't collapse into one.
+export async function getOrderStats(daysBack: number | null = 30) {
   await requireAdmin();
 
-  const since = new Date();
-  since.setDate(since.getDate() - daysBack);
+  const since =
+    daysBack === null
+      ? null
+      : new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
 
   const rows = await db
     .select({
@@ -962,7 +971,7 @@ export async function getOrderStats(daysBack = 30) {
       createdAt: orders.createdAt,
     })
     .from(orders)
-    .where(gte(orders.createdAt, since));
+    .where(since ? gte(orders.createdAt, since) : undefined);
 
   const counts: Record<FulfillmentStatus, number> = {
     pending: 0,
