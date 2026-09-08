@@ -6,10 +6,15 @@ import { formatINR } from "@/lib/utils";
 
 export interface ReturnQcPanelProps {
   refundAmount: number;
-  /** Called with the QC outcome. On fail, `partialPercent` is the % of `refundAmount` to refund (0 = keep everything, 100 = full refund). */
+  /** Called with the QC outcome. On fail, either `partialPercent` (% of
+   * `refundAmount`, 0 = keep everything, 100 = full refund) or
+   * `partialAmountPaise` (an exact figure, for when the admin has a
+   * specific amount in mind rather than a round percentage) is set —
+   * never both. */
   onSubmit: (payload: {
     outcome: "pass" | "fail";
     partialPercent?: number;
+    partialAmountPaise?: number;
     note?: string;
   }) => Promise<void>;
   type: "return" | "exchange";
@@ -30,16 +35,31 @@ export function ReturnQcPanel({
   type,
 }: ReturnQcPanelProps) {
   const [outcome, setOutcome] = useState<"pass" | "fail" | null>(null);
+  const [amountMode, setAmountMode] = useState<"percent" | "exact">("percent");
   const [partialPercent, setPartialPercent] = useState<number>(50);
+  const [exactRupees, setExactRupees] = useState("");
   const [note, setNote] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const partialAmount = Math.round((refundAmount * partialPercent) / 100);
+  const maxRupees = refundAmount / 100;
+  const partialAmountFromPercent = Math.round((refundAmount * partialPercent) / 100);
+  const exactAmountPaise = Math.round((Number(exactRupees) || 0) * 100);
+  const exactAmountValid =
+    exactRupees.trim() !== "" &&
+    Number.isFinite(Number(exactRupees)) &&
+    Number(exactRupees) >= 0 &&
+    exactAmountPaise <= refundAmount;
+  // What will actually be refunded if submitted right now, in whichever mode
+  // is active — used for both the live preview and the submit button label.
+  const partialAmount =
+    amountMode === "exact" ? (exactAmountValid ? exactAmountPaise : 0) : partialAmountFromPercent;
+
   const canSubmit =
     outcome !== null &&
     !pending &&
-    (outcome === "pass" || note.trim().length >= 10);
+    (outcome === "pass" ||
+      (note.trim().length >= 10 && (amountMode === "percent" || exactAmountValid)));
 
   function handleSubmit() {
     if (!canSubmit || !outcome) return;
@@ -48,7 +68,10 @@ export function ReturnQcPanel({
       try {
         await onSubmit({
           outcome,
-          partialPercent: outcome === "fail" ? partialPercent : undefined,
+          partialPercent:
+            outcome === "fail" && amountMode === "percent" ? partialPercent : undefined,
+          partialAmountPaise:
+            outcome === "fail" && amountMode === "exact" ? exactAmountPaise : undefined,
           note: note.trim() || undefined,
         });
       } catch (err) {
@@ -128,32 +151,94 @@ export function ReturnQcPanel({
       {outcome === "fail" ? (
         <div className="mt-4 space-y-3 rounded-xl border border-cocoa/12 bg-cream/70 px-4 py-3">
           <div>
-            <div className="flex items-baseline justify-between">
-              <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
-                Partial refund
-              </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+                  Partial refund
+                </p>
+                <div className="flex rounded-full border border-cocoa/20 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setAmountMode("percent")}
+                    aria-pressed={amountMode === "percent"}
+                    className={`rounded-full px-2.5 py-1 text-[9px] font-medium uppercase tracking-[0.12em] transition duration-300 ${
+                      amountMode === "percent"
+                        ? "bg-cocoa text-cream"
+                        : "text-charcoal/55 hover:text-cocoa"
+                    }`}
+                  >
+                    By %
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAmountMode("exact")}
+                    aria-pressed={amountMode === "exact"}
+                    className={`rounded-full px-2.5 py-1 text-[9px] font-medium uppercase tracking-[0.12em] transition duration-300 ${
+                      amountMode === "exact"
+                        ? "bg-cocoa text-cream"
+                        : "text-charcoal/55 hover:text-cocoa"
+                    }`}
+                  >
+                    Exact amount
+                  </button>
+                </div>
+              </div>
               <p className="text-xs text-charcoal/70">
-                <span className="tabular-nums">{partialPercent}%</span>
-                {" · "}
+                {amountMode === "percent" ? (
+                  <>
+                    <span className="tabular-nums">{partialPercent}%</span>
+                    {" · "}
+                  </>
+                ) : null}
                 <span className="font-medium text-cocoa">
                   {formatINR(partialAmount)}
                 </span>
               </p>
             </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={partialPercent}
-              onChange={(e) => setPartialPercent(Number(e.target.value))}
-              aria-label="Partial refund percentage"
-              className="mt-2 w-full accent-maroon"
-            />
-            <div className="mt-1 flex justify-between text-[9px] uppercase tracking-[0.14em] text-charcoal/45">
-              <span>No refund</span>
-              <span>Full refund</span>
-            </div>
+
+            {amountMode === "percent" ? (
+              <>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={partialPercent}
+                  onChange={(e) => setPartialPercent(Number(e.target.value))}
+                  aria-label="Partial refund percentage"
+                  className="mt-2 w-full accent-maroon"
+                />
+                <div className="mt-1 flex justify-between text-[9px] uppercase tracking-[0.14em] text-charcoal/45">
+                  <span>No refund</span>
+                  <span>Full refund</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-sm text-charcoal/60">₹</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={maxRupees}
+                    step="0.01"
+                    value={exactRupees}
+                    onChange={(e) => setExactRupees(e.target.value)}
+                    placeholder="0.00"
+                    aria-label="Exact refund amount in rupees"
+                    className="block w-full rounded-lg border border-cocoa/20 bg-cream px-3 py-2 text-sm text-charcoal outline-none transition duration-500 focus:border-cocoa"
+                  />
+                </div>
+                <p className="mt-1 text-[9px] uppercase tracking-[0.14em] text-charcoal/45">
+                  Up to {formatINR(refundAmount)}
+                </p>
+                {exactRupees.trim() !== "" && !exactAmountValid ? (
+                  <p className="mt-1 text-[10px] text-burnt-red">
+                    Enter an amount between ₹0 and {formatINR(refundAmount)}
+                  </p>
+                ) : null}
+              </>
+            )}
           </div>
 
           <div>
