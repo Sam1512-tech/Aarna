@@ -335,8 +335,16 @@ export async function updateReturnStatus(
 
 export interface MarkReturnQcInput {
   outcome: "pass" | "fail";
-  /** % of the stored refund amount to actually refund on a fail. 0-100. */
+  /** % of the stored refund amount to actually refund on a fail. 0-100.
+   * Ignored when partialAmountPaise is given. */
   partialPercent?: number;
+  /** Exact amount to refund on a fail, in paise — an alternative to
+   * partialPercent for when the admin has a specific figure in mind (a
+   * goodwill amount, a part-cost deduction) rather than a round percentage.
+   * Takes priority over partialPercent when both are somehow present.
+   * Bounds-checked against the return's actual refund basis inside the
+   * transaction below, once that amount is known. */
+  partialAmountPaise?: number;
   note?: string;
 }
 
@@ -361,6 +369,12 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
       input.partialPercent > 100)
   ) {
     throw new ActionError("Partial refund percent must be between 0 and 100");
+  }
+  if (
+    input.partialAmountPaise !== undefined &&
+    (!Number.isFinite(input.partialAmountPaise) || input.partialAmountPaise < 0)
+  ) {
+    throw new ActionError("Refund amount must be a valid, non-negative amount");
   }
 
   // The read, the Razorpay refund call, and the status write all happen
@@ -444,12 +458,23 @@ export async function markReturnQc(returnId: string, input: MarkReturnQcInput) {
     }
 
     const baseRefund = r.refundAmount ?? r.lineTotal;
+    if (input.outcome === "fail" && input.partialAmountPaise !== undefined && input.partialAmountPaise > baseRefund) {
+      throw new ActionError(
+        `Refund amount can't exceed ₹${(baseRefund / 100).toFixed(2)} for this item`,
+      );
+    }
     const computedRefund =
       input.outcome === "pass"
         ? r.type === "exchange"
           ? 0
           : baseRefund
-        : Math.round((baseRefund * (input.partialPercent ?? 0)) / 100);
+        : input.partialAmountPaise !== undefined
+          ? // Rounded defensively — the UI always sends a whole-paise value,
+            // but createRefund() below hands this straight to Razorpay's
+            // API, which expects an integer; never send it a fractional
+            // amount from a hand-crafted call.
+            Math.round(input.partialAmountPaise)
+          : Math.round((baseRefund * (input.partialPercent ?? 0)) / 100);
 
     // Issue the actual refund before touching our own records — money
     // actually moving is the part that can't be silently "marked done" if it
