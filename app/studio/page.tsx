@@ -16,38 +16,77 @@ export const metadata = {
   title: "Admin · Dashboard",
 };
 
-const DAYS = 30;
+// A single selected range now drives every card on this page — Orders,
+// Revenue, and Fulfillment breakdown all come from the same getOrderStats()
+// call. Previously Revenue was hardcoded to all-time while Orders stayed
+// scoped to a fixed 30 days, so the two sat side by side showing different
+// scopes with only a small label to tell them apart — confirmed twice as a
+// real source of confusion (a merchant reading "88 orders / 69 paid" next
+// to "93 paid orders" and reasonably assuming something was broken, see
+// #325–#327) before landing on "one range for the whole page, chosen up
+// top" as the actual fix, matching how Razorpay's own dashboard does it.
+const RANGES = [
+  { key: "week", label: "Last 7 days", daysBack: 7 },
+  { key: "30d", label: "Last 30 days", daysBack: 30 },
+  { key: "all", label: "All time", daysBack: null },
+] as const;
+type RangeKey = (typeof RANGES)[number]["key"];
+const DEFAULT_RANGE: RangeKey = "30d";
 
-export default async function AdminDashboardPage() {
-  const [stats, allTimeStats, lowStock, pendingReviews] = await Promise.all([
-    getOrderStats(DAYS).catch(() => null),
-    // Separate call, no date filter — a rolling "last 30 days" total can
-    // never be checked against Razorpay's own dashboard, which (per the
-    // merchant's account) shows an all-time figure with no date range.
-    // These answer two different questions; showing only one gave a real
-    // false alarm the first time this shipped (see #325/#326).
-    getOrderStats(null).catch(() => null),
+function resolveRange(raw: string | undefined) {
+  return RANGES.find((r) => r.key === raw) ?? RANGES.find((r) => r.key === DEFAULT_RANGE)!;
+}
+
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  const params = await searchParams;
+  const range = resolveRange(params.range);
+
+  const [stats, lowStock, pendingReviews] = await Promise.all([
+    getOrderStats(range.daysBack).catch(() => null),
     getLowStockVariants(5).catch(() => []),
     getPendingReviewCount().catch(() => 0),
   ]);
 
   const totalOrders = stats?.totalOrders ?? 0;
   const paidOrders = stats?.paidOrders ?? 0;
+  const revenue = stats?.totalRevenue ?? 0;
+  const prepaidRevenue = stats?.prepaidRevenue ?? 0;
+  const codRevenue = stats?.codRevenue ?? 0;
   const counts = stats?.byFulfillmentStatus ?? null;
-  const allTimeRevenue = allTimeStats?.totalRevenue ?? 0;
-  const allTimePrepaidRevenue = allTimeStats?.prepaidRevenue ?? 0;
-  const allTimeCodRevenue = allTimeStats?.codRevenue ?? 0;
-  const allTimePaidOrders = allTimeStats?.paidOrders ?? 0;
 
   return (
     <div>
       <header className="border-b border-cocoa/12 pb-6">
-        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-          Overview · last {DAYS} days
-        </p>
-        <h1 className="mt-2 font-display text-4xl uppercase leading-tight text-maroon">
-          Dashboard
-        </h1>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
+              Overview · {range.label.toLowerCase()}
+            </p>
+            <h1 className="mt-2 font-display text-4xl uppercase leading-tight text-maroon">
+              Dashboard
+            </h1>
+          </div>
+          <div className="flex rounded-full border border-cocoa/20 p-0.5">
+            {RANGES.map((r) => (
+              <Link
+                key={r.key}
+                href={r.key === DEFAULT_RANGE ? "/studio" : `/studio?range=${r.key}`}
+                aria-current={r.key === range.key ? "page" : undefined}
+                className={`rounded-full px-3.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] transition duration-300 ${
+                  r.key === range.key
+                    ? "bg-cocoa text-cream"
+                    : "text-charcoal/55 hover:text-cocoa"
+                }`}
+              >
+                {r.label}
+              </Link>
+            ))}
+          </div>
+        </div>
       </header>
 
       {/* KPI cards */}
@@ -64,19 +103,14 @@ export default async function AdminDashboardPage() {
         />
         <KpiCard
           Icon={IndianRupee}
-          // Deliberately all-time, not scoped to DAYS like the other three
-          // cards on this row — Razorpay's own dashboard (per the merchant)
-          // shows a lifetime total with no date filter, so a rolling window
-          // here could never be checked against it. Labeled explicitly so
-          // it doesn't read as inconsistent with "Orders" right next to it,
-          // which is still a DAYS-day count.
-          label="Revenue (all time)"
-          value={formatINR(allTimeRevenue)}
+          label="Revenue"
+          value={formatINR(revenue)}
           // Online is the only slice Razorpay ever sees — COD cash is
           // collected by the courier, never a Razorpay capture (see
-          // order_payment_status's own schema comment). This is what to
-          // compare against Razorpay's dashboard, not the total above.
-          hint={`${formatINR(allTimePrepaidRevenue)} online · ${formatINR(allTimeCodRevenue)} COD · ${allTimePaidOrders} paid orders`}
+          // order_payment_status's own schema comment). Switch to "All
+          // time" above to check this figure against Razorpay's own
+          // dashboard, which shows a lifetime total with no date filter.
+          hint={`${formatINR(prepaidRevenue)} online · ${formatINR(codRevenue)} COD · ${paidOrders} paid orders`}
         />
         <KpiCard
           Icon={AlertTriangle}
@@ -129,7 +163,8 @@ export default async function AdminDashboardPage() {
         </section>
       ) : null}
 
-      {/* Low-stock list */}
+      {/* Low-stock list — not range-scoped, current stock is current stock
+          regardless of which order window is selected above. */}
       {lowStock.length > 0 ? (
         <section className="mt-6 rounded-2xl border border-cocoa/12 bg-cream p-6 shadow-[0_10px_28px_rgba(43,38,35,0.04)]">
           <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-cocoa/10 pb-4">
