@@ -445,14 +445,20 @@ function RequestCard({
           <p className="text-xs leading-6 text-charcoal/55">
             Your replacement has shipped.
           </p>
-          <a
-            href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(row.outboundAwb)}`}
-            target="_blank"
-            rel="noopener"
-            className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
-          >
-            Track shipment
-          </a>
+          {row.outboundAwb.startsWith("MANUAL:") ? (
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+              {row.outboundAwb.slice("MANUAL:".length)}
+            </span>
+          ) : (
+            <a
+              href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(row.outboundAwb)}`}
+              target="_blank"
+              rel="noopener"
+              className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
+            >
+              Track shipment
+            </a>
+          )}
         </div>
       ) : null}
 
@@ -461,7 +467,7 @@ function RequestCard({
           <p className="text-xs leading-6 text-charcoal/55">
             Your replacement was delivered.
           </p>
-          {row.outboundAwb ? (
+          {row.outboundAwb && !row.outboundAwb.startsWith("MANUAL:") ? (
             <a
               href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(row.outboundAwb)}`}
               target="_blank"

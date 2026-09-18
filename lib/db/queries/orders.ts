@@ -1538,6 +1538,13 @@ export async function syncInFlightShipmentStatuses(): Promise<{
       and(
         inArray(orders.fulfillmentStatus, ["shipped", "out_for_delivery"]),
         isNotNull(orders.awbNumber),
+        // A manually-recorded shipment (markOrderShippedManually — e.g.
+        // handed to Porter, or hand-delivered) has no real Delhivery
+        // waybill to poll. Without this, every one of those would sit
+        // "shipped" forever and this loop would call trackShipment() on a
+        // fake AWB every 5 minutes indefinitely, erroring every single
+        // time — Delhivery will never recognize it.
+        sql`${orders.awbNumber} NOT LIKE 'MANUAL:%'`,
       ),
     );
 

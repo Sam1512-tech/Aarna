@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useTransition } from "react";
 import { Truck, Package, FileDown, Mail, RefreshCw, Banknote } from "lucide-react";
 import { StatusPill } from "@/components/admin/admin-primitives";
+import { ShipOrderManuallyTrigger } from "@/components/admin/ship-order-manually-trigger";
 import {
   attachAwbNumber,
   createDelhiveryShipment,
@@ -121,6 +122,14 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
   const [pending, startTransition] = useTransition();
 
   const hasRealAwb = !!order.awbNumber && order.awbNumber !== "PENDING";
+  // A manually-recorded shipment (order.ship_manually — e.g. handed to
+  // Porter, or hand-delivered) reuses the same awbNumber column tagged with
+  // this prefix, same convention as returns' outboundAwb. Stripped for
+  // display so the admin sees the carrier they typed, not the raw tag.
+  const isManualAwb = !!order.awbNumber?.startsWith("MANUAL:");
+  const awbDisplay = isManualAwb
+    ? order.awbNumber!.slice("MANUAL:".length)
+    : order.awbNumber;
 
   const shipping = order.shippingAddress as Address | null;
 
@@ -443,10 +452,10 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
             {hasRealAwb && !replacingAwb ? (
               <>
                 <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
-                  awb number
+                  {isManualAwb ? "shipped via" : "awb number"}
                 </span>
                 <p className="mt-1.5 rounded-xl border border-cocoa/20 bg-cocoa/5 px-4 py-2.5 text-sm text-charcoal">
-                  {order.awbNumber}
+                  {awbDisplay}
                 </p>
                 <button
                   type="button"
@@ -459,9 +468,9 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
                   Replace shipment…
                 </button>
                 <p className="mt-1 text-xs text-charcoal/50">
-                  A shipment is already attached. Only replace it to correct
-                  a mistake — this doesn&apos;t cancel any real shipment
-                  already booked with Delhivery under the old AWB.
+                  {isManualAwb
+                    ? "A shipment is already recorded. Only replace it to correct a mistake."
+                    : "A shipment is already attached. Only replace it to correct a mistake — this doesn't cancel any real shipment already booked with Delhivery under the old AWB."}
                 </p>
               </>
             ) : (
@@ -471,8 +480,8 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
                 </span>
                 {replacingAwb ? (
                   <p className="mt-1 text-xs text-burnt-red">
-                    Replacing the existing AWB ({order.awbNumber}) — updates
-                    Aarna&apos;s record only.
+                    Replacing the existing {isManualAwb ? "record" : "AWB"} (
+                    {awbDisplay}) — updates Aarna&apos;s record only.
                   </p>
                 ) : null}
                 <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-2">
@@ -507,10 +516,13 @@ export function OrderDetailView({ order: initial }: { order: Order }) {
                     cancel
                   </button>
                 ) : (
-                  <p className="mt-1 text-xs text-charcoal/50">
-                    Use this when the shipment was created manually.
-                    Auto-advances to shipped when currently processing.
-                  </p>
+                  <>
+                    <p className="mt-1 text-xs text-charcoal/50">
+                      Use this when the shipment was created manually.
+                      Auto-advances to shipped when currently processing.
+                    </p>
+                    <ShipOrderManuallyTrigger orderId={order.id} />
+                  </>
                 )}
               </label>
             )}

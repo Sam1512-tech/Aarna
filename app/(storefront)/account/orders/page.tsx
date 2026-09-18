@@ -205,14 +205,20 @@ export default async function AccountOrdersPage() {
                   </span>
                 </div>
                 {order.awbNumber && order.awbNumber !== "PENDING" ? (
-                  <Link
-                    href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(order.awbNumber)}`}
-                    target="_blank"
-                    rel="noopener"
-                    className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
-                  >
-                    Track shipment
-                  </Link>
+                  order.awbNumber.startsWith("MANUAL:") ? (
+                    <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+                      Shipped · {order.awbNumber.slice("MANUAL:".length)}
+                    </span>
+                  ) : (
+                    <Link
+                      href={`https://www.delhivery.com/track-v2/package/${encodeURIComponent(order.awbNumber)}`}
+                      target="_blank"
+                      rel="noopener"
+                      className="soft-link text-[11px] font-bold uppercase tracking-[0.18em] text-cocoa"
+                    >
+                      Track shipment
+                    </Link>
+                  )
                 ) : (
                   <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/40">
                     Tracking soon
