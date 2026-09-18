@@ -676,6 +676,98 @@ export async function createDelhiveryShipment(orderId: string) {
   }
 }
 
+// A manually-recorded shipment reference is stored in the same awbNumber
+// column a real Delhivery waybill uses (no schema change), tagged with this
+// prefix so the UI can tell the two apart and never render a broken
+// Delhivery tracking link for a shipment Delhivery never actually booked.
+// Mirrors the exact same convention already used for exchange outbound
+// shipments — see MANUAL_SHIPMENT_PREFIX in lib/actions/admin/returns.ts.
+const MANUAL_SHIPMENT_PREFIX = "MANUAL:";
+
+/**
+ * Records an order as shipped by some means outside Delhivery — e.g. an
+ * in-city order handed to Porter or another local courier, or delivered in
+ * person. Same eligibility as createDelhiveryShipment (a paid, unshipped
+ * order) and the same atomic-claim shape, just without ever calling
+ * Delhivery: nothing here should differ from a real Delhivery-booked
+ * shipment except which carrier actually delivered it and that awbNumber
+ * holds a plain reference instead of a real waybill. No stock movement
+ * here — unlike an exchange's replacement, a forward order's stock was
+ * already decremented at checkout (initCheckout), not at shipment time.
+ */
+export async function markOrderShippedManually(
+  orderId: string,
+  input: { carrier: string; trackingReference?: string },
+) {
+  const admin = await requireAdmin();
+
+  const carrier = input.carrier.trim();
+  if (!carrier) {
+    throw new ActionError("Carrier / method is required (e.g. Porter, hand-delivered)");
+  }
+
+  const [order] = await db
+    .select({
+      paymentStatus: orders.paymentStatus,
+      paymentMethod: orders.paymentMethod,
+      fulfillmentStatus: orders.fulfillmentStatus,
+      awbNumber: orders.awbNumber,
+      orderNumber: orders.orderNumber,
+    })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1);
+
+  if (!order) throw new ActionError("Order not found");
+
+  // Same "is this order actually ready to ship" gate as
+  // createDelhiveryShipment, for the same reason — see its own comment.
+  const payable =
+    order.paymentStatus === "paid" ||
+    (order.paymentMethod === "cod" && order.paymentStatus === "cod_pending");
+  if (!payable) {
+    throw new ActionError("Order is not paid — cannot record a shipment");
+  }
+  if (order.awbNumber) {
+    throw new ActionError(`Shipment already exists (${order.awbNumber})`);
+  }
+  if (order.fulfillmentStatus !== "processing" && order.fulfillmentStatus !== "pending") {
+    throw new ActionError(
+      `Cannot record a shipment for an order in "${order.fulfillmentStatus}" state`,
+    );
+  }
+
+  const reference = `${MANUAL_SHIPMENT_PREFIX}${carrier}${
+    input.trackingReference?.trim() ? ` · ${input.trackingReference.trim()}` : ""
+  }`;
+
+  // Conditional on the order still genuinely unshipped at write time — same
+  // atomic-claim shape attachAwbNumber/createDelhiveryShipment already use,
+  // so this can't race a concurrent attach/create/manual-ship call for the
+  // same order.
+  const [updated] = await db
+    .update(orders)
+    .set({ awbNumber: reference, fulfillmentStatus: "shipped", updatedAt: new Date() })
+    .where(and(eq(orders.id, orderId), isNull(orders.awbNumber)))
+    .returning();
+
+  if (!updated) {
+    throw new ActionError(
+      "This order's shipment changed while you were editing it — refresh and try again.",
+    );
+  }
+
+  revalidatePath("/studio/orders");
+  revalidatePath(`/studio/orders/${order.orderNumber}`);
+  revalidatePath("/account/orders");
+
+  await logAdminAction(admin.id, "order.ship_manually", "order", orderId, {
+    reference,
+  });
+
+  return updated;
+}
+
 /**
  * Manual fallback for COD's automatic "cash collected" confirmation
  * (applyDelhiveryStatus's own newly-delivered branch, lib/db/queries/orders.ts) —
