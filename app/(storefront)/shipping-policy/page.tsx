@@ -18,6 +18,7 @@ export default function ShippingPolicyPage() {
       <LegalList
         items={[
           `${FREE_SHIPPING_MESSAGE} — no minimum order value.`,
+          "For return orders, ₹50 will be deducted from the refund amount towards return shipping.",
           "Orders are processed within 1–2 business days.",
           "Orders to Bengaluru typically arrive in 2–3 days; delivery elsewhere in India typically takes about 5 days, depending on location.",
           "Customers will receive tracking details via email/SMS once the order is dispatched.",
