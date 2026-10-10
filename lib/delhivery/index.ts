@@ -9,6 +9,8 @@
 //   Staging:    https://staging-express.delhivery.com
 // Override with DELHIVERY_API_BASE_URL.
 
+import { ActionError } from "@/lib/action-error";
+
 const DEFAULT_BASE = "https://track.delhivery.com";
 
 function baseUrl(): string {
@@ -21,6 +23,20 @@ function apiToken(): string {
   return token;
 }
 
+/** A non-2xx response from Delhivery. Same message as before this class
+ *  existed; the status/body are kept separately so shipment creation can turn
+ *  a rejection into something an admin can actually read. */
+class DelhiveryHttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly body: string,
+    path: string,
+  ) {
+    super(`Delhivery ${path} failed: ${status} ${body}`);
+    this.name = "DelhiveryHttpError";
+  }
+}
+
 async function delhiveryFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${baseUrl()}${path}`, {
     ...init,
@@ -31,11 +47,60 @@ async function delhiveryFetch<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
-    throw new Error(
-      `Delhivery ${path} failed: ${res.status} ${await res.text()}`,
-    );
+    throw new DelhiveryHttpError(res.status, await res.text(), path);
   }
   return res.json() as Promise<T>;
+}
+
+/**
+ * Production strips the message off every plain Error thrown from a server
+ * action (see lib/action-error.ts), so when Delhivery refused a shipment the
+ * admin only ever saw "Couldn't create shipment" — with no way to tell a bad
+ * address from an expired token — and the real reason existed only in logs
+ * that Vercel's Hobby plan keeps for an hour. This turns a Delhivery HTTP
+ * failure into an ActionError whose text is safe to show an admin.
+ *
+ * Anything that isn't a Delhivery HTTP error (a missing env var, a network
+ * failure) is returned untouched and stays masked, as before.
+ */
+function toAdminFacingError(what: string, err: unknown): unknown {
+  if (!(err instanceof DelhiveryHttpError)) return err;
+  // 5xx bodies are whole HTML error pages — not worth showing.
+  if (err.status >= 500) {
+    return new ActionError(
+      `${what}: Delhivery is having trouble right now (HTTP ${err.status}) — try again in a minute.`,
+    );
+  }
+  const detail = err.body.replace(/\s+/g, " ").trim().slice(0, 300);
+  return new ActionError(
+    `${what}: Delhivery returned HTTP ${err.status}${detail ? ` — ${detail}` : ""}`,
+  );
+}
+
+// ── Consignee text cleanup ─────────────────────────────────────────────────
+
+/** Trims and collapses runs of whitespace. Checkout stores whatever the
+ *  customer (or their browser's autofill) typed — trailing spaces and double
+ *  spaces were present in real addresses. */
+export function cleanConsigneeText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Cleans the city sent to Delhivery. Browser autofill and India Post's own
+ * district names produce values like "BENGALURU URBAN" / "Bengaluru Rural" —
+ * a revenue-district qualifier, not a city — while the recent orders that
+ * shipped fine all carried a plain city ("Bangalore", "Bengaluru", "Mysore").
+ * Delhivery's own pincode master lists 560058 under the city "Bangalore" and
+ * serviceability is keyed on the pincode, so the qualifier adds nothing.
+ * This is a best-effort normalisation: if Delhivery still rejects a shipment,
+ * the reason now reaches the admin (see toAdminFacingError).
+ */
+export function cleanConsigneeCity(value: string): string {
+  const cleaned = cleanConsigneeText(value);
+  const withoutQualifier = cleaned.replace(/\s+(urban|rural)$/i, "");
+  // Never reduce a value to nothing ("Urban" alone is a real, if rare, name).
+  return withoutQualifier || cleaned;
 }
 
 // ── Pincode serviceability ─────────────────────────────────────────────────
@@ -90,7 +155,9 @@ export async function fetchWaybill(): Promise<string> {
   // Returns a single fresh waybill number to attach to a shipment.
   const data = await delhiveryFetch<{ waybill?: string } | string>(
     `/waybill/api/bulk/json/?count=1`,
-  );
+  ).catch((err) => {
+    throw toAdminFacingError("Couldn't get a waybill number", err);
+  });
   // Delhivery returns either a bare quoted string or { waybill }.
   if (typeof data === "string") return data.replace(/"/g, "");
   if (data.waybill) return data.waybill;
@@ -132,13 +199,13 @@ export async function createShipment(
     pickup_location: { name: pickupName },
     shipments: [
       {
-        name: input.name,
+        name: cleanConsigneeText(input.name),
         order: input.orderNumber,
         waybill: input.waybill ?? "",
-        add: input.address,
+        add: cleanConsigneeText(input.address),
         pin: input.pincode,
-        city: input.city,
-        state: input.state,
+        city: cleanConsigneeCity(input.city),
+        state: cleanConsigneeText(input.state),
         country: "India",
         phone: input.phone,
         payment_mode: paymentMode,
@@ -177,6 +244,8 @@ export async function createShipment(
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
+  }).catch((err) => {
+    throw toAdminFacingError("Delhivery didn't accept the shipment", err);
   });
 
   const pkg = result.packages?.[0];
@@ -185,11 +254,14 @@ export async function createShipment(
     result.success === false ||
     (typeof pkg.status === "string" && pkg.status.toLowerCase() === "fail");
   if (failed) {
-    throw new Error(
-      `Delhivery shipment creation failed: ${
-        pkg?.remarks?.join(", ") || result.rmk || "no waybill returned"
-      }`,
+    const reason =
+      pkg?.remarks?.join(", ") || result.rmk || "no waybill returned";
+    console.error(
+      `[delhivery] shipment for ${input.orderNumber} rejected: ${reason}`,
     );
+    // Delhivery's own validation text (e.g. a bad pincode or address) — an
+    // ActionError so the admin sees it instead of a masked generic failure.
+    throw new ActionError(`Delhivery rejected this shipment: ${reason}`);
   }
 
   // `failed` (including the `!pkg?.waybill` check) already threw above, so
