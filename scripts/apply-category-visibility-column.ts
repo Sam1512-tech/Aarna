@@ -53,9 +53,31 @@ async function main() {
   const sql = await connect();
 
   console.log("📐 Adding categories.is_active...");
-  await sql.unsafe(
-    `ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true`,
-  );
+  // ALTER TABLE needs a brief exclusive lock. On the live database, if some
+  // long-running query already holds a lock on `categories`, a plain ALTER
+  // would WAIT — and every storefront read of `categories` queues up behind
+  // the waiting ALTER. So: give up after 3s (SET LOCAL lock_timeout, inside a
+  // transaction so it's the same connection as the ALTER) and retry, instead
+  // of ever blocking live traffic.
+  const MAX_ATTEMPTS = 6;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      await sql.begin(async (tx) => {
+        await tx.unsafe(`SET LOCAL lock_timeout = '3s'`);
+        await tx.unsafe(
+          `ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true`,
+        );
+      });
+      break;
+    } catch (err) {
+      const lockBusy = (err as { code?: string }).code === "55P03";
+      if (!lockBusy || attempt === MAX_ATTEMPTS) throw err;
+      console.warn(
+        `⏳ categories was busy (attempt ${attempt}/${MAX_ATTEMPTS}) — nothing changed, retrying in 3s.`,
+      );
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
 
   // ── Verify ───────────────────────────────────────────────────────────────
   const cols = await sql<{ column_name: string }[]>`
