@@ -122,6 +122,11 @@ export const categories = pgTable("categories", {
   // fall back to the existing cloth-window placeholder gradient.
   imageUrl: text("image_url"),
   imageMobileUrl: text("image_mobile_url"),
+  // false = staged, not shown anywhere on the storefront (nav, footer,
+  // homepage, shop filters, /shop/<slug>, sitemap). The DB default is true so
+  // every category that existed before this column keeps showing; the admin's
+  // create action is what defaults a NEW category to false.
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

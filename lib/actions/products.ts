@@ -119,8 +119,19 @@ export async function getDefaultVariantsForProducts(
 
 // ── Categories ───────────────────────────────────────────────────────────────
 
+/**
+ * Categories shown on the storefront — active ones only. A hidden category
+ * (staged in /studio) is deliberately absent here, so every storefront
+ * surface fed by this (homepage, shop, search, collections, /shop/<slug>)
+ * hides it at once. This is a public server action, so it must never take an
+ * "include hidden" option; admin screens use getAdminCategories() instead.
+ */
 export async function getCategories(): Promise<Category[]> {
-  return db.select().from(categories).orderBy(asc(categories.sortOrder));
+  return db
+    .select()
+    .from(categories)
+    .where(eq(categories.isActive, true))
+    .orderBy(asc(categories.sortOrder));
 }
 
 // ── Collections ──────────────────────────────────────────────────────────────
@@ -198,7 +209,12 @@ export async function getProducts(
   const conditions = [eq(products.status, "active")];
 
   if (filters.category) {
-    // category arg is a slug — resolve to id
+    // category arg is a slug — resolve to id.
+    // Deliberately NOT filtered on isActive: when no row matches, the
+    // category condition below is skipped and the whole catalogue comes back,
+    // so filtering here would turn a hidden slug into "everything". Hidden
+    // categories are enforced upstream — callers resolve the slug through
+    // getCategories() (active only) and 404 before ever getting here.
     const cat = await db
       .select({ id: categories.id })
       .from(categories)
@@ -313,7 +329,14 @@ export async function getProductBySlug(
       ? db
           .select()
           .from(categories)
-          .where(eq(categories.id, product.categoryId))
+          // Active only: the PDP links to /shop/<slug> and emits it in its
+          // JSON-LD breadcrumb — for a hidden category that page 404s.
+          .where(
+            and(
+              eq(categories.id, product.categoryId),
+              eq(categories.isActive, true),
+            ),
+          )
           .limit(1)
           .then((rows) => rows[0] ?? null)
       : Promise.resolve(null),

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import {
+  CheckboxRow,
   Field,
   FormSection,
   FormShell,
@@ -22,6 +23,9 @@ export function NewCategoryForm() {
   const [slugEdited, setSlugEdited] = useState(false);
   const [sortOrder, setSortOrder] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  // Unticked on purpose: a new category stays off the storefront until it's
+  // switched on, so it can be set up first.
+  const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -41,6 +45,7 @@ export function NewCategoryForm() {
           slug: effectiveSlug,
           sortOrder: sortOrder.trim() ? Number.parseInt(sortOrder, 10) : undefined,
           imageUrl,
+          isActive,
         });
         router.push("/studio/categories");
         router.refresh();
@@ -89,6 +94,17 @@ export function NewCategoryForm() {
             placeholder="0"
           />
         </Field>
+      </FormSection>
+
+      <FormSection
+        title="Visibility"
+        description="Inactive categories are hidden from the storefront. Products set to Active still show in the shop — keep them as Draft until you're ready."
+      >
+        <CheckboxRow
+          label="Active — show on the storefront"
+          checked={isActive}
+          onChange={setIsActive}
+        />
       </FormSection>
 
       <FormSection

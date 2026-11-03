@@ -19,7 +19,7 @@ export const revalidate = 3600;
  * Includes:
  * - Static high-value pages (home, shop, legal, faq)
  * - Every active product (uses updatedAt as lastModified)
- * - Every category (slug-based shop pages)
+ * - Every active category (slug-based shop pages)
  * - Every active collection (slug-based collection pages)
  *
  * Excludes admin, account, cart, checkout, auth (handled by robots.txt).
@@ -45,7 +45,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .select({
           slug: schema.categories.slug,
         })
-        .from(schema.categories),
+        .from(schema.categories)
+        .where(eq(schema.categories.isActive, true)),
       db
         .select({
           slug: schema.collections.slug,

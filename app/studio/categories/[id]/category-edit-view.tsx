@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
+  CheckboxRow,
   Field,
   FormSection,
   FormShell,
@@ -20,6 +21,7 @@ export function CategoryEditView({ category }: { category: Category }) {
   const [slug, setSlug] = useState(category.slug);
   const [sortOrder, setSortOrder] = useState(String(category.sortOrder));
   const [imageUrl, setImageUrl] = useState<string | null>(category.imageUrl);
+  const [isActive, setIsActive] = useState(category.isActive);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -38,6 +40,7 @@ export function CategoryEditView({ category }: { category: Category }) {
           slug,
           sortOrder: sortOrder.trim() ? Number.parseInt(sortOrder, 10) : 0,
           imageUrl,
+          isActive,
         });
         setSaved("Saved.");
       } catch (err) {
@@ -68,6 +71,17 @@ export function CategoryEditView({ category }: { category: Category }) {
             onChange={(e) => setSortOrder(e.target.value.replace(/[^\d]/g, ""))}
           />
         </Field>
+      </FormSection>
+
+      <FormSection
+        title="Visibility"
+        description="Inactive categories are hidden from the storefront. Products set to Active still show in the shop — keep them as Draft until you're ready."
+      >
+        <CheckboxRow
+          label="Active — show on the storefront"
+          checked={isActive}
+          onChange={setIsActive}
+        />
       </FormSection>
 
       <FormSection

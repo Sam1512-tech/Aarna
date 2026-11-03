@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminPageHeader } from "@/components/admin/admin-primitives";
 import { getAdminProductDetail } from "@/lib/actions/admin/products";
-import { getCategories } from "@/lib/actions/products";
+import { getAdminCategories } from "@/lib/actions/admin/categories";
 import { ProductEditView } from "./product-edit-view";
 
 export const metadata: Metadata = { title: "Admin · edit product" };
@@ -16,7 +16,7 @@ export default async function AdminProductDetailPage({
   const { id } = await params;
   const [product, categories] = await Promise.all([
     getAdminProductDetail(id).catch(() => null),
-    getCategories().catch(() => []),
+    getAdminCategories().catch(() => []),
   ]);
   if (!product) notFound();
 
@@ -67,7 +67,10 @@ export default async function AdminProductDetailPage({
             sortOrder: img.sortOrder,
           })),
         }}
-        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        categories={categories.map((c) => ({
+          id: c.id,
+          name: c.isActive ? c.name : `${c.name} — inactive`,
+        }))}
       />
     </div>
   );

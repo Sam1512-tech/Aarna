@@ -45,6 +45,7 @@ function validateSlug(slug: string): string {
 function revalidateCategoryConsumers() {
   revalidatePath("/", "layout"); // navbar (in root layout) + homepage
   revalidatePath("/shop", "layout"); // PLP shell
+  revalidatePath("/sitemap.xml"); // hidden categories must leave it promptly
   revalidatePath("/studio/categories");
 }
 
@@ -72,6 +73,9 @@ export interface CreateCategoryInput {
   parentId?: string;
   imageUrl?: string | null;
   imageMobileUrl?: string | null;
+  /** Defaults to false: a new category stays off the storefront until an
+   *  admin switches it on, so it can be set up (image, products) first. */
+  isActive?: boolean;
 }
 
 export async function createCategory(input: CreateCategoryInput): Promise<Category> {
@@ -106,6 +110,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
       parentId: input.parentId ?? null,
       imageUrl: input.imageUrl ?? null,
       imageMobileUrl: input.imageMobileUrl ?? null,
+      isActive: input.isActive ?? false,
     })
     .returning();
 
@@ -113,6 +118,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
   await logAdminAction(admin.id, "category.create", "category", created.id, {
     name: created.name,
     slug: created.slug,
+    isActive: created.isActive,
   });
   return created;
 }
@@ -124,6 +130,7 @@ export interface UpdateCategoryInput {
   parentId?: string | null;
   imageUrl?: string | null;
   imageMobileUrl?: string | null;
+  isActive?: boolean;
 }
 
 export async function updateCategory(
@@ -162,6 +169,7 @@ export async function updateCategory(
   if (input.imageMobileUrl !== undefined) {
     patch.imageMobileUrl = input.imageMobileUrl;
   }
+  if (input.isActive !== undefined) patch.isActive = input.isActive;
 
   if (Object.keys(patch).length === 0) return existing[0];
 

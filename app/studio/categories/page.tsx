@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import {
   AdminEmpty,
   AdminPageHeader,
+  StatusPill,
   tableClasses,
 } from "@/components/admin/admin-primitives";
 import { DeleteButton } from "@/components/admin/delete-button";
@@ -24,7 +25,7 @@ export default async function AdminCategoriesPage() {
       <AdminPageHeader
         eyebrow="Catalog"
         title="Categories"
-        intro="The wardrobe paths customers browse by — shown in the nav and homepage exactly in this order."
+        intro="The wardrobe paths customers browse by — only active ones appear on the storefront, in the nav and homepage exactly in this order."
         action={{ href: "/studio/categories/new", label: "Add category" }}
       />
 
@@ -43,6 +44,7 @@ export default async function AdminCategoriesPage() {
                   <th className={t.th}>#</th>
                   <th className={t.th}>name</th>
                   <th className={t.th}>slug</th>
+                  <th className={t.th}>status</th>
                   <th className={t.th}></th>
                 </tr>
               </thead>
@@ -64,6 +66,12 @@ export default async function AdminCategoriesPage() {
                     </td>
                     <td className={`${t.td} font-mono text-xs text-charcoal/60`}>
                       /{c.slug}
+                    </td>
+                    <td className={t.td}>
+                      <StatusPill
+                        label={c.isActive ? "active" : "inactive"}
+                        tone={c.isActive ? "ok" : "muted"}
+                      />
                     </td>
                     <td className={t.td}>
                       <div className="flex items-center justify-end gap-3">
