@@ -209,7 +209,12 @@ export async function getProducts(
   const conditions = [eq(products.status, "active")];
 
   if (filters.category) {
-    // category arg is a slug — resolve to id
+    // category arg is a slug — resolve to id.
+    // Deliberately NOT filtered on isActive: when no row matches, the
+    // category condition below is skipped and the whole catalogue comes back,
+    // so filtering here would turn a hidden slug into "everything". Hidden
+    // categories are enforced upstream — callers resolve the slug through
+    // getCategories() (active only) and 404 before ever getting here.
     const cat = await db
       .select({ id: categories.id })
       .from(categories)

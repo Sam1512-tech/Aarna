@@ -25,7 +25,7 @@ export default async function AdminCategoriesPage() {
       <AdminPageHeader
         eyebrow="Catalog"
         title="Categories"
-        intro="The wardrobe paths customers browse by — active ones are shown in the nav and homepage exactly in this order."
+        intro="The wardrobe paths customers browse by — only active ones appear on the storefront, in the nav and homepage exactly in this order."
         action={{ href: "/studio/categories/new", label: "Add category" }}
       />
 

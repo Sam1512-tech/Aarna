@@ -20,7 +20,7 @@ export default async function AdminEditCategoryPage({
       <AdminPageHeader
         eyebrow="Catalog"
         title={category.name}
-        intro="Renaming or re-slugging updates the nav and homepage immediately."
+        intro="Renaming, re-slugging or switching Active on or off updates the nav and homepage immediately."
       />
       <CategoryEditView category={category} />
     </div>

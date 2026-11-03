@@ -75,7 +75,7 @@ export function CategoryEditView({ category }: { category: Category }) {
 
       <FormSection
         title="Visibility"
-        description="Inactive categories are left out of the nav, homepage, shop and sitemap. Products still show in the shop while they're set to Active — keep them as Draft until you're ready."
+        description="Inactive categories are hidden from the storefront. Products set to Active still show in the shop — keep them as Draft until you're ready."
       >
         <CheckboxRow
           label="Active — show on the storefront"

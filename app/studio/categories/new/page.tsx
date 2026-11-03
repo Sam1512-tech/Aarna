@@ -10,7 +10,7 @@ export default function AdminNewCategoryPage() {
       <AdminPageHeader
         eyebrow="Catalog"
         title="Add category"
-        intro="Appears in the nav and homepage the moment it's created — no code changes needed."
+        intro="Stays off the storefront until you tick Active — then it appears in the nav and homepage with no code changes needed."
       />
       <NewCategoryForm />
     </div>

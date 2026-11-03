@@ -67,7 +67,10 @@ export default async function AdminProductDetailPage({
             sortOrder: img.sortOrder,
           })),
         }}
-        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        categories={categories.map((c) => ({
+          id: c.id,
+          name: c.isActive ? c.name : `${c.name} — inactive`,
+        }))}
       />
     </div>
   );
