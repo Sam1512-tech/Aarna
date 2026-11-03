@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { AdminPageHeader } from "@/components/admin/admin-primitives";
-import { getCategories } from "@/lib/actions/products";
+import { getAdminCategories } from "@/lib/actions/admin/categories";
 import { NewProductForm } from "./new-product-form";
 
 export const metadata: Metadata = { title: "Admin · add product" };
 
 export default async function AdminNewProductPage() {
-  const categories = await getCategories().catch(() => []);
+  const categories = await getAdminCategories().catch(() => []);
   return (
     <div>
       <AdminPageHeader

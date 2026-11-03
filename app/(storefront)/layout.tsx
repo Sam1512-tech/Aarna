@@ -1,4 +1,4 @@
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { SiteFooter } from "@/components/storefront/site-footer";
 import { SiteHeader } from "@/components/storefront/site-header";
 import { db, pgClient } from "@/lib/db";
@@ -42,6 +42,7 @@ async function getCategoriesSafe(): Promise<CategoryLink[]> {
   const { sql, params } = db
     .select({ name: categories.name, slug: categories.slug })
     .from(categories)
+    .where(eq(categories.isActive, true))
     .orderBy(asc(categories.sortOrder))
     .toSQL();
 
