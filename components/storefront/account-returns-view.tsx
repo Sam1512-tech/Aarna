@@ -19,6 +19,9 @@ export interface ReturnRow {
   type: "return" | "exchange";
   status: string;
   refundAmount: number | null;
+  /** Return-shipping fee already taken off refundAmount — 0 when none was
+   *  (an exchange, or a request raised before the fee existed). */
+  returnShippingFee: number;
   createdAt: Date | string;
   /** Outbound replacement shipment AWB — null until it's actually shipped. */
   outboundAwb: string | null;
@@ -187,6 +190,7 @@ export function AccountReturnsView({
         type: row.type,
         status: row.status,
         refundAmount: row.refundAmount,
+        returnShippingFee: row.returnShippingFee,
         createdAt: row.createdAt,
         outboundAwb: null,
         reversePickupAwb: null,
@@ -373,6 +377,11 @@ function RequestCard({
               <span className="font-medium text-cocoa">
                 {formatINR(row.refundAmount)}
               </span>
+              {row.returnShippingFee > 0 ? (
+                <span className="block text-[11px] text-charcoal/50">
+                  after {formatINR(row.returnShippingFee)} return shipping
+                </span>
+              ) : null}
             </p>
           ) : null}
         </div>

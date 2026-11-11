@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AccountReturnsView } from "@/components/storefront/account-returns-view";
 import { getMyReturns, getReturnableItems } from "@/lib/actions/account";
+import { returnShippingFeeKept } from "@/lib/returns/shipping-fee";
 
 export const metadata: Metadata = {
   title: "Returns & exchanges",
@@ -24,6 +25,7 @@ export default async function AccountReturnsPage() {
         type: r.type,
         status: r.status,
         refundAmount: r.refundAmount,
+        returnShippingFee: returnShippingFeeKept(r),
         createdAt: r.createdAt,
         outboundAwb: r.outboundAwb,
         reversePickupAwb: r.reversePickupAwb,

@@ -6,6 +6,7 @@ import {
   checkCouponPerCustomerOverage,
   clearPurchasedCartItems,
   getOrderByRazorpayId,
+  getReturnShippingFeeForRefund,
   incrementCouponUsage,
   markOrderPaid,
   markOrderPaymentFailed,
@@ -244,11 +245,21 @@ export async function POST(req: Request) {
       // Idempotency — already fully refunded means this is a webhook retry.
       if (result.isDuplicate) break;
 
+      // Itemise the return-shipping deduction in the email. A lookup failure
+      // must never stop the refund email, so it just falls back to no line.
+      const returnShippingFee = await getReturnShippingFeeForRefund(refund.id).catch(
+        () => 0,
+      );
+
       await sendEmail({
         to: result.order.email,
         subject: `Refund Processed — ${result.order.orderNumber} | Aarna`,
         templateKey: "refund_processed",
-        data: { order: result.order, refundAmount: refund.amount },
+        data: {
+          order: result.order,
+          refundAmount: refund.amount,
+          returnShippingFee,
+        },
       }).catch((err) => {
         console.error("[razorpay webhook] refund email failed:", err);
       });

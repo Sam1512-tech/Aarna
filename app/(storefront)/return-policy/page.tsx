@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { LegalList, LegalPage } from "@/components/storefront/legal-page";
+import { RETURN_SHIPPING_FEE_PAISE } from "@/lib/returns/shipping-fee";
+import { formatINR } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Return & exchange policy",
@@ -20,7 +22,7 @@ export default function ReturnPolicyPage() {
           "Products must be unused, unwashed, and returned in their original packaging with all tags intact.",
           "Items purchased during sale or promotional periods are not eligible for return or exchange.",
           "Refunds will be processed only after the product passes the quality check upon return.",
-          "For return orders, ₹50 will be deducted from the refund amount towards return shipping.",
+          `For return orders, ${formatINR(RETURN_SHIPPING_FEE_PAISE)} will be deducted from the refund amount towards return shipping. Exchanges are not charged this fee.`,
           <>
             In case of an incorrect or damaged product being delivered, customers
             are requested to contact us within{" "}

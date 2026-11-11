@@ -10,6 +10,7 @@ import {
   isInterStateOrder,
 } from "@/lib/invoice/generate";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
+import { orderRefundStatus, returnShippingFeeKept } from "@/lib/returns/shipping-fee";
 import { fetchRazorpayOrderStatus } from "@/lib/razorpay";
 import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 import { mapDelhiveryStatus, trackShipment } from "@/lib/delhivery";
@@ -614,6 +615,71 @@ async function ensureOrderRefundEventsTable(): Promise<void> {
   });
 }
 
+/**
+ * Return-shipping fees kept back from this order's already-refunded returns —
+ * the part of an item's price that a QC-passed return deliberately did NOT
+ * refund (see lib/returns/shipping-fee.ts). Added to the refunded total before
+ * deciding "refunded" vs "partially_refunded", so a fully returned order isn't
+ * stuck at "partially_refunded" forever just because of the fee.
+ *
+ * Derived, not stored: a pass refunds exactly the return's stored
+ * refundAmount, so the fee is the gap between the item's line total and that
+ * amount. Only plain returns that passed QC AND are already marked refunded
+ * count — a pass still parked at refund_pending (COD, money not sent yet) must
+ * not look settled, and a QC fail with a hand-picked partial amount is the
+ * admin's own decision to keep money, which has always meant
+ * "partially_refunded". A return requested before the fee existed has
+ * refundAmount equal to its line total, so it contributes 0.
+ *
+ * Must run inside the same transaction, after the return's own status write,
+ * as the refunded-total sum it is added to.
+ */
+export async function sumRetainedReturnFees(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  orderId: string,
+): Promise<number> {
+  const [{ total }] = await tx
+    .select({
+      total: sql<number>`coalesce(sum(${orderItems.lineTotal} - ${returns.refundAmount}), 0)::int`,
+    })
+    .from(returns)
+    .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
+    .where(
+      and(
+        eq(orderItems.orderId, orderId),
+        eq(returns.type, "return"),
+        eq(returns.status, "refunded"),
+        eq(returns.qcOutcome, "pass"),
+        isNotNull(returns.refundAmount),
+        sql`${returns.refundAmount} < ${orderItems.lineTotal}`,
+      ),
+    );
+  return total;
+}
+
+/**
+ * The return-shipping fee that was taken off the return a given Razorpay
+ * refund paid out — what the refund email itemises. 0 when the refund isn't a
+ * return's at all (e.g. one issued straight from the Razorpay dashboard) or
+ * the return had no fee taken off.
+ */
+export async function getReturnShippingFeeForRefund(
+  razorpayRefundId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({
+      type: returns.type,
+      qcOutcome: returns.qcOutcome,
+      refundAmount: returns.refundAmount,
+      lineTotal: orderItems.lineTotal,
+    })
+    .from(returns)
+    .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
+    .where(eq(returns.razorpayRefundId, razorpayRefundId))
+    .limit(1);
+  return row ? returnShippingFeeKept(row) : 0;
+}
+
 export async function recordRefund(params: {
   razorpayPaymentId: string;
   razorpayRefundId: string;
@@ -691,8 +757,17 @@ export async function recordRefund(params: {
       .from(orderItems)
       .where(eq(orderItems.orderId, order.id));
 
-    const nextStatus: "refunded" | "partially_refunded" =
-      cumulativeRefunded >= refundableTotal ? "refunded" : "partially_refunded";
+    // Return-shipping fees deliberately kept back count as settled — see
+    // sumRetainedReturnFees. Read AFTER the lock on `orders` above, which is
+    // what guarantees markReturnQc's own write of this return (status
+    // "refunded", qcOutcome "pass", the net refundAmount) has committed.
+    const retainedReturnFees = await sumRetainedReturnFees(tx, order.id);
+
+    const nextStatus = orderRefundStatus({
+      cumulativeRefunded,
+      retainedReturnFees,
+      refundableTotal,
+    });
 
     const [updatedOrder] = await tx
       .update(orders)

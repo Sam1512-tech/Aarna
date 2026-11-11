@@ -347,6 +347,10 @@ function refundProcessedHtml(data: Record<string, unknown>): string {
   const orderNumber = order?.orderNumber ?? "";
   const refundAmount = data.refundAmount as number | undefined;
   const refundAmountStr = refundAmount ? INR(refundAmount) : "";
+  // Set only when this refund is a return that had the return-shipping fee
+  // taken off — then the email itemises it instead of showing one bare number.
+  const returnShippingFee = data.returnShippingFee as number | undefined;
+  const itemizeFee = !!refundAmount && !!returnShippingFee && returnShippingFee > 0;
   const paymentMethod =
     (data.paymentMethod as string | undefined) ?? "the original payment method";
   const expectedDays = (data.expectedDays as string | undefined) ?? "5–7 business days";
@@ -355,6 +359,8 @@ function refundProcessedHtml(data: Record<string, unknown>): string {
     ${detailRow("Order Number", orderNumber)}
     ${detailRow("Refund Method", paymentMethod)}
     ${detailRow("Expected By", expectedDays)}
+    ${itemizeFee ? detailRow("Item Price", INR(refundAmount! + returnShippingFee!)) : ""}
+    ${itemizeFee ? detailRow("Return Shipping Fee", `− ${INR(returnShippingFee!)}`) : ""}
     ${refundAmountStr ? detailRow("Refund Amount", refundAmountStr, true) : ""}
   `);
 

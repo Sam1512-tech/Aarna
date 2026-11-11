@@ -8,6 +8,7 @@ import { ActionError } from "@/lib/action-error";
 import { notifyWhatsApp, firstNameFromAddress } from "@/lib/whatsapp/notify";
 import { computeIsDefaultForNewAddress } from "@/lib/address-default";
 import { validateReturnPhotoUrl } from "@/lib/returns/validate-photo-url";
+import { refundAfterReturnShippingFee } from "@/lib/returns/shipping-fee";
 import { postgresErrorCode } from "@/lib/db/postgres-error";
 
 const {
@@ -438,7 +439,15 @@ export async function requestReturn(input: ReturnRequestInput) {
         orderItemId: input.orderItemId,
         reason: input.reason,
         reasonCategory: input.reasonCategory,
-        refundAmount: row[0].lineTotal,
+        // A plain return is refunded the item price less the return-shipping
+        // fee, fixed here at request time so the customer's preview, the
+        // admin's QC screen and the eventual refund all show the same number
+        // (an exchange refunds nothing; its stored amount is only the cap an
+        // admin can enter if the swap fails QC).
+        refundAmount:
+          type === "return"
+            ? refundAfterReturnShippingFee(row[0].lineTotal)
+            : row[0].lineTotal,
         type,
         desiredVariantId,
         photos: photos ?? [],
@@ -492,6 +501,8 @@ export async function getMyReturns() {
       type: returns.type,
       status: returns.status,
       refundAmount: returns.refundAmount,
+      // Needed to show the return-shipping deduction as its own line.
+      lineTotal: orderItems.lineTotal,
       createdAt: returns.createdAt,
       resolvedAt: returns.resolvedAt,
       orderNumber: orders.orderNumber,

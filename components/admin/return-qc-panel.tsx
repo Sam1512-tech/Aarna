@@ -6,6 +6,8 @@ import { formatINR } from "@/lib/utils";
 
 export interface ReturnQcPanelProps {
   refundAmount: number;
+  /** Return-shipping fee already taken off `refundAmount` — 0 when none was. */
+  returnShippingFee: number;
   /** Called with the QC outcome. On fail, either `partialPercent` (% of
    * `refundAmount`, 0 = keep everything, 100 = full refund) or
    * `partialAmountPaise` (an exact figure, for when the admin has a
@@ -31,6 +33,7 @@ export interface ReturnQcPanelProps {
  */
 export function ReturnQcPanel({
   refundAmount,
+  returnShippingFee,
   onSubmit,
   type,
 }: ReturnQcPanelProps) {
@@ -91,6 +94,12 @@ export function ReturnQcPanel({
       <p className="mt-1 text-xs leading-5 text-charcoal/60">
         Item received — inspect and choose an outcome. This closes the request.
       </p>
+      {type === "return" && returnShippingFee > 0 ? (
+        <p className="mt-1 text-xs leading-5 text-charcoal/60">
+          Refund shown is after the {formatINR(returnShippingFee)} return
+          shipping fee.
+        </p>
+      ) : null}
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         <button

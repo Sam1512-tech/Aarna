@@ -9,6 +9,10 @@ import { ExchangeVariantChooser, type VariantOption } from "@/components/storefr
 import { ReturnPhotoUploader } from "@/components/storefront/return-photo-uploader";
 import { uploadReturnPhoto } from "@/lib/cloudinary/upload-return-photo";
 import { formatINR } from "@/lib/utils";
+import {
+  RETURN_SHIPPING_FEE_PAISE,
+  refundAfterReturnShippingFee,
+} from "@/lib/returns/shipping-fee";
 import { useModalLock } from "@/hooks/use-modal-lock";
 
 export interface RequestableItem {
@@ -33,6 +37,7 @@ export interface SubmittedRow {
   reason: string;
   status: string;
   refundAmount: number | null;
+  returnShippingFee: number;
   createdAt: Date;
   paymentMethod: "prepaid" | "cod";
 }
@@ -209,7 +214,14 @@ export function ReturnExchangeModal({
           quantity: chosen.quantity,
           reason: trimmedDetail,
           status: "requested",
-          refundAmount: intent === "return" ? chosen.lineTotal : null,
+          refundAmount:
+            intent === "return"
+              ? refundAfterReturnShippingFee(chosen.lineTotal)
+              : null,
+          returnShippingFee:
+            intent === "return"
+              ? chosen.lineTotal - refundAfterReturnShippingFee(chosen.lineTotal)
+              : 0,
           createdAt: new Date(),
           paymentMethod: chosen.paymentMethod,
         });
@@ -473,11 +485,15 @@ function StepIntent({
           </p>
           <p className="mt-1">
             <span className="font-medium text-cocoa">
-              {formatINR(chosen.lineTotal)}
+              {formatINR(refundAfterReturnShippingFee(chosen.lineTotal))}
             </span>{" "}
             {chosen.paymentMethod === "cod"
               ? "via UPI, once we've received and inspected the piece."
               : "back to your original payment method in 5–7 business days."}
+          </p>
+          <p className="mt-1 text-xs text-charcoal/55">
+            {formatINR(chosen.lineTotal)} item price −{" "}
+            {formatINR(RETURN_SHIPPING_FEE_PAISE)} return shipping.
           </p>
         </div>
       ) : null}
