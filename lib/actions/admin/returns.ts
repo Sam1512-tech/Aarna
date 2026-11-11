@@ -6,8 +6,9 @@ import { db, schema } from "@/lib/db";
 import { requireAdmin } from "@/lib/actions/auth";
 import { requestReversePickup, fetchWaybill, createShipment } from "@/lib/delhivery";
 import { createRefund, razorpayApiErrorDetail } from "@/lib/razorpay";
-import { insertCodRefundCreditNote } from "@/lib/db/queries/orders";
+import { insertCodRefundCreditNote, sumRetainedReturnFees } from "@/lib/db/queries/orders";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
+import { orderRefundStatus } from "@/lib/returns/shipping-fee";
 import {
   notifyWhatsApp,
   firstNameFromAddress,
@@ -689,9 +690,9 @@ export async function recordCodRefundSent(
 
       // Same cumulative-total basis recordRefund uses (see its own
       // comment): the sum of order_items.lineTotal, not orders.total —
-      // markReturnQc always refunds the returned item's raw lineTotal, so
-      // that's the true ceiling every refund event is drawn from
-      // regardless of shipping/discount/codFee.
+      // markReturnQc refunds at most the returned item's raw lineTotal (less
+      // the return-shipping fee), so that's the true ceiling every refund
+      // event is drawn from regardless of shipping/discount/codFee.
       const [{ total: cumulativeRefunded }] = await tx
         .select({
           total: sql<number>`coalesce(sum(${orderRefundEvents.amountPaise}), 0)::int`,
@@ -706,8 +707,15 @@ export async function recordCodRefundSent(
         .from(orderItems)
         .where(eq(orderItems.orderId, r.orderId));
 
-      const nextPaymentStatus: "refunded" | "partially_refunded" =
-        cumulativeRefunded >= refundableTotal ? "refunded" : "partially_refunded";
+      // This return was marked "refunded" a few lines up, in this same
+      // transaction, so its own return-shipping fee is already counted here.
+      const retainedReturnFees = await sumRetainedReturnFees(tx, r.orderId);
+
+      const nextPaymentStatus = orderRefundStatus({
+        cumulativeRefunded,
+        retainedReturnFees,
+        refundableTotal,
+      });
 
       await tx
         .update(orders)

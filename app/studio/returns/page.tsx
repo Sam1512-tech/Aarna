@@ -291,6 +291,19 @@ export default async function AdminReturnsPage({
                           <span className="font-medium text-cocoa">
                             {formatINR(r.refundAmount)}
                           </span>
+                          {/* Before QC, explain why the refund is below the
+                              item price. Only for a return that actually has
+                              the fee taken off — requests raised before it
+                              existed keep their full amount. */}
+                          {r.type === "return" &&
+                          r.qcOutcome === null &&
+                          r.refundAmount < r.lineTotal ? (
+                            <span className="block text-[11px] text-charcoal/50">
+                              {formatINR(r.lineTotal)} item −{" "}
+                              {formatINR(r.lineTotal - r.refundAmount)} return
+                              shipping
+                            </span>
+                          ) : null}
                         </p>
                       ) : null}
                     </div>
