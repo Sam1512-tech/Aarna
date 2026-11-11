@@ -37,6 +37,7 @@ export interface SubmittedRow {
   reason: string;
   status: string;
   refundAmount: number | null;
+  returnShippingFee: number;
   createdAt: Date;
   paymentMethod: "prepaid" | "cod";
 }
@@ -217,6 +218,10 @@ export function ReturnExchangeModal({
             intent === "return"
               ? refundAfterReturnShippingFee(chosen.lineTotal)
               : null,
+          returnShippingFee:
+            intent === "return"
+              ? chosen.lineTotal - refundAfterReturnShippingFee(chosen.lineTotal)
+              : 0,
           createdAt: new Date(),
           paymentMethod: chosen.paymentMethod,
         });

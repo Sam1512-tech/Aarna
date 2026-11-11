@@ -17,6 +17,7 @@ import { RecordCodRefundTrigger } from "@/components/admin/record-cod-refund-tri
 import { REJECT_REASONS } from "@/lib/returns/reject-reasons";
 import { getAdminReturns } from "@/lib/actions/admin/returns";
 import { formatINR } from "@/lib/utils";
+import { returnShippingFeeKept } from "@/lib/returns/shipping-fee";
 
 export const metadata: Metadata = { title: "Admin · Returns" };
 
@@ -207,6 +208,14 @@ export default async function AdminReturnsPage({
               const isStale =
                 r.status === "requested" &&
                 hoursSince(r.createdAt) > STALE_THRESHOLD_HOURS;
+              // Return-shipping fee already taken off this refund (0 when
+              // none was — exchange, pre-fee request, or a QC fail).
+              const shippingFee = returnShippingFeeKept({
+                type: r.type as "return" | "exchange",
+                qcOutcome: r.qcOutcome as "pass" | "fail" | null,
+                refundAmount: r.refundAmount,
+                lineTotal: r.lineTotal,
+              });
               return (
                 <li key={r.id}>
                 <AdminCard>
@@ -291,17 +300,11 @@ export default async function AdminReturnsPage({
                           <span className="font-medium text-cocoa">
                             {formatINR(r.refundAmount)}
                           </span>
-                          {/* Before QC, explain why the refund is below the
-                              item price. Only for a return that actually has
-                              the fee taken off — requests raised before it
-                              existed keep their full amount. */}
-                          {r.type === "return" &&
-                          r.qcOutcome === null &&
-                          r.refundAmount < r.lineTotal ? (
+                          {/* Why the refund is below the item price. */}
+                          {shippingFee > 0 ? (
                             <span className="block text-[11px] text-charcoal/50">
                               {formatINR(r.lineTotal)} item −{" "}
-                              {formatINR(r.lineTotal - r.refundAmount)} return
-                              shipping
+                              {formatINR(shippingFee)} return shipping
                             </span>
                           ) : null}
                         </p>
@@ -346,6 +349,7 @@ export default async function AdminReturnsPage({
                       <ReturnQcTrigger
                         returnId={r.id}
                         refundAmount={r.refundAmount ?? r.lineTotal}
+                        returnShippingFee={shippingFee}
                         type={r.type as "return" | "exchange"}
                       />
                       {r.type === "return" ? (

@@ -10,7 +10,7 @@ import {
   isInterStateOrder,
 } from "@/lib/invoice/generate";
 import { applyStockMovement } from "@/lib/db/queries/inventory";
-import { orderRefundStatus } from "@/lib/returns/shipping-fee";
+import { orderRefundStatus, returnShippingFeeKept } from "@/lib/returns/shipping-fee";
 import { fetchRazorpayOrderStatus } from "@/lib/razorpay";
 import { alertAdminSuspiciousActivity } from "@/lib/security/alert-admin";
 import { mapDelhiveryStatus, trackShipment } from "@/lib/delhivery";
@@ -655,6 +655,29 @@ export async function sumRetainedReturnFees(
       ),
     );
   return total;
+}
+
+/**
+ * The return-shipping fee that was taken off the return a given Razorpay
+ * refund paid out — what the refund email itemises. 0 when the refund isn't a
+ * return's at all (e.g. one issued straight from the Razorpay dashboard) or
+ * the return had no fee taken off.
+ */
+export async function getReturnShippingFeeForRefund(
+  razorpayRefundId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({
+      type: returns.type,
+      qcOutcome: returns.qcOutcome,
+      refundAmount: returns.refundAmount,
+      lineTotal: orderItems.lineTotal,
+    })
+    .from(returns)
+    .innerJoin(orderItems, eq(orderItems.id, returns.orderItemId))
+    .where(eq(returns.razorpayRefundId, razorpayRefundId))
+    .limit(1);
+  return row ? returnShippingFeeKept(row) : 0;
 }
 
 export async function recordRefund(params: {

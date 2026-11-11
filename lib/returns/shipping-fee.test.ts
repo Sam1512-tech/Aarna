@@ -3,6 +3,7 @@ import {
   RETURN_SHIPPING_FEE_PAISE,
   orderRefundStatus,
   refundAfterReturnShippingFee,
+  returnShippingFeeKept,
 } from "./shipping-fee";
 
 describe("RETURN_SHIPPING_FEE_PAISE", () => {
@@ -78,5 +79,34 @@ describe("orderRefundStatus", () => {
         refundableTotal: 249900,
       }),
     ).toBe("refunded");
+  });
+});
+
+describe("returnShippingFeeKept", () => {
+  const base = { type: "return" as const, qcOutcome: null, lineTotal: 249900 };
+
+  it("is the gap between the item price and the stored refund, before and after a QC pass", () => {
+    expect(returnShippingFeeKept({ ...base, refundAmount: 240000 })).toBe(9900);
+    expect(returnShippingFeeKept({ ...base, qcOutcome: "pass", refundAmount: 240000 })).toBe(9900);
+  });
+
+  it("is the whole item price when the item cost less than the fee", () => {
+    expect(returnShippingFeeKept({ ...base, lineTotal: 7500, refundAmount: 0 })).toBe(7500);
+  });
+
+  it("is 0 for a request raised before the fee existed", () => {
+    expect(returnShippingFeeKept({ ...base, refundAmount: 249900 })).toBe(0);
+  });
+
+  it("is 0 for an exchange", () => {
+    expect(returnShippingFeeKept({ ...base, type: "exchange", refundAmount: 100 })).toBe(0);
+  });
+
+  it("is 0 after a QC fail — that refundAmount is the admin's own figure, not the fee", () => {
+    expect(returnShippingFeeKept({ ...base, qcOutcome: "fail", refundAmount: 100000 })).toBe(0);
+  });
+
+  it("is 0 when no refund amount is stored", () => {
+    expect(returnShippingFeeKept({ ...base, refundAmount: null })).toBe(0);
   });
 });

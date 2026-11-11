@@ -501,6 +501,8 @@ export async function getMyReturns() {
       type: returns.type,
       status: returns.status,
       refundAmount: returns.refundAmount,
+      // Needed to show the return-shipping deduction as its own line.
+      lineTotal: orderItems.lineTotal,
       createdAt: returns.createdAt,
       resolvedAt: returns.resolvedAt,
       orderNumber: orders.orderNumber,

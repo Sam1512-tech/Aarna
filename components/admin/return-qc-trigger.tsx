@@ -8,10 +8,12 @@ import { actionErrorMessage } from "@/lib/action-error";
 export function ReturnQcTrigger({
   returnId,
   refundAmount,
+  returnShippingFee,
   type,
 }: {
   returnId: string;
   refundAmount: number;
+  returnShippingFee: number;
   type: "return" | "exchange";
 }) {
   const router = useRouter();
@@ -19,6 +21,7 @@ export function ReturnQcTrigger({
   return (
     <ReturnQcPanel
       refundAmount={refundAmount}
+      returnShippingFee={returnShippingFee}
       type={type}
       onSubmit={async (payload) => {
         try {
