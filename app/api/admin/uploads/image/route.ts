@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/actions/auth";
 import { uploadImageBuffer } from "@/lib/cloudinary/upload";
+import { UPLOAD_MAX_BYTES } from "@/lib/images/prepare-upload";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BYTES = 8 * 1024 * 1024;
+// Not 8 MB any more: Vercel rejects request bodies over 4.5 MB before this
+// route runs, so a larger limit here could never be reached. The browser
+// shrinks bigger photos first (lib/images/prepare-upload.ts).
+const MAX_BYTES = UPLOAD_MAX_BYTES;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
 
 // POST /api/admin/uploads/image
@@ -35,7 +39,7 @@ export async function POST(req: Request) {
   }
   if (file.size > MAX_BYTES) {
     return NextResponse.json(
-      { error: "File is over 8 MB" },
+      { error: "File is over 4 MB" },
       { status: 400 },
     );
   }

@@ -6,8 +6,8 @@ import {
   isWidgetConfigured,
   openCloudinaryWidget,
 } from "@/lib/cloudinary/widget-client";
+import { MAX_ORIGINAL_BYTES } from "@/lib/images/prepare-upload";
 
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB per image — matches /api/admin/uploads/image's own cap
 const ACCEPT = "image/jpeg,image/png,image/webp,image/avif";
 
 /**
@@ -115,8 +115,10 @@ export function CloudinaryImagePicker({
       setError("Please pick a JPG, PNG, WEBP, or AVIF image");
       return;
     }
-    if (file.size > MAX_BYTES) {
-      setError(`${file.name} is over 8 MB`);
+    // Anything bigger than ~3.5 MB is shrunk in the browser before upload
+    // (uploadAdminImage), so this only stops an absurdly large original.
+    if (file.size > MAX_ORIGINAL_BYTES) {
+      setError(`${file.name} is over 30 MB`);
       return;
     }
 
@@ -227,7 +229,7 @@ export function CloudinaryImagePicker({
         <p className="mt-2 text-xs text-burnt-red">{error}</p>
       ) : (
         <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-charcoal/40">
-          JPG · PNG · WEBP · AVIF · 8 MB max · portrait works best
+          JPG · PNG · WEBP · AVIF · big photos are resized for you · portrait works best
         </p>
       )}
     </div>
