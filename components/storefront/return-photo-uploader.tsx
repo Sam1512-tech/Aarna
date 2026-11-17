@@ -2,9 +2,9 @@
 
 import { useRef, useState, useTransition } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
+import { MAX_ORIGINAL_BYTES } from "@/lib/images/prepare-upload";
 
 const MAX_PHOTOS = 3;
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB per photo — matches Sam's PR 2 endpoint spec
 const ACCEPT = "image/jpeg,image/png,image/webp";
 
 /**
@@ -50,8 +50,10 @@ export function ReturnPhotoUploader({
 
     const chosen = Array.from(files).slice(0, remaining);
     for (const f of chosen) {
-      if (f.size > MAX_BYTES) {
-        setError(`${f.name} is over 5 MB`);
+      // Bigger than ~3.5 MB is shrunk in the browser before upload
+      // (uploadReturnPhoto); this only stops an absurdly large original.
+      if (f.size > MAX_ORIGINAL_BYTES) {
+        setError(`${f.name} is over 30 MB`);
         return;
       }
       if (!ACCEPT.includes(f.type)) {
@@ -157,7 +159,7 @@ export function ReturnPhotoUploader({
         <p className="mt-2 text-xs text-burnt-red">{error}</p>
       ) : (
         <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-charcoal/40">
-          JPG · PNG · WEBP · 5 MB max
+          JPG · PNG · WEBP · big photos are resized for you
         </p>
       )}
     </div>

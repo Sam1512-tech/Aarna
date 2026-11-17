@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { getCurrentCustomer } from "@/lib/actions/auth";
 import { uploadImageBuffer } from "@/lib/cloudinary/upload";
+import { UPLOAD_MAX_BYTES } from "@/lib/images/prepare-upload";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BYTES = 5 * 1024 * 1024; // matches ReturnPhotoUploader's client-side limit
+// Vercel rejects request bodies over 4.5 MB before this route runs; the browser
+// shrinks bigger photos first (lib/images/prepare-upload.ts).
+const MAX_BYTES = UPLOAD_MAX_BYTES;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 // POST /api/uploads/return-photo
@@ -33,7 +36,7 @@ export async function POST(req: Request) {
     );
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "File is over 5 MB" }, { status: 400 });
+    return NextResponse.json({ error: "File is over 4 MB" }, { status: 400 });
   }
 
   try {
