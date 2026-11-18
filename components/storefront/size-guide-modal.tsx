@@ -1,14 +1,24 @@
 "use client";
 
+import { useId } from "react";
 import { Ruler, User, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useModalLock } from "@/hooks/use-modal-lock";
+import {
+  FALLBACK_SIZE_CHART_CAPTION,
+  findChartSizeIndex,
+  type SizeChart,
+} from "@/lib/size-chart";
 
 /**
  * Size guide bottom-sheet / centered modal opened from the PDP "size help"
- * trigger. Values are hardcoded (shared across every product) — Aarna's
- * launch catalog is small enough that one chart covers all pieces. If per-
- * product measurements are ever needed, take a `chart` prop and pass it in.
+ * trigger.
+ *
+ * Two charts, one modal. A product whose category has its own chart
+ * (`categories.size_chart`, edited in the admin — see lib/size-chart.ts) shows
+ * that, sizes across and measurements down, one table per section (e.g. Top /
+ * Bottom). Every other product shows the built-in bust/waist/hip chart below,
+ * hardcoded and shared, exactly as before.
  */
 
 interface Row {
@@ -30,9 +40,18 @@ const CHART: Row[] = [
 interface SizeGuideModalProps {
   open: boolean;
   onClose: () => void;
+  /** The product's category chart; null/undefined shows the default chart. */
+  chart?: SizeChart | null;
+  /** The size currently picked on the page — highlighted in a category chart. */
+  selectedSize?: string | null;
 }
 
-export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
+export function SizeGuideModal({
+  open,
+  onClose,
+  chart,
+  selectedSize,
+}: SizeGuideModalProps) {
   useModalLock(open, onClose);
 
   if (!open) return null;
@@ -89,7 +108,9 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
           {/* Header */}
           <div className="text-center">
             <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-cocoa">
-              measurements in inches
+              {chart
+                ? chart.caption || FALLBACK_SIZE_CHART_CAPTION
+                : "measurements in inches"}
             </p>
             <h2
               id="size-guide-title"
@@ -99,102 +120,108 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
             </h2>
           </div>
 
-          {/* Fit + model info */}
-          <div className="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-cocoa/12 bg-cocoa/4 px-4 py-4">
-            <div className="flex items-start gap-2.5">
-              <Ruler
-                className="mt-0.5 h-4 w-4 shrink-0 text-cocoa"
-                aria-hidden="true"
-              />
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                  fit type
-                </p>
-                <p className="mt-0.5 text-sm text-charcoal/85">
-                  Comfortable fit
-                </p>
+          {chart ? (
+            <CategorySizeChart chart={chart} selectedSize={selectedSize} />
+          ) : (
+            <>
+              {/* Fit + model info */}
+              <div className="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-cocoa/12 bg-cocoa/4 px-4 py-4">
+                <div className="flex items-start gap-2.5">
+                  <Ruler
+                    className="mt-0.5 h-4 w-4 shrink-0 text-cocoa"
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
+                      fit type
+                    </p>
+                    <p className="mt-0.5 text-sm text-charcoal/85">
+                      Comfortable fit
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <User
+                    className="mt-0.5 h-4 w-4 shrink-0 text-cocoa"
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
+                      model height
+                    </p>
+                    <p className="mt-0.5 text-sm text-charcoal/85">
+                      5&apos;6&quot; · Wearing XS
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-2.5">
-              <User
-                className="mt-0.5 h-4 w-4 shrink-0 text-cocoa"
-                aria-hidden="true"
-              />
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                  model height
-                </p>
-                <p className="mt-0.5 text-sm text-charcoal/85">
-                  5&apos;6&quot; · Wearing XS
-                </p>
+
+              <p className="mt-5 text-center text-sm leading-6 text-charcoal/65">
+                We&apos;ve laid out body measurements so you can pick the size
+                that feels closest to yours.
+              </p>
+
+              {/* Chart */}
+              <div className="mt-6 overflow-hidden rounded-2xl border border-cocoa/14 bg-cream">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-cocoa/12 bg-cocoa/6">
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
+                      >
+                        size
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
+                      >
+                        bust
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
+                      >
+                        waist
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
+                      >
+                        hip
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CHART.map((row, i) => (
+                      <tr
+                        key={row.size}
+                        className={
+                          i < CHART.length - 1 ? "border-b border-cocoa/10" : ""
+                        }
+                      >
+                        <th
+                          scope="row"
+                          className="px-4 py-3.5 text-left font-display text-base font-medium text-maroon"
+                        >
+                          {row.size}
+                        </th>
+                        <td className="px-4 py-3.5 text-right tabular-nums text-charcoal/85">
+                          {row.bust}
+                        </td>
+                        <td className="px-4 py-3.5 text-right tabular-nums text-charcoal/85">
+                          {row.waist}
+                        </td>
+                        <td className="px-4 py-3.5 text-right tabular-nums text-charcoal/85">
+                          {row.hip}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </div>
-
-          <p className="mt-5 text-center text-sm leading-6 text-charcoal/65">
-            We&apos;ve laid out body measurements so you can pick the size
-            that feels closest to yours.
-          </p>
-
-          {/* Chart */}
-          <div className="mt-6 overflow-hidden rounded-2xl border border-cocoa/14 bg-cream">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-cocoa/12 bg-cocoa/6">
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
-                  >
-                    size
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
-                  >
-                    bust
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
-                  >
-                    waist
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
-                  >
-                    hip
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {CHART.map((row, i) => (
-                  <tr
-                    key={row.size}
-                    className={
-                      i < CHART.length - 1 ? "border-b border-cocoa/10" : ""
-                    }
-                  >
-                    <th
-                      scope="row"
-                      className="px-4 py-3.5 text-left font-display text-base font-medium text-maroon"
-                    >
-                      {row.size}
-                    </th>
-                    <td className="px-4 py-3.5 text-right tabular-nums text-charcoal/85">
-                      {row.bust}
-                    </td>
-                    <td className="px-4 py-3.5 text-right tabular-nums text-charcoal/85">
-                      {row.waist}
-                    </td>
-                    <td className="px-4 py-3.5 text-right tabular-nums text-charcoal/85">
-                      {row.hip}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+            </>
+          )}
 
           <p className="mt-5 text-center text-xs leading-5 text-charcoal/55">
             Still unsure? Drop us a note at{" "}
@@ -210,5 +237,116 @@ export function SizeGuideModal({ open, onClose }: SizeGuideModalProps) {
       </div>
     </div>,
     document.body,
+  );
+}
+
+// Widths used to keep a category chart readable on a phone: the label column
+// is fixed, and each size gets at least MIN_SIZE_COL_PX — a chart with more
+// sizes than fit scrolls sideways inside its own box rather than squashing.
+const LABEL_COL_PX = 104;
+const MIN_SIZE_COL_PX = 36;
+
+function CategorySizeChart({
+  chart,
+  selectedSize,
+}: {
+  chart: SizeChart;
+  selectedSize?: string | null;
+}) {
+  const baseId = useId();
+  const selectedIdx = findChartSizeIndex(chart, selectedSize);
+  const minWidth = LABEL_COL_PX + chart.sizes.length * MIN_SIZE_COL_PX;
+
+  return (
+    <div className="mt-6 space-y-6">
+      {chart.sections.map((section, si) => {
+        const titleId = `${baseId}-${si}`;
+        return (
+          <section
+            key={si}
+            aria-labelledby={section.title ? titleId : undefined}
+          >
+            {section.title ? (
+              <h3
+                id={titleId}
+                className="mb-2 text-[10px] font-medium uppercase tracking-[0.24em] text-cocoa"
+              >
+                {section.title}
+              </h3>
+            ) : null}
+            <div className="overflow-x-auto rounded-2xl border border-cocoa/14 bg-cream">
+              <table
+                className="w-full table-fixed text-[13px]"
+                style={{ minWidth }}
+              >
+                <colgroup>
+                  <col style={{ width: LABEL_COL_PX }} />
+                  {chart.sizes.map((size) => (
+                    <col key={size} />
+                  ))}
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-cocoa/12 bg-cocoa/6">
+                    <th scope="col" className="py-3 pl-4">
+                      <span className="sr-only">Measurement</span>
+                    </th>
+                    {chart.sizes.map((size, i) => (
+                      <th
+                        key={size}
+                        scope="col"
+                        className={`py-3 text-center text-[10px] font-medium uppercase tracking-[0.18em] ${
+                          i === selectedIdx
+                            ? "bg-cocoa/12 text-maroon"
+                            : "text-cocoa"
+                        }`}
+                      >
+                        {size}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {section.rows.map((row, ri) => (
+                    <tr
+                      key={ri}
+                      className={
+                        ri < section.rows.length - 1
+                          ? "border-b border-cocoa/10"
+                          : ""
+                      }
+                    >
+                      <th
+                        scope="row"
+                        className="py-3 pl-4 pr-2 text-left text-[13px] font-normal leading-4 text-charcoal/85"
+                      >
+                        {row.label}
+                      </th>
+                      {row.values.map((value, i) => (
+                        <td
+                          key={i}
+                          className={`py-3 text-center tabular-nums ${
+                            i === selectedIdx
+                              ? "bg-cocoa/12 font-medium text-maroon"
+                              : "text-charcoal/85"
+                          }`}
+                        >
+                          {value || "–"}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        );
+      })}
+
+      {selectedIdx >= 0 ? (
+        <p className="text-center text-xs leading-5 text-charcoal/55">
+          Your selected size, {chart.sizes[selectedIdx]}, is highlighted.
+        </p>
+      ) : null}
+    </div>
   );
 }

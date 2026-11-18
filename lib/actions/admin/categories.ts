@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { isForeignKeyViolation } from "@/lib/db/errors";
 import { requireAdmin } from "@/lib/actions/auth";
-import type { Category } from "@/lib/types";
+import type { Category, CategoryWithSizeChart } from "@/lib/types";
+import { validateSizeChart, type SizeChart } from "@/lib/size-chart";
 import { ActionError } from "@/lib/action-error";
 import { logAdminAction } from "@/lib/audit/log-admin-action";
 
@@ -56,7 +57,9 @@ export async function getAdminCategories(): Promise<Category[]> {
   return db.select().from(categories).orderBy(asc(categories.sortOrder));
 }
 
-export async function getAdminCategory(id: string): Promise<Category | null> {
+export async function getAdminCategory(
+  id: string,
+): Promise<CategoryWithSizeChart | null> {
   await requireAdmin();
   const rows = await db
     .select()
@@ -131,12 +134,15 @@ export interface UpdateCategoryInput {
   imageUrl?: string | null;
   imageMobileUrl?: string | null;
   isActive?: boolean;
+  /** This category's own size chart; `null` removes it (products fall back to
+   *  the default size guide). Left undefined = unchanged. */
+  sizeChart?: SizeChart | null;
 }
 
 export async function updateCategory(
   id: string,
   input: UpdateCategoryInput,
-): Promise<Category> {
+): Promise<CategoryWithSizeChart> {
   const admin = await requireAdmin();
 
   const existing = await db
@@ -170,6 +176,9 @@ export async function updateCategory(
     patch.imageMobileUrl = input.imageMobileUrl;
   }
   if (input.isActive !== undefined) patch.isActive = input.isActive;
+  if (input.sizeChart !== undefined) {
+    patch.sizeChart = input.sizeChart === null ? null : validateSizeChart(input.sizeChart);
+  }
 
   if (Object.keys(patch).length === 0) return existing[0];
 
@@ -180,6 +189,9 @@ export async function updateCategory(
     .returning();
 
   revalidateCategoryConsumers();
+  // Product pages are cached for up to a minute; a chart change should show on
+  // them straight away.
+  if (input.sizeChart !== undefined) revalidatePath("/product/[slug]", "page");
   await logAdminAction(admin.id, "category.update", "category", id, { changes: input });
   return updated;
 }
