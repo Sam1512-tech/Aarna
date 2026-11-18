@@ -2,10 +2,12 @@
  * Per-category size chart — the data shape, its validation, and the small pure
  * helpers the admin editor and the storefront share.
  *
- * A category can carry its own chart (`categories.size_chart`, JSON). A
- * product's "Size guide" opens its category's chart when it has one and the
- * built-in bust/waist/hip chart otherwise, so a new category gets its own chart
- * from the admin with no code change — nothing here knows any category's name.
+ * Every category's size chart is the same kind of thing: data
+ * (`categories.size_chart`, JSON) edited in the admin and drawn by one shared
+ * table. A product's "Size guide" shows its category's chart, or
+ * `DEFAULT_SIZE_CHART` (the standard bust/waist/hip chart) when the category
+ * has none — so a new category works from day one and gets its own chart from
+ * the admin with no code change. Nothing here knows any category's name.
  *
  * One chart = one shared list of sizes (the columns) plus one or more titled
  * sections (for example "Top" and "Bottom" for a two-piece category), each a
@@ -30,9 +32,19 @@ export interface SizeChartSection {
   rows: SizeChartRow[];
 }
 
+/** A labelled fact shown in a box above the tables, e.g. "Fit type" / "Comfortable fit". */
+export interface SizeChartNote {
+  label: string;
+  value: string;
+}
+
 export interface SizeChart {
   /** Small line above the title, e.g. "garment measurements in inches". */
   caption: string;
+  /** Optional sentence under the title that tells people how to use the chart. */
+  intro?: string;
+  /** Optional labelled facts (fit type, model height…) shown above the tables. */
+  notes?: SizeChartNote[];
   /** Column headers shared by every section, e.g. ["XS", "S", "M"]. */
   sizes: string[];
   sections: SizeChartSection[];
@@ -47,6 +59,10 @@ export const SIZE_CHART_LIMITS = {
   labelLength: 40,
   valueLength: 8,
   captionLength: 80,
+  introLength: 200,
+  notes: 4,
+  noteLabelLength: 30,
+  noteValueLength: 60,
 } as const;
 
 /** Pre-filled when an admin starts a new chart. */
@@ -82,6 +98,31 @@ export function validateSizeChart(input: unknown): SizeChart {
 
   const caption = raw.caption === undefined ? "" : str(raw.caption, "the caption");
   checkLength(caption, L.captionLength, "the caption");
+
+  const intro = raw.intro === undefined ? "" : str(raw.intro, "the intro");
+  checkLength(intro, L.introLength, "the intro");
+
+  const rawNotes = raw.notes === undefined ? [] : raw.notes;
+  if (!Array.isArray(rawNotes)) {
+    throw new ActionError("Size chart: the notes are invalid.");
+  }
+  if (rawNotes.length > L.notes) {
+    throw new ActionError(`Size chart: at most ${L.notes} notes.`);
+  }
+  const notes = rawNotes.map((n, i): SizeChartNote => {
+    if (typeof n !== "object" || n === null) {
+      throw new ActionError(`Size chart: note ${i + 1} is invalid.`);
+    }
+    const note = n as Record<string, unknown>;
+    const label = str(note.label, `note ${i + 1}'s label`);
+    const value = str(note.value, `note ${i + 1}'s text`);
+    if (!label || !value) {
+      throw new ActionError(`Size chart: note ${i + 1} needs both a label and text.`);
+    }
+    checkLength(label, L.noteLabelLength, `note ${i + 1}'s label`);
+    checkLength(value, L.noteValueLength, `note ${i + 1}'s text`);
+    return { label, value };
+  });
 
   if (!Array.isArray(raw.sizes) || raw.sizes.length === 0) {
     throw new ActionError("Size chart: add at least one size.");
@@ -157,7 +198,15 @@ export function validateSizeChart(input: unknown): SizeChart {
     return { title, rows };
   });
 
-  return { caption, sizes, sections };
+  // intro / notes are left out when empty, so a chart saved without them is
+  // stored exactly as it was before they existed.
+  return {
+    caption,
+    ...(intro ? { intro } : {}),
+    ...(notes.length ? { notes } : {}),
+    sizes,
+    sections,
+  };
 }
 
 /**
@@ -316,4 +365,53 @@ export function resolveProductCategory<
     category: row.isActive ? category : null,
     sizeChart: readSizeChart(sizeChart),
   };
+}
+
+/**
+ * The standard chart: what every product's Size guide showed before categories
+ * had charts of their own (body bust / waist / hip, XS–XXL, plus the fit and
+ * model notes). It is the fallback for a category with no chart, and the
+ * starting point the admin editor offers ("start from the standard chart").
+ * Same numbers and wording as before — only the layout is the shared one.
+ */
+export const DEFAULT_SIZE_CHART: SizeChart = {
+  caption: FALLBACK_SIZE_CHART_CAPTION,
+  intro:
+    "We've laid out body measurements so you can pick the size that feels closest to yours.",
+  notes: [
+    { label: "Fit type", value: "Comfortable fit" },
+    { label: "Model height", value: "5'6\" · Wearing XS" },
+  ],
+  sizes: ["XS", "S", "M", "L", "XL", "XXL"],
+  sections: [
+    {
+      title: "",
+      rows: [
+        { label: "Bust", values: ["32", "34", "36", "38", "40", "42"] },
+        { label: "Waist", values: ["26", "28", "30", "32", "34", "36"] },
+        { label: "Hip", values: ["36", "38", "40", "42", "44", "46"] },
+      ],
+    },
+  ],
+};
+
+/** A fresh, independent copy of the standard chart for the editor to change. */
+export function standardSizeChart(): SizeChart {
+  return JSON.parse(JSON.stringify(DEFAULT_SIZE_CHART)) as SizeChart;
+}
+
+/**
+ * A canonical string for a chart (or none), the same whatever order its keys
+ * were built in — so "has this chart changed?" compares content, not how the
+ * object happened to be assembled. Does not validate.
+ */
+export function chartSignature(chart: SizeChart | null): string {
+  if (!chart) return "null";
+  return JSON.stringify([
+    chart.caption,
+    chart.intro ?? "",
+    (chart.notes ?? []).map((n) => [n.label, n.value]),
+    chart.sizes,
+    chart.sections.map((sec) => [sec.title, sec.rows.map((r) => [r.label, r.values])]),
+  ]);
 }

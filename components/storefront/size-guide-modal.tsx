@@ -1,10 +1,11 @@
 "use client";
 
 import { useId } from "react";
-import { Ruler, User, X } from "lucide-react";
+import { X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useModalLock } from "@/hooks/use-modal-lock";
 import {
+  DEFAULT_SIZE_CHART,
   FALLBACK_SIZE_CHART_CAPTION,
   findChartSizeIndex,
   type SizeChart,
@@ -14,35 +15,19 @@ import {
  * Size guide bottom-sheet / centered modal opened from the PDP "size help"
  * trigger.
  *
- * Two charts, one modal. A product whose category has its own chart
- * (`categories.size_chart`, edited in the admin — see lib/size-chart.ts) shows
- * that, sizes across and measurements down, one table per section (e.g. Top /
- * Bottom). Every other product shows the built-in bust/waist/hip chart below,
- * hardcoded and shared, exactly as before.
+ * One layout for every category. A product shows its category's chart
+ * (`categories.size_chart`, edited in the admin — see lib/size-chart.ts), or the
+ * standard chart (`DEFAULT_SIZE_CHART`) when its category has none: sizes
+ * across, measurements down, one table per section (e.g. Top / Bottom), with an
+ * optional intro line and note boxes (fit, model height) above.
  */
-
-interface Row {
-  size: string;
-  bust: number;
-  waist: number;
-  hip: number;
-}
-
-const CHART: Row[] = [
-  { size: "XS", bust: 32, waist: 26, hip: 36 },
-  { size: "S", bust: 34, waist: 28, hip: 38 },
-  { size: "M", bust: 36, waist: 30, hip: 40 },
-  { size: "L", bust: 38, waist: 32, hip: 42 },
-  { size: "XL", bust: 40, waist: 34, hip: 44 },
-  { size: "XXL", bust: 42, waist: 36, hip: 46 },
-];
 
 interface SizeGuideModalProps {
   open: boolean;
   onClose: () => void;
-  /** The product's category chart; null/undefined shows the default chart. */
+  /** The product's category chart; null/undefined shows the standard chart. */
   chart?: SizeChart | null;
-  /** The size currently picked on the page — highlighted in a category chart. */
+  /** The size currently picked on the page — highlighted in the chart. */
   selectedSize?: string | null;
 }
 
@@ -55,6 +40,8 @@ export function SizeGuideModal({
   useModalLock(open, onClose);
 
   if (!open) return null;
+
+  const shown = chart ?? DEFAULT_SIZE_CHART;
 
   // Portaled to document.body — escapes the `.paper-grain` (app/globals.css)
   // `isolation: isolate` stacking-context trap that any inline (non-portaled)
@@ -108,9 +95,7 @@ export function SizeGuideModal({
           {/* Header */}
           <div className="text-center">
             <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-cocoa">
-              {chart
-                ? chart.caption || FALLBACK_SIZE_CHART_CAPTION
-                : "measurements in inches"}
+              {shown.caption || FALLBACK_SIZE_CHART_CAPTION}
             </p>
             <h2
               id="size-guide-title"
@@ -120,108 +105,7 @@ export function SizeGuideModal({
             </h2>
           </div>
 
-          {chart ? (
-            <CategorySizeChart chart={chart} selectedSize={selectedSize} />
-          ) : (
-            <>
-              {/* Fit + model info */}
-              <div className="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-cocoa/12 bg-cocoa/4 px-4 py-4">
-                <div className="flex items-start gap-2.5">
-                  <Ruler
-                    className="mt-0.5 h-4 w-4 shrink-0 text-cocoa"
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                      fit type
-                    </p>
-                    <p className="mt-0.5 text-sm text-charcoal/85">
-                      Comfortable fit
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <User
-                    className="mt-0.5 h-4 w-4 shrink-0 text-cocoa"
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
-                      model height
-                    </p>
-                    <p className="mt-0.5 text-sm text-charcoal/85">
-                      5&apos;6&quot; · Wearing XS
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <p className="mt-5 text-center text-sm leading-6 text-charcoal/65">
-                We&apos;ve laid out body measurements so you can pick the size
-                that feels closest to yours.
-              </p>
-
-              {/* Chart */}
-              <div className="mt-6 overflow-hidden rounded-2xl border border-cocoa/14 bg-cream">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-cocoa/12 bg-cocoa/6">
-                      <th
-                        scope="col"
-                        className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
-                      >
-                        size
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
-                      >
-                        bust
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
-                      >
-                        waist
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-cocoa"
-                      >
-                        hip
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {CHART.map((row, i) => (
-                      <tr
-                        key={row.size}
-                        className={
-                          i < CHART.length - 1 ? "border-b border-cocoa/10" : ""
-                        }
-                      >
-                        <th
-                          scope="row"
-                          className="px-4 py-3.5 text-left font-display text-base font-medium text-maroon"
-                        >
-                          {row.size}
-                        </th>
-                        <td className="px-4 py-3.5 text-right tabular-nums text-charcoal/85">
-                          {row.bust}
-                        </td>
-                        <td className="px-4 py-3.5 text-right tabular-nums text-charcoal/85">
-                          {row.waist}
-                        </td>
-                        <td className="px-4 py-3.5 text-right tabular-nums text-charcoal/85">
-                          {row.hip}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+          <SizeChartBody chart={shown} selectedSize={selectedSize} />
 
           <p className="mt-5 text-center text-xs leading-5 text-charcoal/55">
             Still unsure? Drop us a note at{" "}
@@ -246,7 +130,7 @@ export function SizeGuideModal({
 const LABEL_COL_PX = 104;
 const MIN_SIZE_COL_PX = 36;
 
-function CategorySizeChart({
+function SizeChartBody({
   chart,
   selectedSize,
 }: {
@@ -257,8 +141,33 @@ function CategorySizeChart({
   const selectedIdx = findChartSizeIndex(chart, selectedSize);
   const minWidth = LABEL_COL_PX + chart.sizes.length * MIN_SIZE_COL_PX;
 
+  const notes = chart.notes ?? [];
+
   return (
     <div className="mt-6 space-y-6">
+      {notes.length > 0 ? (
+        <dl
+          className={`grid gap-3 rounded-2xl border border-cocoa/12 bg-cocoa/4 px-4 py-4 ${
+            notes.length === 1 ? "grid-cols-1" : "grid-cols-2"
+          }`}
+        >
+          {notes.map((note, i) => (
+            <div key={i}>
+              <dt className="text-[10px] font-medium uppercase tracking-[0.18em] text-charcoal/55">
+                {note.label}
+              </dt>
+              <dd className="mt-0.5 text-sm text-charcoal/85">{note.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
+      {chart.intro ? (
+        <p className="text-center text-sm leading-6 text-charcoal/65">
+          {chart.intro}
+        </p>
+      ) : null}
+
       {chart.sections.map((section, si) => {
         const titleId = `${baseId}-${si}`;
         return (
@@ -278,6 +187,9 @@ function CategorySizeChart({
               <table
                 className="w-full table-fixed text-[13px]"
                 style={{ minWidth }}
+                // A titled section is named by its heading; an untitled one
+                // would otherwise be an anonymous table to a screen reader.
+                aria-label={section.title ? undefined : "Size chart"}
               >
                 <colgroup>
                   <col style={{ width: LABEL_COL_PX }} />

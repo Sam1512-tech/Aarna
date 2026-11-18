@@ -13,7 +13,12 @@ import {
 import { CloudinaryImagePicker } from "@/components/admin/cloudinary-image-picker";
 import { SizeChartEditor } from "@/components/admin/size-chart-editor";
 import { updateCategory } from "@/lib/actions/admin/categories";
-import { readSizeChart, sizeChartProblem, type SizeChart } from "@/lib/size-chart";
+import {
+  chartSignature,
+  readSizeChart,
+  sizeChartProblem,
+  type SizeChart,
+} from "@/lib/size-chart";
 import type { CategoryWithSizeChart } from "@/lib/types";
 import { actionErrorMessage } from "@/lib/action-error";
 import { uploadAdminImage } from "@/lib/cloudinary/upload-client";
@@ -28,14 +33,14 @@ export function CategoryEditView({ category }: { category: CategoryWithSizeChart
     readSizeChart(category.sizeChart),
   );
   // What's stored right now, so the chart is only sent when it changed.
-  const [savedChartJson, setSavedChartJson] = useState(() =>
-    JSON.stringify(readSizeChart(category.sizeChart)),
+  const [savedChartSig, setSavedChartSig] = useState(() =>
+    chartSignature(readSizeChart(category.sizeChart)),
   );
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const chartDirty = JSON.stringify(sizeChart) !== savedChartJson;
+  const chartDirty = chartSignature(sizeChart) !== savedChartSig;
   const chartProblem = sizeChart ? sizeChartProblem(sizeChart) : null;
 
   const canSubmit =
@@ -59,7 +64,7 @@ export function CategoryEditView({ category }: { category: CategoryWithSizeChart
         // Show what the server actually stored (it trims every cell).
         const stored = readSizeChart(updated.sizeChart);
         setSizeChart(stored);
-        setSavedChartJson(JSON.stringify(stored));
+        setSavedChartSig(chartSignature(stored));
         setSaved("Saved.");
       } catch (err) {
         setError(actionErrorMessage(err, "Couldn't save category."));
