@@ -42,8 +42,6 @@ export async function generateHangTagsForProduct(productId: string): Promise<Buf
       color: v.color,
       sku: v.sku,
       mrp: product.mrp,
-      fabric: product.fabric,
-      careInstructions: product.washCare,
       barcodePng: await generateCode128Png(v.sku),
     })),
   );
@@ -91,8 +89,6 @@ export async function generateHangTagsForVariants(
       productId: products.id,
       productTitle: products.title,
       mrp: products.mrp,
-      fabric: products.fabric,
-      washCare: products.washCare,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
@@ -119,8 +115,6 @@ export async function generateHangTagsForVariants(
         color: v.color,
         sku: v.sku,
         mrp: v.mrp,
-        fabric: v.fabric,
-        careInstructions: v.washCare,
         barcodePng,
       });
     }
