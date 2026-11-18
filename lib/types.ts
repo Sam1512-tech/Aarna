@@ -14,11 +14,19 @@ import type {
   products,
   reviews,
 } from "@/lib/db/schema";
+import type { SizeChart } from "@/lib/size-chart";
 
 export type Product = InferSelectModel<typeof products>;
 export type ProductVariant = InferSelectModel<typeof productVariants>;
 export type ProductImage = InferSelectModel<typeof productImages>;
-export type Category = InferSelectModel<typeof categories>;
+/**
+ * The public category shape. Omits `sizeChart` on purpose: the chart is only
+ * needed on a product page and in the admin editor, so the public category
+ * lists (header/footer/homepage/shop) never carry it into page payloads.
+ * Admin reads that need it use `CategoryWithSizeChart`.
+ */
+export type Category = Omit<InferSelectModel<typeof categories>, "sizeChart">;
+export type CategoryWithSizeChart = InferSelectModel<typeof categories>;
 export type Collection = InferSelectModel<typeof collections>;
 export type Customer = InferSelectModel<typeof customers>;
 export type Address = InferSelectModel<typeof addresses>;
@@ -33,6 +41,15 @@ export interface ProductWithVariants extends Product {
   variants: ProductVariant[];
   images: ProductImage[];
   category: Category | null;
+  /**
+   * The size chart of the product's category; null (or absent) means "use the
+   * default size guide". Set by `getProductBySlug`, the storefront loader — the
+   * admin's product detail doesn't need it and leaves it out. Carried
+   * separately from `category` because `category` is null while the category is
+   * hidden, and a product whose category is still hidden must still show its
+   * own category's chart.
+   */
+  sizeChart?: SizeChart | null;
 }
 
 export interface CartLine {

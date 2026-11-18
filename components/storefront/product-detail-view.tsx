@@ -570,6 +570,8 @@ export function ProductDetailView({
       <SizeGuideModal
         open={sizeGuideOpen}
         onClose={() => setSizeGuideOpen(false)}
+        chart={product.sizeChart ?? null}
+        selectedSize={selectedSize}
       />
     </section>
   );

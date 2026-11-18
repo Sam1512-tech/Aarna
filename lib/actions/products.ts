@@ -3,6 +3,7 @@
 import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { isVideoUrl } from "@/lib/media";
+import { resolveProductCategory } from "@/lib/size-chart";
 import { sortBySize } from "@/lib/sizes";
 import type {
   Category,
@@ -120,6 +121,24 @@ export async function getDefaultVariantsForProducts(
 // ── Categories ───────────────────────────────────────────────────────────────
 
 /**
+ * Every public category column — i.e. all of them except `sizeChart`, which
+ * only a product page and the admin editor need. Listed explicitly (not
+ * `.select()`) so the chart never rides along into the header, footer,
+ * homepage or shop payloads. Matches the `Category` type in lib/types.ts.
+ */
+const PUBLIC_CATEGORY_COLUMNS = {
+  id: categories.id,
+  name: categories.name,
+  slug: categories.slug,
+  parentId: categories.parentId,
+  sortOrder: categories.sortOrder,
+  imageUrl: categories.imageUrl,
+  imageMobileUrl: categories.imageMobileUrl,
+  isActive: categories.isActive,
+  createdAt: categories.createdAt,
+};
+
+/**
  * Categories shown on the storefront — active ones only. A hidden category
  * (staged in /studio) is deliberately absent here, so every storefront
  * surface fed by this (homepage, shop, search, collections, /shop/<slug>)
@@ -128,7 +147,7 @@ export async function getDefaultVariantsForProducts(
  */
 export async function getCategories(): Promise<Category[]> {
   return db
-    .select()
+    .select(PUBLIC_CATEGORY_COLUMNS)
     .from(categories)
     .where(eq(categories.isActive, true))
     .orderBy(asc(categories.sortOrder));
@@ -315,7 +334,7 @@ export async function getProductBySlug(
 
   if (!product) return null;
 
-  const [variantRows, images, category] = await Promise.all([
+  const [variantRows, images, categoryRow] = await Promise.all([
     db
       .select()
       .from(productVariants)
@@ -327,16 +346,9 @@ export async function getProductBySlug(
       .where(eq(productImages.productId, product.id)),
     product.categoryId
       ? db
-          .select()
+          .select({ ...PUBLIC_CATEGORY_COLUMNS, sizeChart: categories.sizeChart })
           .from(categories)
-          // Active only: the PDP links to /shop/<slug> and emits it in its
-          // JSON-LD breadcrumb — for a hidden category that page 404s.
-          .where(
-            and(
-              eq(categories.id, product.categoryId),
-              eq(categories.isActive, true),
-            ),
-          )
+          .where(eq(categories.id, product.categoryId))
           .limit(1)
           .then((rows) => rows[0] ?? null)
       : Promise.resolve(null),
@@ -346,7 +358,15 @@ export async function getProductBySlug(
   // plain DB sort on the "size" column gives (which puts L before S).
   const variants = sortBySize(variantRows);
 
-  return { ...product, variants, images, category };
+  // `category` is exposed for active categories only: the PDP links to
+  // /shop/<slug> and emits it in its JSON-LD breadcrumb — for a hidden
+  // category that page 404s. The size chart is not subject to that: a product
+  // can go live before its category does, and it must still show its own
+  // category's chart rather than the default one. A malformed stored chart
+  // falls back to null (the default chart) instead of throwing.
+  const { category, sizeChart } = resolveProductCategory(categoryRow);
+
+  return { ...product, variants, images, category, sizeChart };
 }
 
 export interface VariantOption {

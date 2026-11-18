@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { SizeChart } from "../size-chart";
 import {
   type AnyPgColumn,
   boolean,
@@ -127,6 +128,12 @@ export const categories = pgTable("categories", {
   // every category that existed before this column keeps showing; the admin's
   // create action is what defaults a NEW category to false.
   isActive: boolean("is_active").default(true).notNull(),
+  // This category's own size chart (see lib/size-chart.ts). Null = products in
+  // the category use the built-in default size guide. Deliberately left out of
+  // the public category lists (`Category` type / getCategories) — it only
+  // belongs on a product page and in the admin editor, not in every page's
+  // payload.
+  sizeChart: jsonb("size_chart").$type<SizeChart>(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
