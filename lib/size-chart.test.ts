@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_SIZE_CHART,
   SIZE_CHART_LIMITS,
   addChartSize,
+  chartSignature,
   findChartSizeIndex,
   isGridPaste,
   newSizeChart,
@@ -10,6 +12,7 @@ import {
   removeChartSize,
   resolveProductCategory,
   sizeChartProblem,
+  standardSizeChart,
   validateSizeChart,
   type SizeChart,
   type SizeChartSection,
@@ -383,5 +386,124 @@ describe("resolveProductCategory", () => {
 
   it("handles a product with no category at all", () => {
     expect(resolveProductCategory(null)).toEqual({ category: null, sizeChart: null });
+  });
+});
+
+describe("intro and notes", () => {
+  const withExtras = (): SizeChart => ({
+    ...clone(SETS_CHART),
+    intro: "  Compare these with a piece you own.  ",
+    notes: [
+      { label: " Fit type ", value: " Relaxed " },
+      { label: "Model height", value: `5'6" · Wearing XS` },
+    ],
+  });
+
+  it("accepts and trims them", () => {
+    const out = validateSizeChart(withExtras());
+    expect(out.intro).toBe("Compare these with a piece you own.");
+    expect(out.notes).toEqual([
+      { label: "Fit type", value: "Relaxed" },
+      { label: "Model height", value: `5'6" · Wearing XS` },
+    ]);
+  });
+
+  it("leaves them out when empty, so older stored charts round-trip unchanged", () => {
+    const chart = { ...clone(SETS_CHART), intro: "  ", notes: [] };
+    const out = validateSizeChart(chart);
+    expect("intro" in out).toBe(false);
+    expect("notes" in out).toBe(false);
+    expect(out).toEqual(SETS_CHART);
+  });
+
+  it("rejects a half-filled note, too many notes, and over-long text", () => {
+    const half = withExtras();
+    half.notes = [{ label: "Fit type", value: " " }];
+    expect(() => validateSizeChart(half)).toThrow(/note 1 needs both a label and text/);
+
+    const many = withExtras();
+    many.notes = Array.from({ length: SIZE_CHART_LIMITS.notes + 1 }, () => ({ label: "a", value: "b" }));
+    expect(() => validateSizeChart(many)).toThrow(/at most 4 notes/);
+
+    const intro = withExtras();
+    intro.intro = "x".repeat(SIZE_CHART_LIMITS.introLength + 1);
+    expect(() => validateSizeChart(intro)).toThrow(/intro/);
+
+    const label = withExtras();
+    label.notes = [{ label: "x".repeat(SIZE_CHART_LIMITS.noteLabelLength + 1), value: "v" }];
+    expect(() => validateSizeChart(label)).toThrow(/label/);
+
+    const value = withExtras();
+    value.notes = [{ label: "l", value: "x".repeat(SIZE_CHART_LIMITS.noteValueLength + 1) }];
+    expect(() => validateSizeChart(value)).toThrow(/text/);
+  });
+
+  it("rejects notes that aren't a list", () => {
+    const chart = { ...clone(SETS_CHART), notes: "nope" };
+    expect(() => validateSizeChart(chart)).toThrow(/notes are invalid/);
+  });
+});
+
+describe("DEFAULT_SIZE_CHART (the standard chart)", () => {
+  it("is itself a valid chart, unchanged by validation", () => {
+    expect(validateSizeChart(DEFAULT_SIZE_CHART)).toEqual(DEFAULT_SIZE_CHART);
+  });
+
+  it("carries exactly the numbers and wording the old fixed Size guide showed", () => {
+    const [section] = DEFAULT_SIZE_CHART.sections;
+    expect(DEFAULT_SIZE_CHART.sizes).toEqual(["XS", "S", "M", "L", "XL", "XXL"]);
+    // The previous hardcoded table, size by size: bust / waist / hip.
+    const old = {
+      XS: [32, 26, 36],
+      S: [34, 28, 38],
+      M: [36, 30, 40],
+      L: [38, 32, 42],
+      XL: [40, 34, 44],
+      XXL: [42, 36, 46],
+    } as const;
+    const byLabel = Object.fromEntries(section.rows.map((r) => [r.label, r.values]));
+    DEFAULT_SIZE_CHART.sizes.forEach((size, i) => {
+      const [bust, waist, hip] = old[size as keyof typeof old];
+      expect([byLabel.Bust[i], byLabel.Waist[i], byLabel.Hip[i]]).toEqual([
+        String(bust),
+        String(waist),
+        String(hip),
+      ]);
+    });
+    expect(DEFAULT_SIZE_CHART.caption).toBe("measurements in inches");
+    expect(DEFAULT_SIZE_CHART.intro).toBe(
+      "We've laid out body measurements so you can pick the size that feels closest to yours.",
+    );
+    expect(DEFAULT_SIZE_CHART.notes).toEqual([
+      { label: "Fit type", value: "Comfortable fit" },
+      { label: "Model height", value: `5'6" · Wearing XS` },
+    ]);
+  });
+
+  it("standardSizeChart() returns an independent copy", () => {
+    const copy = standardSizeChart();
+    expect(copy).toEqual(DEFAULT_SIZE_CHART);
+    copy.sections[0].rows[0].values[0] = "99";
+    copy.notes![0].value = "changed";
+    expect(DEFAULT_SIZE_CHART.sections[0].rows[0].values[0]).toBe("32");
+    expect(DEFAULT_SIZE_CHART.notes![0].value).toBe("Comfortable fit");
+  });
+});
+
+describe("chartSignature", () => {
+  it("is the same whatever order the keys were built in", () => {
+    const a: SizeChart = { caption: "c", intro: "i", sizes: ["S"], sections: SETS_CHART.sections.slice(0, 1).map((s) => ({ ...s, rows: [{ label: "Bust", values: ["1"] }] })) };
+    const b = { sections: a.sections, sizes: a.sizes, intro: a.intro, caption: a.caption } as SizeChart;
+    expect(chartSignature(a)).toBe(chartSignature(b));
+  });
+
+  it("treats absent and empty intro/notes alike, and differs when content differs", () => {
+    const base = clone(SETS_CHART);
+    expect(chartSignature(base)).toBe(chartSignature({ ...base, intro: "", notes: [] }));
+    const changed = clone(SETS_CHART);
+    changed.sections[0].rows[0].values[0] = "99";
+    expect(chartSignature(changed)).not.toBe(chartSignature(base));
+    expect(chartSignature(null)).toBe("null");
+    expect(chartSignature(null)).not.toBe(chartSignature(base));
   });
 });

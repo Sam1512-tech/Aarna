@@ -2,7 +2,7 @@
 
 import { Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import { TextInput } from "@/components/admin/admin-form";
+import { Textarea, TextInput } from "@/components/admin/admin-form";
 import {
   SIZE_CHART_LIMITS,
   addChartSize,
@@ -10,6 +10,7 @@ import {
   newSizeChart,
   pasteIntoSection,
   removeChartSize,
+  standardSizeChart,
   type SizeChart,
   type SizeChartSection,
 } from "@/lib/size-chart";
@@ -34,6 +35,9 @@ const L = SIZE_CHART_LIMITS;
 const cellClass =
   "block w-full rounded-lg border border-cocoa/20 bg-cream px-2 py-1.5 text-center text-base text-charcoal outline-none transition duration-300 focus:border-cocoa sm:text-sm";
 
+const noteInputClass =
+  "block rounded-xl border border-cocoa/20 bg-cream px-3 py-2 text-base text-charcoal outline-none transition duration-300 focus:border-cocoa sm:text-sm";
+
 const ghostButtonClass =
   "inline-flex items-center gap-2 rounded-full border border-cocoa/22 bg-cream px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-cocoa transition duration-500 hover:border-cocoa disabled:opacity-50";
 
@@ -54,21 +58,32 @@ export function SizeChartEditor({
       <div className="md:col-span-2">
         <p className="text-sm text-charcoal/60">
           This category has no chart of its own, so its products show the
-          default size guide (bust, waist, hip).
+          standard size guide (bust, waist, hip, XS to XXL).
         </p>
-        <button
-          type="button"
-          onClick={() => onChange(newSizeChart())}
-          className={`${ghostButtonClass} mt-4`}
-        >
-          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-          add a size chart
-        </button>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => onChange(standardSizeChart())}
+            className={ghostButtonClass}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            start from the standard chart
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(newSizeChart())}
+            className={ghostButtonClass}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            add a blank chart
+          </button>
+        </div>
       </div>
     );
   }
 
   const chart = value;
+  const notes = chart.notes ?? [];
   const sizeCount = chart.sizes.length;
   const customSizes = chart.sizes.filter((s) => !GARMENT_SIZE_ORDER.includes(s.toUpperCase()));
 
@@ -77,6 +92,10 @@ export function SizeChartEditor({
       ...chart,
       sections: chart.sections.map((sec, i) => (i === si ? fn(sec) : sec)),
     });
+  }
+
+  function setNotes(next: { label: string; value: string }[]) {
+    onChange({ ...chart, notes: next });
   }
 
   function toggleSize(size: string) {
@@ -108,7 +127,7 @@ export function SizeChartEditor({
   function removeChart() {
     if (
       window.confirm(
-        "Remove this size chart? Products in this category go back to the default size guide. Nothing changes on the site until you press Save changes.",
+        "Remove this size chart? Products in this category go back to the standard size guide. Nothing changes on the site until you press Save changes.",
       )
     ) {
       onChange(null);
@@ -140,6 +159,76 @@ export function SizeChartEditor({
           are (for example garment measurements in inches).
         </p>
       </label>
+
+      <label className="block">
+        <span className="block text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+          Intro (optional)
+        </span>
+        <div className="mt-1.5">
+          <Textarea
+            value={chart.intro ?? ""}
+            maxLength={L.introLength}
+            rows={2}
+            className="!min-h-[72px]"
+            onChange={(e) => onChange({ ...chart, intro: e.target.value })}
+          />
+        </div>
+        <p className="mt-1 text-xs text-charcoal/50">
+          One sentence under the title that tells customers how to use the chart.
+        </p>
+      </label>
+
+      {/* Notes — small labelled facts shown in a box above the tables */}
+      <div>
+        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-charcoal/55">
+          Notes (optional)
+        </p>
+        <p className="mt-1 text-xs text-charcoal/50">
+          Short facts shown in a box above the tables — for example Fit type:
+          Comfortable fit, or Model height.
+        </p>
+        {notes.map((note, i) => (
+          <div key={i} className="mt-3 flex items-center gap-2">
+            <input
+              value={note.label}
+              maxLength={L.noteLabelLength}
+              placeholder="e.g. Fit type"
+              aria-label={`Note ${i + 1} label`}
+              onChange={(e) =>
+                setNotes(notes.map((n, j) => (j === i ? { ...n, label: e.target.value } : n)))
+              }
+              className={`${noteInputClass} w-40 shrink-0`}
+            />
+            <input
+              value={note.value}
+              maxLength={L.noteValueLength}
+              placeholder="e.g. Comfortable fit"
+              aria-label={`Note ${i + 1} text`}
+              onChange={(e) =>
+                setNotes(notes.map((n, j) => (j === i ? { ...n, value: e.target.value } : n)))
+              }
+              className={`${noteInputClass} min-w-0 flex-1`}
+            />
+            <button
+              type="button"
+              onClick={() => setNotes(notes.filter((_, j) => j !== i))}
+              aria-label={`Remove note ${i + 1}`}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-charcoal/45 transition duration-300 hover:text-burnt-red"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => setNotes([...notes, { label: "", value: "" }])}
+          disabled={notes.length >= L.notes}
+          className={`${ghostButtonClass} mt-3`}
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          add note
+        </button>
+      </div>
 
       {/* Sizes — the columns of every table */}
       <div>
@@ -404,7 +493,7 @@ export function SizeChartEditor({
           onClick={removeChart}
           className="text-xs text-charcoal/55 underline decoration-cocoa/30 underline-offset-4 transition duration-300 hover:text-burnt-red"
         >
-          Remove this chart and use the default size guide
+          Remove this chart and use the standard size guide
         </button>
       </div>
     </div>
