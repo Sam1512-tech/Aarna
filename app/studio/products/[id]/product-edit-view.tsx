@@ -4,6 +4,23 @@ import { useMemo, useState, useTransition } from "react";
 import Image from "next/image";
 import { Printer, Trash2, Plus } from "lucide-react";
 import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Field,
   FormSection,
   FormShell,
@@ -15,11 +32,13 @@ import {
 } from "@/components/admin/admin-form";
 import { CloudinaryImagePicker } from "@/components/admin/cloudinary-image-picker";
 import { optimizedImageUrl } from "@/lib/media";
+import { moveItem } from "@/lib/admin/image-order";
 import {
   addProductImage,
   createVariant,
   deleteVariant,
   removeProductImage,
+  reorderProductImages,
   updateProduct,
   updateVariant,
 } from "@/lib/actions/admin/products";
@@ -814,6 +833,42 @@ function ImagesSection({
     });
   }
 
+  // Mouse needs a small drag distance (so a plain click on a picture or its
+  // delete button never starts a drag); touch needs a short press-and-hold (so
+  // scrolling the page with a finger still works); keyboard gets the standard
+  // lift-with-Space / move-with-arrows / drop-with-Space.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id || pending) return;
+    const from = images.findIndex((img) => img.id === active.id);
+    const to = images.findIndex((img) => img.id === over.id);
+    const next = moveItem(images, from, to);
+    if (next === images) return;
+
+    // Show the new order straight away (numbered 0, 1, 2… exactly as the server
+    // will store it); put the old one back if the save fails.
+    const previous = images;
+    onChange(next.map((img, i) => ({ ...img, sortOrder: i })));
+    setError(null);
+    startTransition(async () => {
+      try {
+        await reorderProductImages(
+          productId,
+          next.map((img) => img.id),
+        );
+      } catch (err) {
+        onChange(previous);
+        setError(actionErrorMessage(err, "Couldn't save the new order"));
+      }
+    });
+  }
+
   return (
     <section className="rounded-2xl border border-cocoa/12 bg-cream p-5 shadow-[0_10px_28px_rgba(43,38,35,0.04)] md:p-6">
       <h2 className="border-b border-cocoa/10 pb-4 font-display text-xl uppercase text-maroon">
@@ -851,22 +906,113 @@ function ImagesSection({
       {images.length === 0 ? (
         <p className="mt-5 text-sm text-charcoal/55">No images yet.</p>
       ) : (
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {images.map((img) => (
-            <div key={img.id} className="group relative overflow-hidden rounded-xl border border-cocoa/12 bg-cream">
-              <div className="relative aspect-square">
-                <Image src={optimizedImageUrl(img.url)} alt={img.altText || "product image"} fill sizes="200px" className="object-cover" />
+        <>
+          <p className="mt-5 text-xs text-charcoal/55">
+            {images.length > 1
+              ? "Drag the pictures to rearrange them (touch screens: press and hold, then drag). "
+              : ""}
+            The first picture is the main one — it&apos;s what shows in listings
+            and comes first on the product page.
+          </p>
+          {/* A fixed id keeps dnd-kit's generated aria ids identical between the
+              server render and the browser (otherwise React reports a
+              hydration mismatch). */}
+          <DndContext
+            id="product-images"
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={images.map((img) => img.id)}
+              strategy={rectSortingStrategy}
+            >
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                {images.map((img, index) => (
+                  <SortableImageTile
+                    key={img.id}
+                    img={img}
+                    position={index + 1}
+                    disabled={pending}
+                    onRemove={() => handleRemove(img.id)}
+                  />
+                ))}
               </div>
-              <button type="button" onClick={() => handleRemove(img.id)} disabled={pending}
-                aria-label="Remove image"
-                className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-cream/90 text-burnt-red opacity-0 shadow transition duration-300 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-cream">
-                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            </div>
-          ))}
-        </div>
+            </SortableContext>
+          </DndContext>
+        </>
       )}
     </section>
+  );
+}
+
+/**
+ * One draggable picture. The picture itself is the drag target (listeners and
+ * the keyboard/ARIA attributes live on it); the delete button is a *sibling*,
+ * not a child, so it stays a plain button and a click on it never starts a drag.
+ */
+function SortableImageTile({
+  img,
+  position,
+  disabled,
+  onRemove,
+}: {
+  img: Img;
+  position: number;
+  disabled: boolean;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: img.id, disabled });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 20 : undefined,
+      }}
+      className={`group relative overflow-hidden rounded-xl border bg-cream ${
+        isDragging
+          ? "border-cocoa shadow-[0_14px_34px_rgba(43,38,35,0.28)] ring-2 ring-cocoa/40"
+          : "border-cocoa/12"
+      }`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        aria-label={`Picture ${position}${position === 1 ? " (main)" : ""} — drag to rearrange`}
+        className={`relative aspect-square touch-manipulation select-none outline-none focus-visible:ring-2 focus-visible:ring-cocoa ${
+          disabled ? "cursor-wait" : isDragging ? "cursor-grabbing" : "cursor-grab"
+        }`}
+      >
+        <Image
+          src={optimizedImageUrl(img.url)}
+          alt={img.altText || "product image"}
+          fill
+          sizes="200px"
+          draggable={false}
+          className="pointer-events-none object-cover"
+        />
+        <span
+          className={`pointer-events-none absolute left-1.5 top-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] shadow ${
+            position === 1 ? "bg-maroon text-cream" : "bg-cream/90 text-charcoal/70"
+          }`}
+        >
+          {position === 1 ? "main" : position}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={disabled}
+        aria-label={`Remove picture ${position}`}
+        className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-cream/90 text-burnt-red opacity-0 shadow transition duration-300 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-cream"
+      >
+        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 

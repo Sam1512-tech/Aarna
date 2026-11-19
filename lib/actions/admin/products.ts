@@ -8,6 +8,7 @@ import { sortBySize } from "@/lib/sizes";
 import type { Product, ProductWithVariants } from "@/lib/types";
 import { ActionError } from "@/lib/action-error";
 import { logAdminAction } from "@/lib/audit/log-admin-action";
+import { applyProductImageOrder } from "@/lib/db/queries/product-images";
 import { isUniqueViolation } from "@/lib/db/pg-error";
 
 const {
@@ -868,4 +869,35 @@ export async function removeProductImage(imageId: string): Promise<{ ok: true }>
   revalidateProductConsumers(product[0]?.slug);
   await logAdminAction(admin.id, "product_image.delete", "product_image", imageId);
   return { ok: true };
+}
+
+/**
+ * Saves a new picture order for a product (the admin drags pictures around).
+ * `orderedImageIds` is the order the admin's screen is showing; the first
+ * picture is the one shown in listings and first on the product page. Every
+ * storefront surface already sorts by `sort_order`, so rewriting it here is all
+ * a reorder needs. Returns the saved order so the screen can sync to it.
+ */
+export async function reorderProductImages(
+  productId: string,
+  orderedImageIds: string[],
+): Promise<{ id: string; sortOrder: number }[]> {
+  const admin = await requireAdmin();
+
+  const product = await db
+    .select({ slug: products.slug })
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
+  if (!product[0]) throw new ActionError("Product not found");
+
+  const saved = await db.transaction((tx) =>
+    applyProductImageOrder(tx, productId, orderedImageIds),
+  );
+
+  revalidateProductConsumers(product[0].slug);
+  await logAdminAction(admin.id, "product_image.reorder", "product", productId, {
+    order: saved.map((s) => s.id),
+  });
+  return saved;
 }
